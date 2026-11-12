@@ -7,6 +7,8 @@ import os
 import sqlite3
 from pathlib import Path
 
+from flask import g
+
 DB_NAME = "liselott.db"
 SCHEMA_PATH = Path(__file__).resolve().parent / "schema.sql"
 
@@ -46,3 +48,20 @@ def connect() -> sqlite3.Connection:
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA foreign_keys=ON")
     return conn
+
+
+def get_db() -> sqlite3.Connection:
+    """Per-request connection for the app; state_base() is resolved AT CALL
+    TIME, so the dev/test/build override ($LISELOTT_DATA_DIR) is honored."""
+    conn = g.get("_liselott_db")
+    if conn is None:
+        conn = connect()
+        init_db(conn)
+        g._liselott_db = conn
+    return conn
+
+
+def close_db(exc=None):
+    conn = g.pop("_liselott_db", None)
+    if conn is not None:
+        conn.close()
