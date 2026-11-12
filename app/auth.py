@@ -5,8 +5,10 @@ within SETUP_WINDOW_S of process start (F-5: no public land-grab — fest40
 20-min-window parity); once configured it 404s forever. Rate limit (§6.2) and
 CSRF (§6.6) extend this same guard in T2.4/T2.5."""
 import os
+import secrets
 import time
 from datetime import datetime, timedelta, timezone
+from urllib.parse import urlsplit
 
 from argon2 import PasswordHasher
 from argon2.exceptions import InvalidHashError, VerificationError, VerifyMismatchError
@@ -32,6 +34,18 @@ TOO_MANY_COPY = "För många försök — försök igen om en kvart."
 # anonymous request, and /satt-loesenord within it is further gated by state.
 UNAUTHENTICATED_ALLOW = ("/healthz", "/logga-in", "/satt-loesenord", "/robots.txt")
 STATIC_PREFIX = "/static/"
+
+# §6.6 + P2-r4 (DA-verdict-c3 Part 3): state-change methods carry the CSRF
+# rule. TOKENLESS_POSTS are checked by ORIGIN ONLY — the machine trio per
+# §6.6's curl posture, and /logga-in + /satt-loesenord per P2-r4 so the runbook
+# T8.5 tokenless curl login ("curl -X POST -d loesenord=… /logga-in", no GET
+# first, so no session could ever carry a token) stays true as written. The
+# exemption is TOKENLESS, not guardless: foreign Origin still 400s and the
+# routes keep their own guards (rate limit + password / window + rate limit).
+CSRF_METHODS = ("POST", "PUT", "PATCH", "DELETE")
+TOKENLESS_POSTS = ("/logga-in", "/satt-loesenord", "/seed", "/bundle", "/backfill")
+CSRF_TOKEN_COPY = "Säkerhetsmärket saknas — ladda om sidan och försök igen."
+FOREIGN_ORIGIN_COPY = "Fel — formuläret skickades från en annan webbplats."
 
 _hasher = PasswordHasher()  # argon2id by default (§6.1)
 
@@ -131,6 +145,7 @@ def _to(path: str):
 def _establish_session():
     session.clear()
     session[SESSION_FLAG] = True
+    session["csrf"] = secrets.token_urlsafe(32)  # session-bound form token
 
 
 def _closed_gate():
@@ -140,6 +155,24 @@ def _closed_gate():
     if request.path == "/satt-loesenord" and request.method == "POST":
         return render_template("stangd.html"), 403
     return render_template("stangd.html")
+
+
+def _csrf_gate():
+    """§6.6 — runs for every ALLOWED state-change request (the guard's login
+    check happens first; unauth POSTs 302 before ever reaching here).
+    Missing Origin (curl) passes, foreign Origin 400s; token required on every
+    state change except the TOKENLESS_POSTS routes above."""
+    if request.method not in CSRF_METHODS:
+        return None
+    origin = request.headers.get("Origin")
+    if origin and urlsplit(origin).netloc.lower() != request.host.lower():
+        return render_template("csrf-fel.html", fel=FOREIGN_ORIGIN_COPY), 400
+    if request.path in TOKENLESS_POSTS:
+        return None
+    sent = request.form.get("csrf") or request.headers.get("X-CSRF-Token", "")
+    if not sent or sent != session.get("csrf"):
+        return render_template("csrf-fel.html", fel=CSRF_TOKEN_COPY), 400
+    return None
 
 
 def init_auth(app):
@@ -162,14 +195,14 @@ def init_auth(app):
                 return _to("/satt-loesenord")  # §6.1 open state
             if (request.path in ("/healthz", "/satt-loesenord", "/robots.txt")
                     or request.path.startswith(STATIC_PREFIX)):
-                return None
+                return _csrf_gate()
             return _to("/satt-loesenord")
         if request.path == "/satt-loesenord":
             abort(404)  # configured -> gone forever (§6.1)
         if request.path in UNAUTHENTICATED_ALLOW or request.path.startswith(STATIC_PREFIX):
-            return None
+            return _csrf_gate()
         if session.get(SESSION_FLAG):
-            return None
+            return _csrf_gate()
         return _to("/logga-in")
 
     @app.errorhandler(404)
