@@ -6,7 +6,7 @@ within SETUP_WINDOW_S of process start (F-5: no public land-grab — fest40
 CSRF (§6.6) extend this same guard in T2.4/T2.5."""
 import os
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from argon2 import PasswordHasher
 from argon2.exceptions import InvalidHashError, VerificationError, VerifyMismatchError
@@ -21,6 +21,13 @@ START_TIME = time.time()
 PASSWORD_MIN = 10
 SESSION_FLAG = "inloggd"
 
+# §6.2 (P2-1): 5 failures / 15 min -> 429; rows older than 1 h pruned on every
+# check. POST /satt-loesenord shares this bucket (§6.1).
+MAX_ATTEMPTS = 5
+ATTEMPT_WINDOW_S = 15 * 60
+ATTEMPT_RETENTION_S = 60 * 60
+TOO_MANY_COPY = "För många försök — försök igen om en kvart."
+
 # §6.4 exhaustive unauthenticated allow-list (P2-7); nothing else answers an
 # anonymous request, and /satt-loesenord within it is further gated by state.
 UNAUTHENTICATED_ALLOW = ("/healthz", "/logga-in", "/satt-loesenord", "/robots.txt")
@@ -31,6 +38,45 @@ _hasher = PasswordHasher()  # argon2id by default (§6.1)
 
 def utcnow_iso() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def _ago_iso(seconds: int) -> str:
+    dt = datetime.now(timezone.utc) - timedelta(seconds=seconds)
+    return dt.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def client_ip(req) -> str:
+    """§6.2 (P2-1): CF-Connecting-IP when present, else the LAST hop of
+    X-Forwarded-For (the renderer appends the real peer — first hop is
+    client-supplied garbage, VERIFIED), else REMOTE_ADDR."""
+    cf = req.headers.get("CF-Connecting-IP")
+    if cf:
+        return cf.strip()
+    xff = req.headers.get("X-Forwarded-For")
+    if xff:
+        return xff.split(",")[-1].strip()
+    return req.remote_addr or ""
+
+
+def _limit_reached(conn, ip: str) -> bool:
+    conn.execute("DELETE FROM login_attempts WHERE ts < ?",
+                 (_ago_iso(ATTEMPT_RETENTION_S),))  # prune (§6.2)
+    conn.commit()
+    row = conn.execute(
+        "SELECT COUNT(*) FROM login_attempts WHERE ip = ? AND ts >= ?",
+        (ip, _ago_iso(ATTEMPT_WINDOW_S))).fetchone()
+    return row[0] >= MAX_ATTEMPTS
+
+
+def _record_attempt(conn, ip: str):
+    conn.execute("INSERT INTO login_attempts (ip, ts) VALUES (?, ?)",
+                 (ip, utcnow_iso()))
+    conn.commit()
+
+
+def _clear_attempts(conn, ip: str):
+    conn.execute("DELETE FROM login_attempts WHERE ip = ?", (ip,))
+    conn.commit()
 
 
 def get_setting(conn, key):
@@ -145,9 +191,16 @@ def init_auth(app):
         if request.method == "GET":
             return render_template("logga-in.html", fel=None)
         conn = db.get_db()
+        ip = client_ip(request)
+        if _limit_reached(conn, ip):
+            # checked BEFORE password verification: correct pw inside the
+            # window is still 429 (T2.4)
+            return render_template("logga-in.html", fel=TOO_MANY_COPY), 429
         stored = get_setting(conn, "password_hash")
         if not stored or not verify_password(stored, request.form.get("loesenord", "")):
+            _record_attempt(conn, ip)
             return render_template("logga-in.html", fel="Fel lösenord."), 401
+        _clear_attempts(conn, ip)
         _establish_session()
         return _to("/")
 
@@ -162,14 +215,22 @@ def init_auth(app):
         if request.method == "GET":
             return render_template("satt-losenord.html", fel=None)
         conn = db.get_db()
+        ip = client_ip(request)
+        if _limit_reached(conn, ip):
+            # §6.1: shares the login_attempts bucket — validation rejections
+            # count as attempts; the window bounds exposure further.
+            return render_template("satt-losenord.html", fel=TOO_MANY_COPY), 429
         pw = request.form.get("loesenord", "")
         if len(pw) < PASSWORD_MIN:
+            _record_attempt(conn, ip)
             return render_template(
                 "satt-losenord.html",
                 fel=f"Lösenordet måste vara minst {PASSWORD_MIN} tecken."), 400
         if pw != request.form.get("bekrafta", ""):
+            _record_attempt(conn, ip)
             return render_template(
                 "satt-losenord.html", fel="Lösenorden matchar inte."), 400
+        _clear_attempts(conn, ip)
         set_setting(conn, "password_hash", hash_password(pw))
         set_setting(conn, "password_set_at", utcnow_iso())
         _establish_session()  # she lands logged-in (§6.1)
