@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}Logga in — Liselotts bokhylla{% endblock %}
+{% block content %}
+<h1>Logga in</h1>
+{% if fel %}<p class="fel-meddelande">{{ fel }}</p>{% endif %}
+<form method="post" action="{{ url_for('logga_in') }}">
+  <label for="loesenord">Lösenord</label>
+  <input id="loesenord" name="loesenord" type="password" required>
+  <button type="submit">Logga in</button>
+</form>
+{% endblock %}

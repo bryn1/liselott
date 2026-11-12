@@ -136,6 +136,26 @@ def init_auth(app):
             return render_template("stangd.html"), 404
         return err
 
+    @app.route("/logga-in", methods=["GET", "POST"])
+    def logga_in():
+        # Unauthenticated-reachable per §6.4; the guard redirects here when a
+        # session is required. The token exemption for this POST (P2-r4: the
+        # runbook T8.5 curl login carries no session, no token) is built in
+        # T2.5 as the same-origin-only machine rule.
+        if request.method == "GET":
+            return render_template("logga-in.html", fel=None)
+        conn = db.get_db()
+        stored = get_setting(conn, "password_hash")
+        if not stored or not verify_password(stored, request.form.get("loesenord", "")):
+            return render_template("logga-in.html", fel="Fel lösenord."), 401
+        _establish_session()
+        return _to("/")
+
+    @app.get("/logga-ut")
+    def logga_ut():
+        session.clear()
+        return _to("/logga-in")
+
     @app.route("/satt-loesenord", methods=["GET", "POST"])
     def satt_losenord():
         # The guard lets this through ONLY unconfigured+window-open.
