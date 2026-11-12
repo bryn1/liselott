@@ -8,6 +8,7 @@ import sqlite3
 from pathlib import Path
 
 DB_NAME = "liselott.db"
+SCHEMA_PATH = Path(__file__).resolve().parent / "schema.sql"
 
 
 def state_base() -> Path:
@@ -32,6 +33,11 @@ def state_base() -> Path:
     raise SystemExit(
         "liselott: FATAL no writable state dir (tried $LISELOTT_DATA_DIR, "
         "$HOME/liselott-state, ./data) — refusing to start")
+
+
+def init_db(conn: sqlite3.Connection) -> None:
+    """Apply app/schema.sql; idempotent (every CREATE carries IF NOT EXISTS)."""
+    conn.executescript(SCHEMA_PATH.read_text(encoding="utf-8"))
 
 
 def connect() -> sqlite3.Connection:
