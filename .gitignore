@@ -1,0 +1,8 @@
+data-import/seed-books-raw.md
+tests/fixtures/golden_parse.json
+*.egg-info/
+.venv/
+__pycache__/
+.pytest_cache/
+state/
+.audits/
