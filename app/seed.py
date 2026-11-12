@@ -18,6 +18,76 @@ KIND_BY_HEADER = {
     "Lyssnat på böcker": "lyssnad",
 }
 
+# §5.3 strip rules (run on the WHOLE row BEFORE the author split — F-6/P2-2/P2-6):
+# (a) trailing "(betyg N i källan)" -> rating; (b) ANY parenthetical containing
+# "i källan" wherever it sits; (c) exact leading "(utan datum)"; (d) other
+# parentheticals stay in the title.
+_RATING_RE = re.compile(r"\(betyg ([1-5]) i källan\)\s*$")
+_KALLAN_RE = re.compile(r"\((?:[^()]*i källan[^()]*)\)")
+_DATE_RE = re.compile(r"^(\d{6})\s+")
+# Author split: text after the LAST literal " av " (case-sensitive). Census
+# (PLAN-c3 §2): exactly 4 rows carry " av " inside the title — FIRST-split
+# corrupts them; LAST-split is correct for all. " af " (L723) never matches.
+_AV_SEP = " av "
+# §5.4 validator: the literal split cannot see tab-form separators; a tail
+# that still carries an av-separator (any whitespace form) is routed to the
+# overrides handling instead of corrupting the row.
+_AV_TAIL_RE = re.compile(r"\s+av\s+")
+# §5.4 author name splitting: " och ", ", ", " & "; " – " only when the next
+# token starts UPPERCASE (co-author), lowercase keeps the subtitle.
+_AUTHOR_SPLIT_RE = re.compile(r"\s+och\s+|\s*,\s+|\s+&\s+")
+_DASH_RE = re.compile(r"\s+–\s+")
+
+
+def parse_row(row: str) -> dict:
+    """One raw row -> {date_read, title, authors, rating, bad_author_tail}."""
+    text = row.strip()
+
+    rating = None
+    m = _RATING_RE.search(text)
+    if m:
+        rating = int(m.group(1))
+        text = _RATING_RE.sub("", text).strip()
+    text = _KALLAN_RE.sub(" ", text)
+    if text.startswith("(utan datum)"):
+        text = text[len("(utan datum)"):].lstrip()
+
+    date_read = None
+    m = _DATE_RE.match(text)
+    if m and 15 <= int(m.group(1)[:2]) <= 26:
+        yy, mm, dd = m.group(1)[:2], m.group(1)[2:4], m.group(1)[4:6]
+        date_read = f"20{yy}-{mm}-{dd}"
+        text = text[m.end():]
+
+    idx = text.rfind(_AV_SEP)
+    if idx == -1:
+        title, tail = text, ""
+    else:
+        title, tail = text[:idx], text[idx + len(_AV_SEP):]
+    # §5.4 validator on the RAW tail (a whitespace collapse here would hide
+    # tab-form separators from the flag).
+    flagged = bool(_AV_TAIL_RE.search(tail))
+    title = re.sub(r"\s+", " ", title).strip()
+    tail = re.sub(r"\s+", " ", tail).strip()
+
+    authors = []
+    if tail:
+        for part in _AUTHOR_SPLIT_RE.split(tail):
+            part = part.strip()
+            if not part:
+                continue
+            pieces = _DASH_RE.split(part)
+            authors.append(pieces[0])
+            for nxt in pieces[1:]:
+                nxt = nxt.strip()
+                if nxt and nxt[0].isupper():
+                    authors.append(nxt)
+                elif authors:
+                    authors[-1] = f"{authors[-1]} – {nxt}"
+
+    return {"date_read": date_read, "title": title, "authors": authors,
+            "rating": rating, "bad_author_tail": flagged}
+
 
 def parse_file(path) -> list[dict]:
     """Raw seed md -> list of entry dicts (kind, year, format, status, raw).
