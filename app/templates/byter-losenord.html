@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Byt lösenord — Liselotts bokhylla{% endblock %}
+{% block content %}
+<h1>Byt lösenord</h1>
+{% if fel %}<p class="fel-meddelande">{{ fel }}</p>{% endif %}
+<form method="post" action="{{ url_for('byter_losenord') }}">
+  <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+  <label for="nuvarande">Nuvarande lösenord</label>
+  <input id="nuvarande" name="nuvarande" type="password" required>
+  <label for="ny">Nytt lösenord (minst 10 tecken)</label>
+  <input id="ny" name="ny" type="password" required>
+  <label for="ny_bekrafta">Bekräfta det nya lösenordet</label>
+  <input id="ny_bekrafta" name="ny_bekrafta" type="password" required>
+  <button type="submit">Byt lösenord</button>
+</form>
+{% endblock %}

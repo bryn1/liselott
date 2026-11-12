@@ -136,7 +136,7 @@ def ensure_secret() -> str:
     return path.read_text(encoding="utf-8")
 
 
-def _to(path: str):
+def redirect_prefixed(path: str):
     """Redirect keeping the §6.5 mount: SCRIPT_NAME is always PREFIX, so
     script_root + path is already prefix-absolute."""
     return redirect((request.script_root or "") + path)
@@ -146,6 +146,16 @@ def _establish_session():
     session.clear()
     session[SESSION_FLAG] = True
     session["csrf"] = secrets.token_urlsafe(32)  # session-bound form token
+
+
+def rotate_secret(app):
+    """§6.7: regenerate secret.key (0600) AND re-assign app.secret_key —
+    single-process production makes every existing session cookie die with no
+    cache to invalidate; the owner lands back at /logga-in."""
+    path = db.state_base() / "secret.key"
+    path.write_bytes(os.urandom(32).hex().encode())
+    os.chmod(path, 0o600)
+    app.secret_key = path.read_text(encoding="utf-8")
 
 
 def _closed_gate():
@@ -182,6 +192,10 @@ def init_auth(app):
     # re-assigns app.secret_key; single-process production keeps both in step.
     app.secret_key = ensure_secret()
     app.teardown_appcontext(db.close_db)
+    # Forms (T2.7 onward) render csrf_token() into a hidden `csrf` field —
+    # the value _csrf_gate() compares against the session (§6.6).
+    app.jinja_env.globals.setdefault(
+        "csrf_token", lambda: session.get("csrf", ""))
 
     @app.before_request
     def _auth_gate():
@@ -192,18 +206,18 @@ def init_auth(app):
             if not window_open():
                 return _closed_gate()
             if request.path == "/logga-in":
-                return _to("/satt-loesenord")  # §6.1 open state
+                return redirect_prefixed("/satt-loesenord")  # §6.1 open state
             if (request.path in ("/healthz", "/satt-loesenord", "/robots.txt")
                     or request.path.startswith(STATIC_PREFIX)):
                 return _csrf_gate()
-            return _to("/satt-loesenord")
+            return redirect_prefixed("/satt-loesenord")
         if request.path == "/satt-loesenord":
             abort(404)  # configured -> gone forever (§6.1)
         if request.path in UNAUTHENTICATED_ALLOW or request.path.startswith(STATIC_PREFIX):
             return _csrf_gate()
         if session.get(SESSION_FLAG):
             return _csrf_gate()
-        return _to("/logga-in")
+        return redirect_prefixed("/logga-in")
 
     @app.get("/robots.txt")
     def robots():
@@ -231,12 +245,12 @@ def init_auth(app):
             return render_template("logga-in.html", fel="Fel lösenord."), 401
         _clear_attempts(conn, ip)
         _establish_session()
-        return _to("/")
+        return redirect_prefixed("/")
 
     @app.get("/logga-ut")
     def logga_ut():
         session.clear()
-        return _to("/logga-in")
+        return redirect_prefixed("/logga-in")
 
     @app.route("/satt-loesenord", methods=["GET", "POST"])
     def satt_losenord():
@@ -263,4 +277,4 @@ def init_auth(app):
         set_setting(conn, "password_hash", hash_password(pw))
         set_setting(conn, "password_set_at", utcnow_iso())
         _establish_session()  # she lands logged-in (§6.1)
-        return _to("/")
+        return redirect_prefixed("/")
