@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Sätt lösenord — Liselotts bokhylla{% endblock %}
+{% block content %}
+<h1>Sätt ditt lösenord</h1>
+<p>Fönstret för att sätta lösenord är öppet i 20 min från start.</p>
+{% if fel %}<p class="fel-meddelande">{{ fel }}</p>{% endif %}
+<form method="post" action="{{ url_for('satt_losenord') }}">
+  <label for="loesenord">Lösenord (minst 10 tecken)</label>
+  <input id="loesenord" name="loesenord" type="password" required>
+  <label for="bekrafta">Bekräfta lösenordet</label>
+  <input id="bekrafta" name="bekrafta" type="password" required>
+  <button type="submit">Sätt lösenord</button>
+</form>
+{% endblock %}
