@@ -3,7 +3,10 @@ import_seed.py) and the later HTTP routes. Section parsing per §5.1; the
 file's header prose (lines 1-7) is parsed nowhere — it carries stale claims
 (P2-8), this module's rules are canonical."""
 import csv
+import hashlib
 import re
+import unicodedata
+from datetime import datetime, timezone
 from pathlib import Path
 
 # ## Lästa böcker YYYY | ## Lyssnade böcker YYYY | ## Lyssnat på böcker YYYY
@@ -108,6 +111,143 @@ def register_author(conn, name: str, aliases: dict) -> int:
             "INSERT OR IGNORE INTO author_alias (alias, author_id) VALUES (?, ?)",
             (name, author_id))
     return author_id
+
+
+# §5.3 book_key: the ONE bundle-upsert match key (P1-3). NFD+casefold+strip
+# normalization; authors sorted AFTER normalization, so input order cannot
+# drift the key. Computed by seed insert, export_bundle and add-book alike.
+def _norm(s: str) -> str:
+    return unicodedata.normalize("NFD", s).casefold().strip()
+
+
+def book_key(title: str, authors) -> str:
+    joined = "\x1f".join(sorted(_norm(a) for a in authors))
+    return hashlib.sha256(f"{_norm(title)}\x1f{joined}".encode()).hexdigest()
+
+
+# §5.7 dedupe key: NFD, lowercased, diacritics stripped, non-alnum -> one space
+# + sorted canonical author list.
+def _fold(s: str) -> str:
+    s = unicodedata.normalize("NFD", s).lower()
+    s = "".join(c for c in s if unicodedata.category(c) != "Mn")
+    return re.sub(r"[^a-z0-9]+", " ", s).strip()
+
+
+def read_overrides(path) -> dict:
+    """import_overrides.csv: 'exact title,date' rows (applied after parsing,
+    before dedupe, §5.6)."""
+    out = {}
+    p = Path(path)
+    if p.is_file():
+        with p.open(encoding="utf-8") as fh:
+            for title, date in csv.reader(fh):
+                out[title.strip()] = date.strip()
+    return out
+
+
+def _merge_pair(records: list[dict]) -> dict:
+    """§5.7 tie-break: date_read = MAX non-NULL (both NULL -> NULL), read_year
+    = MAX, note marks the re-read."""
+    keeper = dict(records[0])
+    dates = [r["date_read"] for r in records if r["date_read"]]
+    keeper["date_read"] = max(dates) if dates else None
+    keeper["read_year"] = max(r["read_year"] for r in records)
+    note = "läst igen (omläsning)"
+    keeper["notes"] = f"{keeper['notes']} {note}".strip() if keeper.get("notes") else note
+    return keeper
+
+
+def dedupe_read(records: list[dict]):
+    """read+read duplicates on the §5.7 fold key (and rows colliding on
+    book_key) collapse to ONE row; wishlist rows pass through untouched."""
+    groups: dict[tuple, list[dict]] = {}
+    order: list[tuple] = []
+    survivors, pairs = [], []
+    for r in records:
+        if r["status"] != "read":
+            survivors.append(r)
+            continue
+        k = (_fold(r["title"]), tuple(sorted(r["canon_authors"])))
+        if k not in groups:
+            order.append(k)
+        groups.setdefault(k, []).append(r)
+    merged = []
+    for k in order:
+        g = groups[k]
+        if len(g) == 1:
+            merged.append(g[0])
+        else:
+            merged.append(_merge_pair(g))
+            pairs.append({"title": g[0]["title"],
+                          "read_years": [r["read_year"] for r in g]})
+    # Second pass: different fold keys but identical book_key share the path.
+    by_key: dict[str, list[dict]] = {}
+    key_order: list[str] = []
+    for r in merged:
+        if r["book_key"] not in by_key:
+            key_order.append(r["book_key"])
+        by_key.setdefault(r["book_key"], []).append(r)
+    for k in key_order:
+        g = by_key[k]
+        if len(g) == 1:
+            survivors.append(g[0])
+        else:
+            survivors.append(_merge_pair(g))
+            pairs.append({"title": g[0]["title"],
+                          "read_years": [r["read_year"] for r in g],
+                          "reason": "book_key collision"})
+    return survivors, pairs
+
+
+def load(conn, raw_path, aliases_path, overrides_path) -> dict:
+    """Parse the raw seed md and store books+authors per §5. Idempotent:
+    re-importing the same rows updates nothing new (book_key UNIQUE)."""
+    aliases = load_aliases(aliases_path)
+    overrides = read_overrides(overrides_path)
+    entries = parse_file(raw_path)
+    flagged: list[str] = []
+    records: list[dict] = []
+    for e in entries:
+        row = parse_row(e["raw"])
+        if row["bad_author_tail"]:
+            flagged.append(row["title"])  # §5.4 -> overrides handling, never corrupt
+            continue
+        if row["title"] in overrides:
+            row["date_read"] = overrides[row["title"]]
+        canon = [aliases.get(a, a) for a in row["authors"]]
+        records.append({**row, "canon_authors": canon,
+                        "format": e["format"], "status": e["status"],
+                        "read_year": e["year"], "notes": None,
+                        "book_key": book_key(row["title"], canon)})
+    survivors, pairs = dedupe_read(records)
+
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    for r in survivors:
+        # register under the RAW names so alias spellings populate
+        # author_alias; the returned ids are always the canonical ones.
+        author_ids = [register_author(conn, a, aliases) for a in r["authors"]]
+        cur = conn.execute(
+            "INSERT OR IGNORE INTO book (title, format, date_read, read_year,"
+            " rating, notes, status, book_key, created, updated)"
+            " VALUES (?,?,?,?,?,?,?,?,?,?)",
+            (r["title"], r["format"], r["date_read"], r["read_year"],
+             r["rating"], r["notes"], r["status"], r["book_key"], now, now))
+        book_id = (cur.lastrowid if cur.rowcount
+                   else conn.execute("SELECT id FROM book WHERE book_key = ?",
+                                     (r["book_key"],)).fetchone()[0])
+        for aid in set(author_ids):
+            conn.execute("INSERT OR IGNORE INTO book_author (book_id, author_id)"
+                         " VALUES (?,?)", (book_id, aid))
+    conn.commit()
+
+    def q(sql):
+        return conn.execute(sql).fetchone()[0]
+
+    return {"parsed": len(entries), "stored": q("SELECT COUNT(*) FROM book"),
+            "duplicates": len(pairs), "duplicates_pairs": pairs,
+            "ratings": q("SELECT COUNT(*) FROM book WHERE rating IS NOT NULL"),
+            "ljudbok": q("SELECT COUNT(*) FROM book WHERE format='ljudbok'"),
+            "flagged": flagged}
 
 
 def parse_file(path) -> list[dict]:
