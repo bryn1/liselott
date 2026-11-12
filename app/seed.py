@@ -2,6 +2,7 @@
 import_seed.py) and the later HTTP routes. Section parsing per §5.1; the
 file's header prose (lines 1-7) is parsed nowhere — it carries stale claims
 (P2-8), this module's rules are canonical."""
+import csv
 import re
 from pathlib import Path
 
@@ -87,6 +88,26 @@ def parse_row(row: str) -> dict:
 
     return {"date_read": date_read, "title": title, "authors": authors,
             "rating": rating, "bad_author_tail": flagged}
+
+
+def load_aliases(path) -> dict:
+    """data-import/author_aliases.csv: 'canonical,alias' rows -> alias→canonical."""
+    with Path(path).open(encoding="utf-8") as fh:
+        return {alias: canonical for canonical, alias in csv.reader(fh)}
+
+
+def register_author(conn, name: str, aliases: dict) -> int:
+    """Upsert the ALIAS-RESOLVED canonical author; an alias also lands in
+    author_alias (§5.5). Unknown names pass through unchanged."""
+    canonical = aliases.get(name, name)
+    conn.execute("INSERT OR IGNORE INTO author (name) VALUES (?)", (canonical,))
+    author_id = conn.execute(
+        "SELECT id FROM author WHERE name = ?", (canonical,)).fetchone()[0]
+    if canonical != name:
+        conn.execute(
+            "INSERT OR IGNORE INTO author_alias (alias, author_id) VALUES (?, ?)",
+            (name, author_id))
+    return author_id
 
 
 def parse_file(path) -> list[dict]:
