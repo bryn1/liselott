@@ -205,15 +205,11 @@ def init_auth(app):
             return _csrf_gate()
         return _to("/logga-in")
 
-    @app.errorhandler(404)
-    def _not_found(err):
-        # Unmatched paths never reach before_request; the closed-window gate
-        # still answers every route except /healthz (§6.1). Other states' 404
-        # pages render no data (§6.4).
-        conn = db.get_db()
-        if not is_configured(conn) and not window_open():
-            return render_template("stangd.html"), 404
-        return err
+    @app.get("/robots.txt")
+    def robots():
+        # §6.4: the only content an anonymous visitor may fetch; tells
+        # crawlers away from the login-gated surface.
+        return "Disallow: /\n", 200, {"Content-Type": "text/plain; charset=utf-8"}
 
     @app.route("/logga-in", methods=["GET", "POST"])
     def logga_in():

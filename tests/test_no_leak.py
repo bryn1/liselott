@@ -1,0 +1,110 @@
+"""T2.6 — the leak matrix: the no-data-reachable-unauthenticated guarantee,
+run over a SEEDED database (VM350 corpus leg, §13: the raw file must be
+present — missing = this test FAILS loudly, never skips). Unauthenticated
+bodies carry zero seed bytes in the configured state AND in the closed-window
+state over the same route list; /robots.txt is the only content served to
+anonymous visitors; /sitemap.xml exists not."""
+import subprocess
+import sys
+from pathlib import Path
+
+import pytest
+
+from app import create_app
+
+ROOT = Path(__file__).resolve().parent.parent
+PASSWORD = "_test_losenord_"
+
+# Titles VERIFIED present in the audited corpus (T1.x golden rows).
+SEEDED_TITLES = ("Stöld", "Ellens val", "Falska toner", "Näktergalen")
+
+ROUTES = ("/", "/bibliotek", "/sok?q=Stöld", "/bok/1", "/cover/1",
+          "/rekommendationer", "/onska", "/rapa/omslag", "/x")
+
+
+def seed_dir(tmp_path):
+    """Seal the corpus into the tmp state dir through the REAL CLI (T1.6)."""
+    r = subprocess.run(
+        [sys.executable, str(ROOT / "data-import/import_seed.py"),
+         "--db", str(tmp_path / "liselott.db")],
+        capture_output=True, text=True, cwd=str(ROOT))
+    assert r.returncode == 0, f"seed CLI failed: {r.stdout}{r.stderr}"
+
+
+@pytest.fixture()
+def seeded(tmp_path, monkeypatch):
+    seed_dir(tmp_path)
+    monkeypatch.setenv("LISELOTT_DATA_DIR", str(tmp_path))
+    monkeypatch.delenv("LISELOTT_PREFIX", raising=False)
+    monkeypatch.delenv("LISELOTT_ENV", raising=False)
+    return tmp_path
+
+
+def configured_client(seeded):
+    app = create_app()
+    app.testing = True
+    client = app.test_client()
+    r = client.post("/liselott/satt-loesenord",
+                    data={"loesenord": PASSWORD, "bekrafta": PASSWORD})
+    assert r.status_code == 302
+    return app, client
+
+
+def assert_no_seed_bytes(response):
+    for title in SEEDED_TITLES:
+        assert title not in response.text, (title, response.request.path)
+
+
+def test_unauthenticated_leak_matrix(seeded):
+    """Configured state: every data route 302s (or 404s — a path that exists
+    not), and NO body carries a single seed title."""
+    _, client = configured_client(seeded)
+    for entry in ROUTES:
+        r = client.get(entry)
+        assert r.status_code in (302, 404), entry
+        assert_no_seed_bytes(r)
+
+
+def test_sitemap_absent_robots_present(seeded):
+    """No sitemap route exists (§6.4): the LOGGED-IN leg sees the honest 404;
+    anonymous never reaches a route — the guard answers first (T2.3 leg), so
+    unauthenticated /sitemap.xml is 302, not 404. Neither shape serves bytes."""
+    _, client = configured_client(seeded)
+    r = client.get("/liselott/sitemap.xml")
+    assert r.status_code == 404  # authed: the route exists not
+    assert_no_seed_bytes(r)
+    r = client.get("/sitemap.xml")
+    assert r.status_code in (302, 404)
+    assert_no_seed_bytes(r)
+    r = client.get("/robots.txt")
+    assert r.status_code == 200
+    assert "Disallow: /" in r.text
+
+
+def test_closed_window_over_seeded_db(seeded, monkeypatch):
+    """F-5's hard leg: pw unset + aged window on a SEEDED database — the gate
+    page answers every route except /healthz and leaks zero seed bytes."""
+    import time
+
+    import app.auth as auth
+    app = create_app()
+    app.testing = True
+    monkeypatch.setattr(auth, "START_TIME", time.time() - auth.SETUP_WINDOW_S - 1)
+    client = app.test_client()
+    for entry in ROUTES:
+        r = client.get(entry)
+        assert_no_seed_bytes(r)
+        assert "Inställningsfönstret är stängt." in r.text, entry
+    assert client.get("/healthz").data == b"ok"
+
+
+def test_seed_actually_ran(seeded):
+    """Guard against a vacuously green matrix: the DB behind this test MUST
+    contain the titles the other legs grep for."""
+    import sqlite3
+    conn = sqlite3.connect(seeded / "liselott.db")
+    for title in SEEDED_TITLES:
+        n = conn.execute("SELECT COUNT(*) FROM book WHERE title LIKE ?",
+                         (f"%{title}%",)).fetchone()[0]
+        assert n >= 1, title
+    conn.close()
