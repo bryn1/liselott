@@ -29,10 +29,11 @@ from tests.test_browse import PASSWORD, seed_shelf  # one synthetic corpus
 # NOT_YET_LANDED reflects reality as pages land (M5): /lagg-till landed with
 # T5.3, /onska with T5.4 — each is swept as the REAL page from its own commit
 # (the SWEEP check needs no edit; only this constant moves). /rekommendationer
-# moves with M6.
-NOT_YET_LANDED = ("/rekommendationer",)
+# landed with T6.2 and moves INTO the sweep below, sweeping its real card
+# markup (cover route for wishes, static placeholder for pool cards).
+NOT_YET_LANDED = ()
 SWEEP = ("/", "/bibliotek", "/bok/1", "/bok/2", "/bok/9999", "/sok?q=a",
-         "/logga-in", "/redigera/1",
+         "/logga-in", "/redigera/1", "/rekommendationer",
          "/satt-loesenord", "/robots.txt") + NOT_YET_LANDED
 # everything else must 302 an anonymous visitor; the allow-listed four may not
 ANON_PROTECTED = ("/bibliotek", "/bok/1", "/sok?q=a", "/logga-ut", "/cover/1",

@@ -7,7 +7,7 @@ from pathlib import Path
 
 from flask import abort, jsonify, render_template, request, send_file, session
 
-from app import auth, books, db, omslag, search, seed
+from app import auth, books, db, omslag, recommend, search, seed
 
 
 def init_routes(app):
@@ -70,6 +70,38 @@ def init_routes(app):
         traffar = search.search(db.get_db(), q) if q.strip() else None
         return render_template("sok.html", q=q, traffar=traffar,
                                current="sok")
+
+    DISMISS_KINDS = {"book": "book", "cand": "candidate"}
+
+    @app.get("/rekommendationer")
+    def rekommendationer():
+        """T6.2 — the §8 page: the engine's top 12, best first. rated==0 is
+        NOT an error state: the plan's empty-state copy answers and the
+        wishlist-led list still renders (the t=0 leg)."""
+        conn = db.get_db()
+        rated = conn.execute("SELECT COUNT(*) FROM book"
+                             " WHERE rating IS NOT NULL").fetchone()[0]
+        return render_template("rekommendationer.html",
+                               recs=recommend.top_recommendations(conn, 12),
+                               rated=rated, current="rekommendationer")
+
+    @app.post("/djem/<kind>/<int:item_id>")
+    def djem(kind, item_id):
+        """T6.2 — "Visa inte igen": the §8 dismissed row, keyed 'book:<id>'
+        for a wish and 'cand:<id>' for a pool card (P2-3 — both kinds are
+        dismissible). The engine excludes the key from the top-12; PRIMARY
+        KEY makes a repeated click a no-op, never an error. The table name
+        comes from a fixed whitelist dict, never from the URL."""
+        if kind not in DISMISS_KINDS:
+            abort(404)
+        conn = db.get_db()
+        if conn.execute(f"SELECT 1 FROM {DISMISS_KINDS[kind]} WHERE id = ?",
+                        (item_id,)).fetchone() is None:
+            abort(404)                       # the 404 page echoes nothing
+        conn.execute("INSERT OR IGNORE INTO dismissed (key, ts) VALUES (?,?)",
+                     (f"{kind}:{item_id}", auth.utcnow_iso()))
+        conn.commit()
+        return auth.redirect_prefixed("/rekommendationer")
 
     GRADE_RE = re.compile(r"[1-5]")          # §1: integers 1–5, ASCII digits only
     GRADE_CLEAR = "clear"                    # the Rensa button's own value

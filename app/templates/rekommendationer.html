@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Rekommendationer — Liselotts bokhylla{% endblock %}
+{% block content %}
+{# T6.2 — the §8 page. Cards come from app.recommend, best first; every card
+   carries data-kind="book|cand" (the T8.8 production hook). A wish paints
+   through THE cover route; a pool card gets the static placeholder — a pool
+   id is not a book id and must never paint one. t=0 (zero rated books) shows
+   the §8 empty-state copy but still renders the wishlist-led list. #}
+<h1>Rekommendationer åt dig</h1>
+{% if rated == 0 %}
+<p class="tom-state">Betygsätt några böcker för personliga rekommendationer.</p>
+{% endif %}
+
+{% if recs %}
+<ul class="hylla rek-lista">
+  {% for r in recs %}
+  <li class="rek-kort" data-kind="{{ r.kind }}">
+    {% if r.kind == 'book' %}
+    <a class="bok-lank" href="{{ url_for('bok', id=r.id) }}">
+      <img class="omslag" src="{{ url_for('cover', book_id=r.id) }}"
+           alt="Omslag till {{ r.title }}" width="340" height="510"
+           loading="lazy">
+      <span class="titel">{{ r.title }}</span>
+    </a>
+    {% else %}
+    <img class="omslag"
+         src="{{ url_for('static', filename='omslag-saknas.svg', v=APP_VERSION) }}"
+         alt="" width="340" height="510" loading="lazy">
+    <p class="titel">{{ r.title }}</p>
+    {% endif %}
+    {% if r.authors %}<p class="forfattare">{{ r.authors | join(", ") }}</p>{% endif %}
+    {% if r.year %}<p class="meta">{{ r.year }}</p>{% endif %}
+    {% if r.reason %}<p class="motivering">{{ r.reason }}</p>{% endif %}
+    <form method="post"
+          action="{{ url_for('djem', kind=r.kind, item_id=r.id) }}">
+      <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+      <button type="submit" class="overopande">Visa inte igen</button>
+    </form>
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<p class="tom-state">Inga rekommendationer än — lägg till böcker eller kör
+  kandidatuppdateringen.</p>
+{% endif %}
+{% endblock %}
