@@ -39,12 +39,13 @@ AUTHORS = {1: ["Kristin Emilsson"], 2: ["Ann-Helén Laestadius"],
 GENRES = {2: ["Kriminalitet"], 5: ["Romantik"]}
 
 
-@pytest.fixture()
-def shelf(tmp_path, monkeypatch):
-    monkeypatch.setenv("LISELOTT_DATA_DIR", str(tmp_path))
-    monkeypatch.delenv("LISELOTT_PREFIX", raising=False)
-    monkeypatch.delenv("LISELOTT_ENV", raising=False)
-    conn = sqlite3.connect(tmp_path / "liselott.db")
+def seed_shelf(db_path):
+    """The synthetic corpus, written through the real schema. Module-level (not
+    buried in a fixture) because tests/test_prefix.py sweeps the SAME rows: the
+    F-3 attribute sweep over /bibliotek is only worth anything if there ARE
+    cards on the page to sweep (a planted `src="/cover/1"` in the card macro
+    passed over an empty shelf — see test_prefix's planted-red note)."""
+    conn = sqlite3.connect(db_path)
     init_db(conn)
     now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     for (bid, title, year, read_year, date_read, rating, fmt, status,
@@ -74,6 +75,13 @@ def shelf(tmp_path, monkeypatch):
     conn.commit()
     conn.close()
 
+
+@pytest.fixture()
+def shelf(tmp_path, monkeypatch):
+    monkeypatch.setenv("LISELOTT_DATA_DIR", str(tmp_path))
+    monkeypatch.delenv("LISELOTT_PREFIX", raising=False)
+    monkeypatch.delenv("LISELOTT_ENV", raising=False)
+    seed_shelf(tmp_path / "liselott.db")
     app = create_app()
     app.testing = True
     client = app.test_client()
