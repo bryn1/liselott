@@ -71,8 +71,11 @@ def paced(transports, pace):
 
 
 def run_pass(conn, ids, transports, fetch, pace, persist=True):
-    report = {"scanned": 0, "processed": 0, "isbn_resolved": 0, "covers_stored": 0,
-              "genres_set": 0, "failures": 0, "writes": 0}
+    # isbn_resolved counts isbn13 values WRITTEN (the DoD's floor metric: what
+    # the diary GAINED), matched counts provider hits that passed the policy —
+    # conflating them made a re-run report "54 resolved" while writing nothing.
+    report = {"scanned": 0, "processed": 0, "matched": 0, "isbn_resolved": 0,
+              "covers_stored": 0, "genres_set": 0, "failures": 0, "writes": 0}
     for book_id in ids:
         report["scanned"] += 1
         outcome = enrich.resolve_book(conn, book_id, transports=transports,
@@ -81,7 +84,9 @@ def run_pass(conn, ids, transports, fetch, pace, persist=True):
         if not outcome.get("resolved"):
             report["failures"] += 1
             continue
-        report["isbn_resolved"] += 1
+        report["matched"] += 1
+        if outcome.get("isbn_written"):
+            report["isbn_resolved"] += 1
         if outcome.get("cover"):
             report["covers_stored"] += 1
         if outcome.get("genres_written"):
@@ -146,9 +151,9 @@ def main(argv=None, transports=None, fetch=None, pace=None):
         ids = scope_ids(conn, args.limit)
 
         if args.dry_run:
-            report.update({"scanned": 0, "processed": 0, "isbn_resolved": 0,
-                           "covers_stored": 0, "genres_set": 0, "failures": 0,
-                           "writes": 0, "planned": ids})
+            report.update({"scanned": 0, "processed": 0, "matched": 0,
+                           "isbn_resolved": 0, "covers_stored": 0, "genres_set": 0,
+                           "failures": 0, "writes": 0, "planned": ids})
         else:
             if transports is not None:
                 wired = transports
@@ -163,7 +168,7 @@ def main(argv=None, transports=None, fetch=None, pace=None):
                 report.update(run_pass(conn, ids, paced(wired, pace), fetch, pace))
 
         print(" ".join(f"{k}={report[k]}" for k in
-                       ("total", "scanned", "processed", "isbn_resolved",
+                       ("total", "scanned", "processed", "matched", "isbn_resolved",
                         "covers_stored", "genres_set", "failures", "writes")))
         report_path.parent.mkdir(parents=True, exist_ok=True)
         report_path.write_text(json.dumps(report, ensure_ascii=False, indent=1),

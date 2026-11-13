@@ -289,6 +289,7 @@ def resolve_book(conn, book_id, *, transports=None, fetch=None, now=time.time):
         return {"resolved": False, "tried": tried}
 
     isbn13 = chosen.get("isbn13") or row[2]
+    isbn_written = row[2] is None and bool(isbn13)   # a filled hole, not a match
     year = row[3] if row[3] is not None else chosen.get("year")
     genres = map_genres(chosen.get("subjects"))
     # An admin's own cover — uploaded ('manual') or found via hitta-omslag
@@ -315,7 +316,7 @@ def resolve_book(conn, book_id, *, transports=None, fetch=None, now=time.time):
     conn.commit()
     return {"resolved": True, "source": chosen["source"], "tried": tried,
             "genres": genres, "genres_written": genres_written,
-            "cover": cover_written}
+            "isbn_written": isbn_written, "cover": cover_written}
 
 
 def live_transports(conn, *, now=time.time):
