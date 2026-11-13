@@ -44,6 +44,10 @@ no CSRF token, but a foreign Origin still 400s (P2-r4) and no session still
 302s — and there is NO seed token (F-7: the owner session IS the gate, in
 every state; the plan retires the one-time door).
 """
+# FILE-SIZE 413 (MC 12451 c3): the six c3 door fixes (F-A2/F-B2/F-C2/F-D2/
+# F-E2) all belong to THIS one mechanism and pushed it past the 400 ceiling;
+# the split is queued clean-code follow-up (the c3 dispatch names file sizes
+# out of scope) — not a reason to bend the door rules into a second file.
 import base64
 import json
 import sqlite3
