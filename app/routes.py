@@ -1,14 +1,64 @@
-"""Logged-in page routes (§6.7 password lifecycle; M4+ adds browse/search).
+"""Logged-in page routes (§6.7 password lifecycle; M4 adds browse/search).
 Guard + CSRF already ran before any view here — request is owner-authenticated
 and (for state changes) token- and origin-checked (T2.3/T2.5)."""
 from pathlib import Path
 
-from flask import abort, jsonify, render_template, request, send_file
+from flask import abort, jsonify, render_template, request, send_file, session
 
-from app import auth, db, omslag
+from app import auth, books, db, omslag
 
 
 def init_routes(app):
+    # Templates get the mount helper and the formatters as globals — one place,
+    # so no template ever hand-builds a URL or a Swedish date. `mount_url`
+    # exists for the ONE link whose route is not implemented yet
+    # (/redigera/<id>, T5.2): url_for would raise BuildError there, and this is
+    # the same §6.5 SCRIPT_NAME mechanism url_for uses underneath — never a
+    # root-absolute literal.
+    app.jinja_env.globals.setdefault(
+        "inloggad", lambda: bool(session.get(auth.SESSION_FLAG)))
+    app.jinja_env.globals.setdefault(
+        "mount_url", lambda path: (request.script_root or "") + path)
+    for fn in (books.authors_text, books.format_word, books.sw_date,
+               books.year_text):
+        app.jinja_env.globals.setdefault(fn.__name__, fn)
+
+    def _hylla():
+        """One read, one render — shared by the two rules below."""
+        grupper = books.group_for_shelf(books.load_books(db.get_db()))
+        return render_template("bibliotek.html", grupper=grupper,
+                               current="hylla")
+
+    @app.get("/")
+    def rot():
+        """The home page IS the shelf. Two ENDPOINTS on one render (not two
+        rules on one endpoint): with one endpoint url_for would collapse onto
+        the shorter rule and the nav would emit /liselott without a path.
+        §6.1's "after setup GET / -> 200" is answered here, not by a redirect.
+        """
+        return _hylla()
+
+    @app.get("/bibliotek")
+    def bibliotek():
+        """The shelf (§9 "Din hylla"): read years newest first, "Att läsa"
+        last."""
+        return _hylla()
+
+    @app.get("/bok/<int:id>")
+    def bok(id):
+        """One book, honestly: the fields she kept, the format and date in
+        Swedish words, and the §9 fix-me hint when the cover is missing."""
+        rows = books.load_books(db.get_db(), ids=[id])
+        if not rows:
+            abort(404)          # the §9 404 page echoes nothing back
+        return render_template("bok.html", bok=rows[0], current="hylla")
+
+    @app.errorhandler(404)
+    def inte_hittad(error):
+        """The gate is NOT loosened here (T2.6): _guard already ran as a
+        before_request for this unmatched path, so an anonymous visitor was
+        redirected long before this render."""
+        return render_template("404.html"), 404
 
     @app.get("/cover/<int:book_id>")
     def cover(book_id):

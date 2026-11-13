@@ -11,6 +11,9 @@ than pretending COLLATE NOCASE handles åäö."""
 import re
 import unicodedata
 
+from app.books import load_books, sort_by_read_date
+from app.text import fold
+
 # §7's ISBN token: an optional 978/979 prefix, nine digits, one check char.
 _ISBN_TOKEN_RE = re.compile(r"^(?:97[89])?\d{9}[\dX]$")
 _YEAR_RE = re.compile(r"^\d{4}$")
@@ -19,15 +22,6 @@ YEAR_MIN, YEAR_MAX = 1400, 2099
 
 # The kinds parse_query answers with; search() handles exactly these.
 KINDS = ("empty", "isbn", "year", "genre", "text")
-
-
-def fold(text) -> str:
-    """NFKD, drop combining marks, casefold, collapse runs of non-letters.
-    'Fågelkärr' and 'Fagelkarr' both land on 'fagelkarr'."""
-    decomposed = unicodedata.normalize("NFKD", str(text or ""))
-    stripped = "".join(c for c in decomposed
-                       if unicodedata.category(c) != "Mn")
-    return re.sub(r"\s+", " ", stripped.casefold()).strip()
 
 
 def _mod10_check(nine_or_twelve: str) -> str:
@@ -88,52 +82,12 @@ def parse_query(q, genre_names=()):
     return ("text", folded)
 
 
-def _all_books(conn):
-    """One scan of the diary with the two joined vocabularies pre-collected —
-    724 rows, so the fold comparison happens in Python where it is correct."""
-    books = {}
-    for row in conn.execute(
-            "SELECT id, title, year, read_year, date_read, rating, format,"
-            "       status, isbn13, isbn10, cover_path"
-            " FROM book"):
-        books[row[0]] = {
-            "id": row[0], "title": row[1], "year": row[2],
-            "read_year": row[3], "date_read": row[4], "rating": row[5],
-            "format": row[6], "status": row[7], "isbn13": row[8],
-            "isbn10": row[9], "has_cover": row[10] is not None,
-            "authors": [], "genres": [],
-        }
-    for row in conn.execute(
-            "SELECT ba.book_id, a.name FROM book_author ba"
-            " JOIN author a ON a.id = ba.author_id ORDER BY a.name"):
-        book = books.get(row[0])
-        if book is not None:
-            book["authors"].append(row[1])
-    for row in conn.execute(
-            "SELECT bg.book_id, g.name FROM book_genre bg"
-            " JOIN genre g ON g.id = bg.genre_id ORDER BY g.name"):
-        book = books.get(row[0])
-        if book is not None:
-            book["genres"].append(row[1])
-    return list(books.values())
-
-
 def _matches_text(book, folded_query):
     """§7: LIKE over title, canonical author names and genre names, folded."""
     haystacks = [fold(book["title"])]
     haystacks += [fold(a) for a in book["authors"]]
     haystacks += [fold(g) for g in book["genres"]]
     return any(folded_query in h for h in haystacks)
-
-
-def _sort(books):
-    """§7: read + wishlist both, date_read desc, NULLs last, title as the
-    tie-break so the order is stable across re-runs. date_read is ISO
-    YYYY-MM-DD, so lexical order IS chronological order and "" (a NULL) sorts
-    last under reverse=True — two plain stable sorts, no key gymnastics."""
-    ordered = sorted(books, key=lambda b: fold(b["title"]))
-    ordered.sort(key=lambda b: b["date_read"] or "", reverse=True)
-    return ordered
 
 
 def search(conn, query, genre_names=None):
@@ -144,7 +98,7 @@ def search(conn, query, genre_names=None):
     kind, value = parse_query(query, genre_names)
     if kind == "empty":
         return []
-    books = _all_books(conn)
+    books = load_books(conn)
     if kind == "isbn":
         hits = [b for b in books if _hits_isbn(b, value)]
     elif kind == "year":
@@ -155,7 +109,7 @@ def search(conn, query, genre_names=None):
         hits = [b for b in books if any(fold(g) == needle for g in b["genres"])]
     else:
         hits = [b for b in books if _matches_text(b, value)]
-    return _sort(hits)
+    return sort_by_read_date(hits)
 
 
 def _hits_isbn(book, isbn13):

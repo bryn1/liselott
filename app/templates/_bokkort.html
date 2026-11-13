@@ -1,0 +1,18 @@
+{# The one book card: the shelf and the search page both use THIS macro
+   (used twice → extracted), so a card can never mean two different things.
+   Cover through url_for('cover') (§6.4/T3.4: the route paints the placeholder
+   when the row has none), lazy because a 700-card page must not fetch 700
+   images to show the first screen. #}
+{% from "_stjarnor.html" import stjarnor with context %}
+{% macro bokkort(b) %}
+<li class="bok-kort">
+  <a class="bok-lank" href="{{ url_for('bok', id=b.id) }}">
+    <img class="omslag" src="{{ url_for('cover', book_id=b.id) }}"
+         alt="Omslag till {{ b.title }}" width="340" height="510" loading="lazy">
+    <span class="titel">{{ b.title }}</span>
+  </a>
+  <p class="forfattare">{{ authors_text(b) }}</p>
+  <p class="meta">{{ format_word(b) }}{% if b.read_year %} · {{ b.read_year }}{% endif %}</p>
+  {% if b.rating %}{{ stjarnor(b.rating) }}{% endif %}
+</li>
+{% endmacro %}

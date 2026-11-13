@@ -1,0 +1,6 @@
+{# §9: the star row is decoration ONLY beside a real Swedish label — a screen
+   reader hears "Betyg 4 av 5", never five anonymous glyphs. #}
+{% macro stjarnor(betyg) -%}
+<span class="stjarnor" role="img" aria-label="Betyg {{ betyg }} av 5"><span
+      aria-hidden="true">{{ '★' * betyg }}{{ '☆' * (5 - betyg) }}</span></span>
+{%- endmacro %}
