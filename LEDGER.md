@@ -80,15 +80,46 @@ postdating a line make that line STALE — de-stale before quoting it.
   ownership of this stage, filed for the orchestrator: (1) T9.2 NOT LANDED —
   `scripts/backup.sh`, `GET /backup` and `tests/test_backup.sh` are absent
   (grep-measured); it needs a code child; the README states the current truth
-  meanwhile. (2) T9.3's retired-string gate is RED in code files this docs
+  meanwhile. CLOSED 2026-11-13 by the T9.2 row below. (2) T9.3's retired-string gate is RED in code files this docs
   stage may not edit: the shared 900 000-byte budget lives under a retired
   constant name with 15 measured hits (13 in `app/*.py`, 2 in
   `app/static/js/omslag-upp.js` comments — run T9.3's gate-2 grep for the
   exact list) and `scripts/enrich_backfill.py`'s header quotes a
   retired flag name (1 hit) — a rename pass (code profile) closes it, and it
   must keep LEDGER.md + README.md clean too (they are: measured 0 this
-  session). The placeholder gate (plan's case-sensitive form) is GREEN
+  session). CLOSED 2026-11-13 by the T9.3 gate-2 row below. The placeholder gate (plan's case-sensitive form) is GREEN
   (exit 1) on the whole tree; the only case-INsensitive substring hits are
   `todo` as a local variable name in `scripts/cover_pass.py` (lines
   241/250/259) and `tbd` inside opaque Libris record ids in a fixture —
   substring noise, not placeholders.
+- **T9.3 gate-2 retired-name sweep (MC 12479)** — DONE (this commit): stage
+  finding (2) closed. The ONE 900 000-byte budget is now named by each site's
+  concern: `MAX_FETCH` (what the app reads back from an http response —
+  providers + hitta-omslag), `MAX_UPLOAD` (uploads — the name §10 sanctions,
+  unchanged), `MAX_BUNDLE_CHUNK` (`/bundle` — §10's other sanctioned name,
+  unchanged). The invented skip-flag name is gone from
+  `scripts/enrich_backfill.py`'s header and the two test docstrings that
+  echoed it; the rule it recorded (P2-b) is unchanged. Gate-2 text hits on
+  README.md + `app/` + `scripts/` went 16 → 0 (the `.pyc` echoes are stale
+  gitignored caches and vanish on the next run); full suite on this tree: 403
+  passed, exit 0. Stage finding (1) — T9.2 backup — lands in the same card.
+- **T9.2 backup route + round-trip (MC 12479)** — DONE (this commit): stage
+  finding (1) closed. `app/backup.py` is now the ONE mechanism (sqlite backup
+  API + one `covers/` tar, dir 700 / files 600, keep-last-14);
+  `scripts/backup.sh` (backup|list|restore [STEM]) and `GET /backup?kind=db|covers`
+  both run it — the route streams a fresh snapshot from a temp dir it deletes
+  as the response ends, the shell verb writes the pair it keeps. Plan DoD:
+  `bash tests/test_backup.sh` exits 0 printing `BOOKS_RESTORED=724` — three
+  consecutive green runs measured (corpus leg, §13). The gate went RED twice
+  and both reds were real: the §11 file modes (planted: chmod removed → FAIL
+  `db-filen ar inte 600`) and a genuine defect on the first draft — pruning by
+  `stem*` glob ate the whole same-second `-NN` family, so retention kept 12
+  pairs where it promised 14 (fixed to remove exactly each pair's two files).
+  `tests/test_guard.py` adapted in the same commit: its logged-in sweep read
+  `.text` on every protected path and `/backup` answers with a sqlite file —
+  the gate-page claim now decodes leniently, the claim itself unchanged.
+  README's backup story + the env table followed the implementation (the
+  "NOT yet in this tree" claim is retired with this commit). Suite: 403
+  passed, exit 0. Not covered here and unchanged: T9.3's `git log
+  origin/main` leg lands with the M8 push, and the §11 weekly pull stays a
+  named-actor runbook step, not a daemon.
