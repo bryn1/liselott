@@ -163,12 +163,17 @@ def _fill_genres(conn, book_id, names) -> bool:
     return True
 
 
-def _store_new(conn, obj, now):
+def _store_new(conn, obj, now, new_covers):
     """A book_key the DB never saw lands AS-IS (§5.11): status/read_year/
     date_read/rating/format exactly as exported — a wishline keeps its
     read_year 0 sentinel, a read row its date. The only refusal an INSERT
     can hit is the ISBN first-writer rule: then the row still lands, ISBN
-    less, and this returns its conflict. Returns (conflict, cover_written)."""
+    less, and this returns its conflict. Returns (conflict, cover_written);
+    the cover's rel path joins `new_covers` BEFORE the write, so the
+    caller's rollback can unlink a written-but-rejected file (F-B2/F-K) —
+    the row it belonged to is going away with it, so the file is an orphan
+    by then, never a live reference. commit=False (P3-4) keeps the
+    row-update in the POST's one transaction."""
     fmt = obj.get("format") if obj.get("format") in ("bok", "ljudbok") else "bok"
     isbn = obj.get("isbn13")
     conflict = bool(isbn) and _isbn_owner(conn, isbn, obj["book_key"])
@@ -188,6 +193,7 @@ def _store_new(conn, obj, now):
     if obj.get("_cover_bytes") is not None:
         # a fresh row has no file yet — the write always lands (counted in
         # BYTES, not POSTs; leg e's zero belongs to the MERGE path below)
+        new_covers.append(f"{enrich.COVER_SUBDIR}/{book_id}.jpg")
         enrich.store_cover(conn, book_id, obj["_cover_bytes"],
                            obj.get("cover_source") or "openlibrary",
                            commit=False)          # one transaction (P3-4)
@@ -237,37 +243,52 @@ def _merge_into(conn, state_dir, row, obj):
 
 
 def upsert_bundle(conn, state_dir, lines) -> dict:
-    """The §5.11 merge, ONE transaction per POST: a line the DB itself
-    refuses (P3-4, MC 12451) raises the SAME BundleError the parse phase
-    uses, named by 1-based line, and the route's rollback unwinds every
-    earlier line — store_cover lands commit=False, so no commit lands
-    before the loop has taken the whole file.
+    """The §5.11 merge, ONE transaction per POST — and ONE rollback that
+    reaches the bytes too (F-B2/F-K, MC 12451): a line the DB refuses, a
+    KeyError, or a cover write the disk refuses raises the SAME BundleError
+    the parse phase uses, named by 1-based line; the loop's transaction is
+    rolled BACK (store_cover lands commit=False, so no commit ever landed
+    mid-file) and the cover files the rejected lines had already written are
+    unlinked — after the rollback no row references them, they are orphans.
     Response keys the T6.4 DoD pins verbatim: books / covers / inserted /
     updated / conflicts."""
     report = {"covers": 0, "inserted": 0, "updated": 0, "conflicts": []}
-    for n, obj in enumerate(lines, start=1):
-        try:
-            row = conn.execute(
-                "SELECT id, isbn13, isbn10, year, cover_path, cover_source"
-                " FROM book WHERE book_key = ?", (obj["book_key"],)).fetchone()
-            if row is None:
-                conflict, written = _store_new(conn, obj, auth.utcnow_iso())
-                report["inserted"] += 1
-                report["covers"] += 1 if written else 0
-            else:
-                conflict = _merge_into(conn, state_dir, row, obj)
-                report["updated"] += 1 if obj.pop("_touched", False) else 0
-                report["covers"] += 1 if obj.pop("_cover_written", False) else 0
-        except KeyError as missing:
-            raise BundleError(n, f"obligatoriskt fält {missing.args[0]!r} "
-                                 "saknas — raden kan inte skrivas") from missing
-        except sqlite3.IntegrityError as refused:
-            raise BundleError(n, f"raden duger inte för databasen: "
-                                 f"{refused}") from refused
-        if conflict:
-            report["conflicts"].append({"book_key": obj["book_key"],
-                                         "reason": "duplicate isbn"})
-    conn.commit()
+    new_covers: list[str] = []
+    try:
+        for n, obj in enumerate(lines, start=1):
+            try:
+                row = conn.execute(
+                    "SELECT id, isbn13, isbn10, year, cover_path, cover_source"
+                    " FROM book WHERE book_key = ?", (obj["book_key"],)).fetchone()
+                if row is None:
+                    conflict, written = _store_new(conn, obj, auth.utcnow_iso(),
+                                                   new_covers)
+                    report["inserted"] += 1
+                    report["covers"] += 1 if written else 0
+                else:
+                    conflict = _merge_into(conn, state_dir, row, obj)
+                    report["updated"] += 1 if obj.pop("_touched", False) else 0
+                    report["covers"] += 1 if obj.pop("_cover_written", False) else 0
+            except KeyError as missing:
+                raise BundleError(n, f"obligatoriskt fält {missing.args[0]!r} "
+                                     "saknas — raden kan inte skrivas") from missing
+            except OSError as refused:
+                # F-B2: the cover write itself failed mid-file — a refusal
+                # the parse phase cannot see, answered like every other.
+                raise BundleError(n, f"omslaget kunde inte skrivas: "
+                                     f"{refused}") from refused
+            except sqlite3.IntegrityError as refused:
+                raise BundleError(n, f"raden duger inte för databasen: "
+                                     f"{refused}") from refused
+            if conflict:
+                report["conflicts"].append({"book_key": obj["book_key"],
+                                             "reason": "duplicate isbn"})
+        conn.commit()
+    except BundleError:
+        conn.rollback()
+        for rel in new_covers:               # written-but-rejected bytes
+            (state_dir / rel).unlink(missing_ok=True)
+        raise
     report["books"] = conn.execute("SELECT COUNT(*) FROM book").fetchone()[0]
     return {k: report[k] for k in
             ("books", "covers", "inserted", "updated", "conflicts")}
