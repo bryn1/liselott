@@ -28,6 +28,26 @@
 
 * { box-sizing: border-box; }
 
+/* §9 "type": Lora 400/700 self-hosted (OFL, see static/fonts/LICENSE-OFL.txt),
+   one serif voice for ALL text; the src paths are RELATIVE to this stylesheet,
+   so the §6.5 mount prefix carries the fonts too (T7.3, never a second
+   mechanism). font-display: swap — the text is painted in the fallback face
+   immediately and the serif takes over when it lands. */
+@font-face {
+  font-family: "Lora";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("../fonts/lora-400.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Lora";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("../fonts/lora-700.woff2") format("woff2");
+}
+
 html { font-size: 17px; }
 
 body {

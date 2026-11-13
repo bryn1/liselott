@@ -6,6 +6,7 @@ deploy that changes the CSS cannot leave the owner's browser holding the old
 one. The assertion is written over EVERY /static/ reference in a rendered page
 rather than over the one stylesheet that exists today: when T5.3's script and
 T7.3's self-hosted fonts land, they inherit this gate instead of escaping it."""
+import re
 import subprocess
 from pathlib import Path
 
@@ -115,3 +116,50 @@ def test_custom_prefix_reaches_the_asset_url_too(tmp_path, monkeypatch):
     assert page.status_code == 200
     assert 'href="/testmonly/static/css/app.css?v=' in page.text
     assert "/liselott/static/" not in page.text
+
+
+# ── T7.3 — self-hosted Lora (§9 "type": one serif voice, 400/700, swap) ─────
+FONTS = ("lora-400.woff2", "lora-700.woff2")
+
+
+def test_css_declares_lora_faces_with_swap():
+    """§9's voice is Lora 400/700 self-hosted: two @font-face blocks, the
+    weights the stylesheet's --font stack asks for, and font-display: swap so
+    text is never invisible while the font loads."""
+    css = (ROOT / "app" / "static" / "css" / "app.css").read_text(encoding="utf-8")
+    assert css.count("@font-face") == 2
+    assert "font-display: swap" in css
+    for weight in ("400", "700"):
+        block = re.search(r"@font-face\s*\{[^}]*font-weight:\s*%s[^}]*\}" % weight, css)
+        assert block, f"no @font-face for weight {weight}"
+        assert f"../fonts/lora-{weight}.woff2" in css, \
+            f"weight {weight} does not reference ../fonts/lora-{weight}.woff2"
+
+
+def test_font_files_are_served_and_are_woff2(client):
+    """Served 200 under the mount prefix, and actually woff2 bytes (magic
+    wOF2) — a 200 from a fallback page would pass status but not this."""
+    for name in FONTS:
+        r = client.get(f"/liselott/static/fonts/{name}")
+        assert r.status_code == 200, name
+        assert r.data[:4] == b"wOF2", name
+
+
+def test_font_license_is_served_next_to_the_fonts(client):
+    """OFL demands the license travels with the fonts; it is served, not just
+    committed, so anyone can read the terms from the app itself."""
+    r = client.get("/liselott/static/fonts/LICENSE-OFL.txt")
+    assert r.status_code == 200
+    assert "SIL OPEN FONT LICENSE" in r.get_data(as_text=True)
+
+
+def test_font_urls_resolve_under_any_prefix(tmp_path, monkeypatch):
+    """The @font-face src is RELATIVE to the stylesheet, so the one mount
+    mechanism carries the fonts too — a moved app never serves broken fonts."""
+    monkeypatch.setenv("LISELOTT_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("LISELOTT_PREFIX", "/testmonly")
+    monkeypatch.delenv("LISELOTT_ENV", raising=False)
+    flask_app = create_app()
+    flask_app.testing = True
+    c = flask_app.test_client()
+    assert c.get("/testmonly/static/fonts/lora-400.woff2").status_code == 200
