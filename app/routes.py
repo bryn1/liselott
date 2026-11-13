@@ -3,11 +3,34 @@ adds grading). Guard + CSRF already ran before any view here — request is
 owner-authenticated and (for state changes) token- and origin-checked
 (T2.3/T2.5)."""
 import re
+import shutil
+import tempfile
 from pathlib import Path
 
-from flask import abort, jsonify, render_template, request, send_file, session
+from flask import (Response, abort, jsonify, render_template, request,
+                   send_file, session)
 
-from app import auth, books, db, omslag, recommend, search, seed
+from app import auth, backup, books, db, omslag, recommend, search, seed
+
+
+def _stream_and_delete(path: Path, tmp_dir: Path, mimetype: str, filename: str):
+    """Stream a snapshot away and remove it when the response ends: a backup
+    pull is a moment, not something the app keeps on disk. Generator + own
+    cleanup (not send_file on a temp dir the view already deleted) so the file
+    is guaranteed to outlive every byte the server has left to write."""
+    handle = path.open("rb")
+
+    def chunks():
+        try:
+            for block in iter(lambda: handle.read(1 << 16), b""):
+                yield block
+        finally:
+            handle.close()
+            shutil.rmtree(tmp_dir, ignore_errors=True)
+
+    return Response(chunks(), mimetype=mimetype,
+                    headers={"Content-Disposition":
+                             f'attachment; filename="{filename}"'})
 
 
 def init_routes(app):
@@ -173,6 +196,32 @@ def init_routes(app):
         outcome = omslag.hamta_omslag(db.get_db(), book_id,
                                       request.form.get("sida_url", ""))
         return jsonify(outcome), (200 if outcome["ok"] else 400)
+
+    BACKUP_KINDS = {"db": ("liselott.db", "application/octet-stream"),
+                    "covers": ("omslag.tar.gz", "application/gzip")}
+
+    @app.get("/backup")
+    def backup_door():
+        """T9.2 (§11) — the plan-owned backup door. The lane gives no cron on
+        vm106, so the named actor of the runbook pulls with curl through THIS
+        door: the login guard answers an anonymous GET with its 302 before the
+        function is ever called, and the snapshot is built by THE mechanism
+        (app/backup.py — the same functions scripts/backup.sh runs), in a
+        throwaway temp dir, streamed, then deleted."""
+        kind = request.args.get("kind", "db")
+        if kind not in BACKUP_KINDS:
+            return ("Okänd backuppsort — kind är db eller covers."), 400
+        name, mimetype = BACKUP_KINDS[kind]
+        tmp_dir = Path(tempfile.mkdtemp(prefix="liselott-backup-"))
+        target = tmp_dir / name
+        try:
+            snapshot = (backup.snapshot_db if kind == "db"
+                        else backup.snapshot_covers)
+            snapshot(db.state_base(), target)
+        except backup.BackupError as error:
+            shutil.rmtree(tmp_dir, ignore_errors=True)
+            return f"Säkerhetskopieringen misslyckades: {error}", 400
+        return _stream_and_delete(target, tmp_dir, mimetype, name)
 
     @app.post("/byter-losenord")
     def byter_losenord():

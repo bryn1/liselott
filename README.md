@@ -105,6 +105,7 @@ in any fresh clone.
 | `HOME` | set by the lane unit to the app's StateDirectory (production) |
 | `LISELOTT_PREFIX` | mount prefix for emitted URLs; default `/liselott` — correct in production with nothing set |
 | `LISELOTT_DATA_DIR` | data-dir override — dev/test/build use only |
+| `LISELOTT_BACKUP_DIR` | where `scripts/backup.sh` writes its pairs; default `$HOME/liselott-backups` (§11). `GET /backup` never writes here — it streams from a temp dir |
 | `LISELOTT_ENV=dev` | local/test only — turns the session cookie's `Secure` flag off; UNSET means production (Secure ON, debug OFF) |
 
 **Production needs zero custom env.** The lane unit sets only `HOME` and `PORT`;
@@ -191,16 +192,22 @@ vm106-ROOT DB action. That gap is plan §12, accepted at fest40 parity.
 
 ### Backup story (plan §11)
 
-What exists **today** (measured 2026-11-13): `GET /backup` and
-`scripts/backup.sh` are NOT yet in this tree — the deliverable is plan T9.2
-with the round-trip test `BOOKS_RESTORED=724`. A backup that works right now is
-a plain copy of the data dir (`liselott.db` + `covers/`) — the DB answers to
-sqlite's own backup API (that is what the T9.2 script will use), plus
-`backups/` (keep-last-14, dir 700, files 600) as designed. **Ownership:** the
-auto lane gives no cron on vm106 (no login), so the named actor is the
-orchestrator: pull weekly via the route, store under
-`/home/claudecode/liselott-backups/` on VM350, cadence logged on the MC card.
-An on-host cron remains a vm106-ROOT action — owner decision, never assumed.
+What exists **today** (measured 2026-11-13): `scripts/backup.sh` and
+`GET /backup?kind=db|covers` (session-gated), both running the ONE mechanism in
+`app/backup.py`: the DB through sqlite's own backup API plus a `covers/` tar,
+as a pair — backup dir 700, files 600, retention keep-last-14.
+`bash tests/test_backup.sh` is the round-trip gate: it seeds the corpus into a
+scratch state dir, makes the pair, prunes to 14, restores into an empty state
+dir and prints `BOOKS_RESTORED=724`, then pulls both kinds through the route
+and checks the guard's 302 and the unknown-kind 400. The route streams a
+FRESH snapshot and deletes its temp file as the response ends; the shell verb
+writes the pair it keeps (`scripts/backup.sh list`, then
+`scripts/backup.sh restore [STEM]` into `$LISELOTT_DATA_DIR`). **Ownership:**
+the auto lane gives no cron on vm106 (no login), so the named actor is the
+orchestrator: pull weekly via the route (a logged-in `curl` with a cookie jar,
+both kinds), store under `/home/claudecode/liselott-backups/` on VM350,
+cadence logged on the MC card. Restoring INTO production and any on-host cron
+remain vm106-ROOT actions — owner decision, never assumed.
 
 ### Known limits (all measured or plan-stated, 2026-11-13)
 

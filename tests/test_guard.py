@@ -96,7 +96,11 @@ def test_logged_in_client_reaches_the_stubs(tmp_path, monkeypatch):
             assert (r.status_code, r.data) == (501, path.encode()), entry
         else:
             assert r.status_code == 200, entry
-            assert "Inställningsfönstret är stängt." not in r.text, entry
+            # get_data + a lenient decode, not .text: T9.2's /backup answers
+            # with a sqlite file, and a binary owner download must not be able
+            # to break the sweep that checks the GATE never answered it.
+            body = r.get_data().decode("utf-8", "replace")
+            assert "Inställningsfönstret är stängt." not in body, entry
 
 
 def test_unconfigured_open_state_sweep(tmp_path, monkeypatch):
