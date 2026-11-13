@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% from "_bokkort.html" import bokkort with context %}
+{% block title %}Önskelista — Liselotts bokhylla{% endblock %}
+{% block content %}
+{# T5.4 — "Att läsa": the wishlist, ONE card macro with the shelf, and the
+   two honest doors (add a wish, mark read). The row buttons post through the
+   §6.6 gate like everything else. #}
+<h1>Att läsa</h1>
+{% if fel %}<p class="fel-meddelande">{{ fel }}</p>{% endif %}
+
+<form class="onska-form" method="post" action="{{ url_for('onska_lagg_till') }}">
+  <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+  <label for="titel">En bok du vill läsa</label>
+  <input id="titel" name="titel" type="text" required>
+  <label for="forfattare">Författare (valfritt)</label>
+  <input id="forfattare" name="forfattare" type="text">
+  <button type="submit">Sätt på önskelistan</button>
+</form>
+
+{% if onska %}
+<ul class="hylla onska-lista">
+  {% for b in onska %}
+  <li class="onska-rad">
+    {{ bokkort(b) }}
+    <form method="post" action="{{ url_for('onska_las', id=b.id) }}">
+      <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+      <button type="submit">Läst nu</button>
+    </form>
+    <form method="post" action="{{ url_for('ta_bort', id=b.id) }}">
+      <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+      <input type="hidden" name="bekrafta" value="ta bort">
+      <button type="submit" class="overopande">Ta bort</button>
+    </form>
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<p class="tom-state">Inga önskningar än — skriv den första ovan.</p>
+{% endif %}
+{% endblock %}
