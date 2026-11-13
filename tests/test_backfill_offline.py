@@ -166,3 +166,44 @@ def test_pacing_is_one_request_per_second(build_db):
     # one tick per OUTBOUND request: libris + ol + the cover download per row
     # (gb is skipped, so it costs nothing) — 3 rows × 3 requests:
     assert ticks == [1.0] * 9
+
+
+def no_isbn_transports():
+    """A provider that MATCHES the row but carries no isbn — the case that
+    tells `matched` and `isbn_resolved` apart."""
+    def libris(title, authors):
+        return []
+
+    def ol(title, authors):
+        return [{"source": "openlibrary", "title": title, "authors": list(authors),
+                 "isbn13": None, "isbn10": None, "year": 2024, "cover_id": None,
+                 "cover_url": None, "subjects": []}]
+    return {"libris": libris, "ol": ol, "gb": None}
+
+
+def test_isbn_resolved_counts_written_isbns_not_matches(build_db):
+    """The loop's second pass caught this: `isbn_resolved` is the DoD's floor
+    metric, so it must count isbn13 values actually WRITTEN. Counting matched
+    rows instead made a re-run report 54 "resolved" while writing nothing new —
+    a number that flatters the pipeline, which is exactly what a floor metric
+    must never do. `matched` is the separate, honest count."""
+    conn, tmp = build_db
+    assert main(["--report", str(tmp / "p1.json")], transports=fixture_transports(),
+                fetch=cover_fetch, pace=NO_PACE) == 0
+    first = json.loads((tmp / "p1.json").read_text(encoding="utf-8"))
+    assert first["isbn_resolved"] == 3 and first["matched"] == 3
+    # every row has an isbn AND a cover now: the scope is empty and a plain
+    # re-run reports 0 of everything — that IS the F-2 convergence signal
+    assert main(["--report", str(tmp / "p2.json")], transports=fixture_transports(),
+                fetch=cover_fetch, pace=NO_PACE) == 0
+    second = json.loads((tmp / "p2.json").read_text(encoding="utf-8"))
+    assert second["total"] == 0 and second["matched"] == 0 and second["isbn_resolved"] == 0
+    # a match whose provider had no isbn: matched yes, isbn_resolved never
+    conn.execute("UPDATE book SET isbn13 = NULL, cover_path = NULL, "
+                 "cover_source = NULL WHERE id = 1")
+    conn.commit()
+    assert main(["--report", str(tmp / "p3.json")], transports=no_isbn_transports(),
+                fetch=cover_fetch, pace=NO_PACE) == 0
+    third = json.loads((tmp / "p3.json").read_text(encoding="utf-8"))
+    assert third["matched"] == 1 and third["isbn_resolved"] == 0
+    assert conn.execute("SELECT isbn13 FROM book WHERE id = 1").fetchone()[0] is None
