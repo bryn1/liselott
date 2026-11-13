@@ -1,10 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 510" width="340" height="510" role="img" aria-labelledby="t">
-  <!-- T3.4 placeholder: painted when a book has no cover. §9 keeps the copy
-       "Omslag saknas"; the fix-me link lives on the bok page only, never here. -->
-  <title id="t">Omslag saknas</title>
+  <!-- T3.4 placeholder: painted when a book has no cover. §9 (PLAN, verbatim into
+       PLAN-c3 §9): one muted word "omslag"; the fix-me link lives on the bok page
+       only, never here. -->
+  <title id="t">omslag</title>
   <rect width="340" height="510" fill="#efe9df"/>
   <rect x="0.5" y="0.5" width="339" height="509" fill="none" stroke="#cfc6b8" stroke-width="1"/>
   <rect x="26" y="34" width="288" height="442" rx="3" fill="none" stroke="#cfc6b8" stroke-width="1.5"/>
   <line x1="52" y1="34" x2="52" y2="476" stroke="#cfc6b8" stroke-width="1"/>
-  <text x="184" y="250" text-anchor="middle" font-family="Georgia, 'Iowan Old Style', serif" font-size="21" fill="#6d6357">Omslag saknas</text>
+  <text x="184" y="250" text-anchor="middle" font-family="Georgia, 'Iowan Old Style', serif" font-size="21" fill="#6d6357">omslag</text>
 </svg>

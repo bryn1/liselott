@@ -319,7 +319,8 @@ def test_cover_route_serves_the_placeholder_for_a_coverless_row(tmp_path, monkey
     assert r.mimetype == "image/svg+xml"
     svg = (ROOT / "app" / "static" / "omslag-saknas.svg").read_bytes()
     assert r.data == svg                       # the placeholder file, not a stub
-    assert b"Omslag saknas" in svg             # §9 copy lives in the svg
+    assert b">omslag</text>" in svg            # §9: one muted word "omslag" lives in the svg
+    assert b"Omslag saknas" not in svg         # the fix-me hint belongs to the bok page, never here
 
 
 def test_cover_route_serves_the_stored_jpeg(tmp_path, monkeypatch):
