@@ -172,6 +172,22 @@ def _is_public_root() -> bool:
     return request.path == PUBLIC_ROOT and request.method in READ_METHODS
 
 
+def _file_shaped() -> bool:
+    """M8-hotfix-2 (MC 12451): the lane staging gate (vm106-staging-gate.sh
+    §6) probes every root file the mirror DROPS (DESIGN.md, README.md,
+    LEDGER.md, hosting.yaml, data-import/*.csv, server.py …) and passes a
+    quarantined name only on 404/403 — a 302 fingerprints the auth gate and
+    reads as "reachable". A final path segment carrying a dot is a
+    file-shaped name; the guard asks this ONLY on its unauthenticated
+    redirect branches, so allow-listed routes (/robots.txt has a dot) and
+    /static/ are already through. The answer is abort(404) — the SAME
+    errorhandler an owner gets (routes.py: 404.html, plain Swedish copy,
+    zero app data, no hint of why), so anonymous and logged-in 404s are
+    indistinguishable and leak nothing. Extension-less unknown paths keep
+    the §6.4 uniform 302 (the T2.6 contract — not churned)."""
+    return "." in request.path.rsplit("/", 1)[-1]
+
+
 def _closed_gate():
     """Closed-window state (§6.1): zero app data answered; POST setup -> 403."""
     if request.path == "/healthz":
@@ -225,6 +241,8 @@ def init_auth(app):
                     or _is_public_root()
                     or request.path.startswith(STATIC_PREFIX)):
                 return _csrf_gate()
+            if _file_shaped():
+                abort(404)  # quarantined file names 404, never 302 (M8-fix2)
             return redirect_prefixed("/satt-loesenord")
         if request.path == "/satt-loesenord":
             abort(404)  # configured -> gone forever (§6.1)
@@ -233,6 +251,8 @@ def init_auth(app):
             return _csrf_gate()
         if session.get(SESSION_FLAG):
             return _csrf_gate()
+        if _file_shaped():
+            abort(404)  # quarantined file names 404, never 302 (M8-fix2)
         return redirect_prefixed("/logga-in")
 
     @app.get("/robots.txt")

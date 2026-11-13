@@ -19,7 +19,13 @@ PASSWORD = "_test_losenord_"
 SEEDED_TITLES = ("Stöld", "Ellens val", "Falska toner", "Näktergalen")
 
 ROUTES = ("/", "/bibliotek", "/sok?q=Stöld", "/bok/1", "/cover/1",
-          "/rekommendationer", "/onska", "/rapa/omslag", "/x")
+          "/rekommendationer", "/onska", "/rapa/omslag", "/x",
+          # M8-hotfix-2 (MC 12451): the guard 404s anonymous file-shaped
+          # unknowns instead of 302-ing them (lane quarantine posture) — the
+          # 404 body is static 404.html copy and carries zero seed bytes by
+          # construction; these legs assert exactly that over the seeded DB.
+          "/DESIGN.md", "/LEDGER.md", "/README.md", "/hosting.yaml",
+          "/data-import/import_overrides.csv", "/server.py")
 
 
 def seed_dir(tmp_path):
@@ -73,9 +79,10 @@ def test_unauthenticated_leak_matrix(seeded):
 
 
 def test_sitemap_absent_robots_present(seeded):
-    """No sitemap route exists (§6.4): the LOGGED-IN leg sees the honest 404;
-    anonymous never reaches a route — the guard answers first (T2.3 leg), so
-    unauthenticated /sitemap.xml is 302, not 404. Neither shape serves bytes."""
+    """No sitemap route exists (§6.4): the LOGGED-IN leg sees the honest 404.
+    Unauthenticated /sitemap.xml is the guard's own 404 too — the dot makes
+    it file-shaped (M8-hotfix-2); an extension-less unknown stays the T2.6
+    302. Neither shape serves bytes."""
     _, client = configured_client(seeded)
     r = client.get("/liselott/sitemap.xml")
     assert r.status_code == 404  # authed: the route exists not

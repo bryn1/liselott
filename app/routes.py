@@ -174,8 +174,13 @@ def init_routes(app):
     @app.errorhandler(404)
     def inte_hittad(error):
         """The gate is NOT loosened here (T2.6): _guard already ran as a
-        before_request for this unmatched path, so an anonymous visitor was
-        redirected long before this render."""
+        before_request for this unmatched path. Anonymous visitors reach this
+        render for file-SHAPED names only (M8-hotfix-2: _file_shaped 404s the
+        lane's quarantine probes instead of fingerprinting the gate with a
+        302); every other unknown anonymous path was redirected long before
+        this render. The body is static copy — it echoes nothing back and
+        carries zero app data, so the anonymous 404 is indistinguishable
+        from the owner's."""
         return render_template("404.html"), 404
 
     @app.get("/cover/<int:book_id>")

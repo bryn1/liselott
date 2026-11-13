@@ -4,7 +4,9 @@ unconfigured+open → 302 /satt-loesenord; unconfigured+closed → gate page
 everywhere EXCEPT /healthz, which answers 200 `ok` in every state (three
 separate healthz assertions below). The ROOT is the one public page in the
 first two states and the pinned gate page in the third (M8 staging gate,
-MC 12451): each state test below asserts GET / -> 200, never a 302. Stub
+MC 12451): each state test below asserts GET / -> 200, never a 302. The
+mirror-DROPPED root names (QUARANTINED below) answer the guard's own 404 to
+anonymous in every state that 302s (M8-hotfix-2, MC 12451). Stub
 routes answer 501 until the real routes land (M4+); reaching a stub would
 mean the guard leaked."""
 import pytest
@@ -20,6 +22,16 @@ PROTECTED = (
     "/rekommendationer", "/cover/1", "/rapa/omslag", "/rapa/omslag-rapport",
     "/rekommendation-rapport", "/seed", "/bundle", "/backfill",
     "/byter-losenord", "/backup",
+)
+
+# M8-hotfix-2 (MC 12451): mirror-DROPPED root names the lane staging gate
+# (vm106-staging-gate.sh §6) probes — a quarantined name passes only on
+# 404/403, never on the guard's uniform 302 (which fingerprints the auth
+# gate and reads as reachable). import_overrides.csv is the personal-data
+# leg of P0-1: one owner row, never served anonymous.
+QUARANTINED = (
+    "/DESIGN.md", "/LEDGER.md", "/README.md", "/hosting.yaml",
+    "/data-import/import_overrides.csv", "/server.py",
 )
 
 
@@ -149,3 +161,52 @@ def test_closed_window_gate_except_healthz(tmp_path, monkeypatch):
     assert "Välj ditt lösenord" not in r.text
     r = client.get("/healthz")
     assert r.status_code == 200 and r.data == b"ok"  # healthz assertion 3/3
+
+
+def test_quarantined_file_shapes_404_configured_state(tmp_path, monkeypatch):
+    """M8-hotfix-2 (MC 12451), the state the lane ran in when the gate went
+    RED: anonymous GETs of every mirror-DROPPED root name 404 (plain 404.html,
+    no Location header — the uniform 302 would read as "reachable" to the
+    staging probe). Both request shapes answer alike (§6.5 middleware strips
+    the prefix before the guard). Static stays allow-listed 200, and the
+    extension-less unknown keeps its T2.6 302 to /logga-in — that contract
+    is NOT churned."""
+    _, client = configured_client(tmp_path, monkeypatch)
+    for path in QUARANTINED:
+        r = client.get(path)
+        assert r.status_code == 404, path
+        assert "Location" not in r.headers, path
+        assert "hittas inte" in r.text.lower(), path
+        r = client.get("/liselott" + path)  # prefixed shape, same answer
+        assert r.status_code == 404, path
+    assert client.get("/static/css/app.css").status_code == 200
+    r = client.get("/något-okänt")
+    assert r.status_code == 302
+    assert r.headers["Location"] == "/liselott/logga-in"
+
+
+def test_quarantined_file_shapes_404_open_state(tmp_path, monkeypatch):
+    """The 404 posture holds pre-setup too (unconfigured+window-open): the
+    lane probe must never read a quarantined name, in no state that 302s."""
+    app = make_app(tmp_path, monkeypatch)
+    client = app.test_client()
+    for path in QUARANTINED:
+        assert client.get(path).status_code == 404, path
+    r = client.get("/något-okänt")
+    assert (r.status_code, r.headers["Location"]) == (
+        302, "/liselott/satt-loesenord")
+
+
+def test_logged_in_file_shape_still_reaches_flask_404(tmp_path, monkeypatch):
+    """The owner's answer to an unknown file-shaped path is unchanged: the
+    guard passes it through and Flask's own 404 answers — the anonymous 404
+    is byte-for-byte the same page, so the posture cannot fingerprint the
+    session either way."""
+    app = make_app(tmp_path, monkeypatch)
+    client = app.test_client()
+    client.post("/liselott/satt-loesenord",
+                data={"loesenord": PASSWORD, "bekrafta": PASSWORD})
+    for path in QUARANTINED:
+        r = client.get(path)
+        assert r.status_code == 404, path
+        assert "hittas inte" in r.text.lower(), path
