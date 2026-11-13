@@ -147,12 +147,17 @@ def test_live_mode_writes_and_resumes_on_what_is_left(build_db):
 
 
 def test_authors_flag_refuses_loudly_rather_than_lying(build_db, capsys):
-    """--authors is the plan's flag for the candidate pool, whose build is
-    T6.3; a flag that quietly did nothing would be the P2-b defect itself."""
+    """The P2-b refusal guard, RE-PINNED at T6.3: --authors itself now RUNS
+    the shared candidate builder (tests/test_candidates.py owns that
+    behaviour), but --offline --authors stays a loud refusal — a candidate
+    pool IS a network fetch, and "offline" that quietly fetches anyway (or
+    quietly fetches nothing and lies in the report) is exactly the defect
+    this flag was born to refuse."""
     conn, tmp = build_db
-    assert main(["--authors"], transports=fixture_transports()) == 2
+    assert main(["--authors", "--offline"],
+                transports=fixture_transports()) == 2
     captured = capsys.readouterr()
-    assert "kandidatpool" in captured.err and "T6.3" in captured.err
+    assert "kandidatpoolen" in captured.err.lower()
 
 
 def test_pacing_is_one_request_per_second(build_db):

@@ -8,7 +8,23 @@ consulted, so it answers None (= "not asked"), the exact posture a cooldown
 has since T3 — never an error, and never recorded in tried_providers. An
 honest attempt log beats a full-looking one."""
 
+from datetime import datetime, timedelta, timezone
+
 PACE_S = 1.0                       # §12: 1 req/s against the providers
+REFRESH_DAYS = 90                  # §8: candidates refresh after 90 days —
+                                   # ONE window, route and CLI share it
+MAX_AUTHORS_PER_PASS = 40          # §8's cap: authors ASKED per pass (the
+                                   # scan still walks the whole queue)
+
+
+def candidates_window(now=None):
+    """(now, stale_before) ISO stamps for the 90-day rule — ONE place, so the
+    CLI (--authors) and POST /backfill?mode=candidates can never drift on
+    what "fresh" means (P2-d's one mechanism, extended)."""
+    now = now or datetime.now(timezone.utc)
+    stale = now - timedelta(days=REFRESH_DAYS)
+    fmt = "%Y-%m-%dT%H:%M:%SZ"
+    return now.strftime(fmt), stale.strftime(fmt)
 
 
 def with_budget(transports, budget_s, *, sleep, clock):
@@ -58,6 +74,17 @@ def paced_fetch(fetch, pace):
     def call(url, **kw):
         pace(PACE_S)
         return fetch(url, **kw)
+
+    return call
+
+
+def paced_search(search, pace):
+    """The candidates-mode sibling of paced/paced_fetch (same courtesy, same
+    semantics): one PACE_S pause before every author-search ask. The route's
+    candidates branch and the CLI's --authors both wrap through HERE."""
+    def call(name, _s=search):
+        pace(PACE_S)
+        return _s(name)
 
     return call
 
@@ -142,7 +169,23 @@ def author_queue(conn, limit=None, after=0):
     return list(conn.execute(sql, params))
 
 
-def candidates_pass(conn, authors, search, *, now, stale_before, aliases=None):
+def fresh_candidate(conn, canonical, stale_before):
+    """Is CANONICAL fresh in the pool? The T6.3 builder answers for the whole
+    spelling set: candidates stored under her name OR under any spelling the
+    DB KNOWS as hers (author_alias) count — the pen-name case s5 handed over
+    (freshness keyed only on the canonical name re-asked her every pass).
+    A credited pen name the alias table has never seen stays the honest
+    residual: one redundant ask, dedupe keeps the pool stable."""
+    return conn.execute(
+        "SELECT 1 FROM candidate WHERE (author_name = ? OR author_name IN"
+        " (SELECT al.alias FROM author_alias al"
+        "    JOIN author a ON a.id = al.author_id WHERE a.name = ?))"
+        " AND fetched_at > ? LIMIT 1",
+        (canonical, canonical, stale_before)).fetchone() is not None
+
+
+def candidates_pass(conn, authors, search, *, now, stale_before, aliases=None,
+                    max_fetch=None):
     """THE candidate builder — T5.6's route and T6.3's CLI both run THIS.
     Per author: skip the FETCH while a fresh (< stale_before window) candidate
     of her already sits in the pool (the 90-day refresh rule); otherwise ask
@@ -152,28 +195,40 @@ def candidates_pass(conn, authors, search, *, now, stale_before, aliases=None):
     real life, the same author+title twice is not. author_name is stored
     CANONICAL through the alias chain (T1.4's mechanism at INSERT).
 
-    KNOWN LIMITATION stated honestly (T6.3 owns the fuller builder): freshness
-    matches the canonical queue-author name, so an author whose books are
-    credited to a PEN NAME re-asks (idempotent — the dedupe key keeps the pool
-    stable, it only costs the ask)."""
+    A provider that answers the 429/timeout posture (ProviderUnavailable,
+    T3's vocabulary) costs a counted FAILURE and moves on — same posture as
+    run_pass: a failing author is examined and passed, never poison, and
+    since nothing fresh landed for her the next plain re-run owes her again.
+
+    max_fetch (§8's cap of 40 authors ASKED per pass): the scan still walks
+    the whole queue (scanned/processed count every author examined), but no
+    further ASKS happen once `fetched` reaches the cap — the 90-day freshness
+    rule then carries the unfinished authors into the next plain re-run, the
+    same resume-by-itself posture the covers loop has (P2-b)."""
     from app import text
+    from app.enrich_http import ProviderUnavailable
     aliases = aliases or {}
-    report = {"scanned": 0, "processed": 0, "fetched": 0, "new_candidates": 0}
+    report = {"scanned": 0, "processed": 0, "fetched": 0, "new_candidates": 0,
+              "failures": 0}
+    book_titles = {text.fold(t) for (t,) in conn.execute(
+        "SELECT title FROM book")}
+    pool = {(text.fold(a), text.fold(t)) for a, t in conn.execute(
+        "SELECT author_name, title FROM candidate")}
     for author_id, name in authors:
         report["scanned"] += 1
         report["processed"] += 1
         canonical = aliases.get(name, name)
-        fresh = conn.execute(
-            "SELECT 1 FROM candidate WHERE author_name = ?"
-            " AND fetched_at > ? LIMIT 1", (canonical, stale_before)).fetchone()
-        if fresh:
+        if fresh_candidate(conn, canonical, stale_before):
             continue
+        if max_fetch is not None and report["fetched"] >= max_fetch:
+            continue                                # capped: examined, not asked
         report["fetched"] += 1
-        book_titles = {text.fold(t) for (t,) in conn.execute(
-            "SELECT title FROM book")}
-        pool = {(text.fold(a), text.fold(t)) for a, t in conn.execute(
-            "SELECT author_name, title FROM candidate")}
-        for hit in search(name) or []:
+        try:
+            found = search(name)
+        except ProviderUnavailable:
+            report["failures"] += 1
+            continue
+        for hit in found or []:
             title = (hit.get("title") or "").strip()
             author = ((hit.get("authors") or [None])[0] or canonical)
             author = aliases.get(author, author)
