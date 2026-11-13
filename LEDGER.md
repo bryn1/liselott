@@ -21,7 +21,7 @@ postdating a line make that line STALE — de-stale before quoting it.
   (pure refactor). Evidence `h1-evidence.md`.
 - **H2** omslag-saknas.svg wording reconciliation — DONE. Evidence
   `h2-evidence.md`.
-- **M6 recommendation engine** — IN PROGRESS (stage s6):
+- **M6 recommendation engine** — DONE (stage s6, T6.1–T6.4):
   - T6.1 `recommend.py` scorer — DONE (commit a102d95).
   - T6.2 /rekommendationer + dismiss — DONE (commit a220f5c).
   - T6.3 candidate-pool builder over the T5.6 core + `--authors` CLI + LIVE
@@ -30,4 +30,6 @@ postdating a line make that line STALE — de-stale before quoting it.
     five consecutive full passes new_candidates=0, §8 cap-40 honoured — last
     pass line: `mode=candidates total=247 scanned=247 processed=247
     fetched=40 failures=0 new_candidates=0 candidate_total=284`).
-  - T6.4 POST /seed + POST /bundle HTTP ingest — PENDING.
+  - T6.4 POST /seed + POST /bundle HTTP ingest — DONE (this commit; the
+    upsert core + both doors in `app/bundle.py`, named deviation from the
+    plan's File line per the file-hygiene law, as `app/backfill.py` in M5).

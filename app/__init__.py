@@ -73,7 +73,7 @@ def create_app():
     app.wsgi_app = mount_middleware(app.wsgi_app)
 
     # Late import: app.auth imports app.db, never the factory (no cycle).
-    from app import (auth, backfill, onska, redigera, report,
+    from app import (auth, backfill, bundle, onska, redigera, report,
                          routes, tillagg)
     auth.init_auth(app)
     routes.init_routes(app)
@@ -82,6 +82,7 @@ def create_app():
     onska.init_onska(app)
     report.init_report(app)
     backfill.init_backfill(app)
+    bundle.init_bundle(app)
 
     @app.get("/healthz")
     def healthz():

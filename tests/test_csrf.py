@@ -82,12 +82,16 @@ def test_form_post_same_origin_ok(env):
 
 
 def test_machine_route_no_origin_not_rejected(env):
-    """§6.6 curl posture: session-authed POST /seed (stub) WITHOUT Origin and
-    without token is NOT CSRF-rejected — the runbook POSTs reach the route."""
+    """§6.6 curl posture: session-authed POST /seed WITHOUT Origin and
+    without token is NOT CSRF-rejected — the runbook POSTs reach the route.
+    (RE-PINNED at T6.4: the M2 stub answering "seeded" is replaced by the
+    real import per the plan — what the door answers belongs to
+    tests/test_seed_routes.py; the question HERE stays exactly "does a bare-
+    curl POST get through the guard without token and without Origin".)"""
     _, client = env
     r = client.post("/liselott/seed", data="raw body, not form data")
     assert r.status_code == 200
-    assert r.data == b"seeded"
+    assert r.data.startswith(b"parsed=")
 
 
 def test_machine_route_foreign_origin_rejected(env):
