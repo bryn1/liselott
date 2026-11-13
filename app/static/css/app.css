@@ -273,4 +273,4 @@ a, button, input, .omslag {
   padding-top: var(--s4); }
 .uppladdning { margin-top: var(--s4); }
 
-/* deploy-marker 2026-11-13: setup-window reopen trigger (MC 12451) — lane redeploys only on content change; empty commits mirror byte-identical and never restart the unit. */
+/* deploy-marker 2026-11-13b: window reopen #2 (MC 12451) — lane restart is the ONLY window reopener; each restart grants a fresh 20-min first-login window. */
