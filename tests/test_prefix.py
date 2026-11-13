@@ -34,7 +34,10 @@ from tests.test_browse import PASSWORD, seed_shelf  # one synthetic corpus
 NOT_YET_LANDED = ()
 SWEEP = ("/", "/bibliotek", "/bok/1", "/bok/2", "/bok/9999", "/sok?q=a",
          "/logga-in", "/redigera/1", "/rekommendationer",
-         "/satt-loesenord", "/robots.txt") + NOT_YET_LANDED
+         "/satt-loesenord", "/robots.txt",
+         # P1-1 (MC 12451): the door that was missing — its form action must
+         # ride the mount like every other emitted URL.
+         "/byter-losenord") + NOT_YET_LANDED
 # everything else must 302 an anonymous visitor; the allow-listed four may not
 ANON_PROTECTED = ("/bibliotek", "/bok/1", "/sok?q=a", "/logga-ut", "/cover/1",
                   "/byter-losenord", "/redigera/1") + NOT_YET_LANDED

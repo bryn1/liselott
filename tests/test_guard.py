@@ -47,8 +47,9 @@ def unimplemented(app):
     unchanged either way: a stubbed path still has to answer 501 to the owner,
     an implemented path has to answer with the real page, and neither may ever
     see a guard redirect or the gate page. (The stub endpoints are excluded so
-    this stays correct after the stubs are registered; a POST-only path like
-    /byter-losenord has no GET rule, so its stub stays in place.)"""
+    this stays correct after the stubs are registered; a path with a real GET
+    rule — /byter-losenord since P1-1, MC 12451 — is swept as the real page,
+    never stubbed.)"""
     get_paths = {rule.rule for rule in app.url_map.iter_rules()
                  if "GET" in rule.methods and not rule.endpoint.startswith("stub")}
     return {e.split("?")[0] for e in PROTECTED if e.split("?")[0] not in get_paths}
