@@ -288,8 +288,10 @@ def resolve_book(conn, book_id, *, transports=None, fetch=None, now=time.time):
         except (ProviderUnavailable, CoverRejected):
             cover_written = None           # a cover failure never loses the isbn
 
+    genres_written = False
     if genres and not _has_genres(conn, book_id):
         _set_genres(conn, book_id, genres)
+        genres_written = True
 
     conn.execute("UPDATE book SET isbn13 = ?, isbn10 = COALESCE(isbn10, ?), "
                  "year = ?, tried_providers = ?, enrich_fail = 0, updated = ? "
@@ -297,7 +299,8 @@ def resolve_book(conn, book_id, *, transports=None, fetch=None, now=time.time):
                  (isbn13, chosen.get("isbn10"), year, ",".join(tried), ts, book_id))
     conn.commit()
     return {"resolved": True, "source": chosen["source"], "tried": tried,
-            "genres": genres, "cover": cover_written}
+            "genres": genres, "genres_written": genres_written,
+            "cover": cover_written}
 
 
 def live_transports(conn, *, now=time.time):
