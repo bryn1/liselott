@@ -118,6 +118,7 @@ MAX_TITLE_SIMILARITY_MIN = 0.80      # difflib ratio floor for a provider hit
 MAX_COVER_EDGE = (340, 510)          # §5.11: normalized covers are ≤340×510
 COVER_QUALITY = 82
 COVER_SUBDIR = "covers"
+MANUAL_COVER_SOURCES = ("manual", "manual-url")
 PROVIDER_ORDER = ("libris", "ol", "gb")
 
 # cycle-1 §5 (binding): substring match on lower-cased subject strings, max 3
@@ -237,7 +238,8 @@ def resolve_book(conn, book_id, *, transports=None, fetch=None, now=time.time):
     """Enrich ONE row: libris→ol→gb, the first provider whose hit passes the
     match policy (difflib ≥0.80 + the author gate) wins; writes
     isbn13/isbn10/year (holes only), genres (holes only, §5 mapping), the
-    cover (never over a 'manual' cover) and the F-2 evidence columns.
+    cover (never over an admin's own cover, 'manual' or 'manual-url')
+    and the F-2 evidence columns.
 
     Transport contract: a transport returns a LIST (answered), None (not
     consulted — cooldown/down, NOT recorded in tried_providers) or raises
@@ -289,7 +291,9 @@ def resolve_book(conn, book_id, *, transports=None, fetch=None, now=time.time):
     isbn13 = chosen.get("isbn13") or row[2]
     year = row[3] if row[3] is not None else chosen.get("year")
     genres = map_genres(chosen.get("subjects"))
-    cover_ok = row[5] != "manual"          # a manual cover is never overwritten
+    # An admin's own cover — uploaded ('manual') or found via hitta-omslag
+    # ('manual-url', the OQ-2 ruling) — is never painted over by a provider.
+    cover_ok = row[5] not in MANUAL_COVER_SOURCES
     cover_written = None
     if cover_ok and chosen.get("cover_url"):
         try:

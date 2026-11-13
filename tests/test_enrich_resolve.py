@@ -335,3 +335,21 @@ def test_cover_route_never_follows_a_path_outside_the_covers_dir(tmp_path, monke
     svg = (ROOT / "app" / "static" / "omslag-saknas.svg").read_bytes()
     r = client.get(f"/liselott/cover/{book_id}")
     assert r.status_code == 200 and r.data == svg, "the route served a non-cover file"
+
+
+def test_an_admins_manual_url_cover_is_never_overwritten(conn):
+    """'manual' was the only value the overwrite rule protected; 'manual-url'
+    (the OQ-2 ruling) is just as much the admin's own choice — a backfill pass
+    must not paint over it with whatever a provider offers."""
+    book_id = conn.execute("SELECT id FROM book").fetchone()[0]
+    enrich.store_cover(conn, book_id, COVER_FIXTURE.read_bytes(), "manual-url")
+    before = conn.execute("SELECT cover_path, cover_source FROM book WHERE id = ?",
+                          (book_id,)).fetchone()
+    assert before[1] == "manual-url"
+    enrich.resolve_book(
+        conn, book_id,
+        transports={"libris": libris_transport([]), "ol": ol_hit_transport(),
+                    "gb": libris_transport([])},
+        fetch=cover_fetch())
+    assert conn.execute("SELECT cover_path, cover_source FROM book WHERE id = ?",
+                        (book_id,)).fetchone() == before
