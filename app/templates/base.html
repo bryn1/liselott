@@ -25,6 +25,7 @@
          url_for from the first commit, like every other link. #}
       <a href="{{ url_for('lagg_till') }}"{% if current == 'lagg-till' %} aria-current="page"{% endif %}>Lägg till</a>
       <a href="{{ url_for('onska') }}"{% if current == 'onska' %} aria-current="page"{% endif %}>Önskelista</a>
+      <a href="{{ url_for('omslag_sida') }}"{% if current == 'rapporter' %} aria-current="page"{% endif %}>Rapporter</a>
       <a href="{{ url_for('logga_ut') }}">Logga ut</a>
     </nav>
   </header>

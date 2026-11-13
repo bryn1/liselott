@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Saknade omslag — Liselotts bokhylla{% endblock %}
+{% block content %}
+{# T5.5 — the cover worklist. Every row's buttons post through THE doors that
+   already exist (provider retry /omslag/<id>, ISBN through the edit door's
+   per-field merge, upload via the edit page) — the report adds no mechanism,
+   it reaches them. The unobtainable rows are MARKED honestly, never hidden. #}
+<h1>Saknade omslag</h1>
+<p>{{ rapport.total }} böcker · {{ rapport.with_cover }} har omslag ·
+   {{ rapport.missing }} saknar · {{ rapport.manual }} uppladdade.</p>
+
+{% if saknar %}
+<table class="rapport">
+  <tr><th>Bok</th><th>Åtgärd</th></tr>
+  {% for b in saknar %}
+  <tr>
+    <td>
+      <a href="{{ url_for('bok', id=b.id) }}">{{ b.title }}</a>
+      {% if b.authors %} — {{ b.authors | join(", ") }}{% endif %}
+      {% if b.id in uttomott %}
+      <p class="fel-meddelande">Försökte libris, ol och gb — ingen gav ett
+        omslag. Sätt in ett ISBN eller ladda upp en bild.</p>
+      {% endif %}
+    </td>
+    <td>
+      <form method="post" action="{{ url_for('hamta_omslag', book_id=b.id) }}">
+        <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+        <button type="submit">Hämta omslag</button>
+      </form>
+      <form method="post" action="{{ url_for('spara_redigera', id=b.id) }}">
+        <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+        <label for="isbn-{{ b.id }}">ISBN</label>
+        <input id="isbn-{{ b.id }}" name="isbn13" type="text"
+               inputmode="numeric">
+        <button type="submit">Spara ISBN</button>
+      </form>
+      <a href="{{ url_for('redigera', id=b.id) }}">Ladda upp bild</a>
+    </td>
+  </tr>
+  {% endfor %}
+</table>
+{% else %}
+<p class="tom-state">Alla böcker har omslag.</p>
+{% endif %}
+{% endblock %}
