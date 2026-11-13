@@ -38,8 +38,14 @@ def state_base() -> Path:
 
 
 def init_db(conn: sqlite3.Connection) -> None:
-    """Apply app/schema.sql; idempotent (every CREATE carries IF NOT EXISTS)."""
+    """Apply app/schema.sql; idempotent (every CREATE carries IF NOT EXISTS).
+    Then run the NAMED migrations in app/migrate.py — executescript can create
+    what is missing but can never change a table that exists (a CHECK is baked
+    at CREATE), so pre-existing DBs are migrated here, the ONE schema entry
+    point every caller already routes through (s3 §9, closed for S5's UI)."""
     conn.executescript(SCHEMA_PATH.read_text(encoding="utf-8"))
+    from app import migrate          # late: migrate imports db back (repo pattern)
+    migrate.apply(conn)
 
 
 def connect() -> sqlite3.Connection:
