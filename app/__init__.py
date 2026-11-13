@@ -1,9 +1,34 @@
-"""Liselotts bokhylla — app factory (§6.3 cookie defaults, §6.5 mount middleware)."""
+"""Liselotts bokhylla — app factory (§6.3 cookie defaults, §6.5 mount
+middleware, §9 cache-busted assets)."""
 import os
+import subprocess
+from pathlib import Path
 
 from flask import Flask
 
 DEFAULT_PREFIX = "/liselott"
+REPO_ROOT = Path(__file__).resolve().parent.parent
+
+
+def _read_version(cwd=None):
+    """T4.4: the deployed code is immutable, so the commit IS a perfect cache
+    key. No git (an unpacked deploy, a shallow CI tree) is NOT an error — the
+    app boots with the literal "dev" and ships unversioned asset names."""
+    try:
+        proc = subprocess.run(["git", "rev-parse", "HEAD"],
+                              cwd=str(cwd or REPO_ROOT), capture_output=True,
+                              text=True, timeout=5)
+    except (OSError, subprocess.SubprocessError):
+        return "dev"
+    sha = proc.stdout.strip()
+    if proc.returncode != 0 or len(sha) != 40:
+        return "dev"
+    return sha
+
+
+# Read ONCE at import: a deploy restarts the process, so this cannot go stale
+# under a long-running app, and no request ever shells out to git.
+APP_VERSION = _read_version()
 
 
 def current_prefix():
@@ -42,6 +67,9 @@ def create_app():
         SESSION_COOKIE_SAMESITE="Lax",
         SESSION_COOKIE_SECURE=os.environ.get("LISELOTT_ENV") != "dev",
     )
+    # §9/T4.4: the asset version is a template global, so every ref in every
+    # template is url_for(..., v=APP_VERSION) — never a hand-written ?v=.
+    app.jinja_env.globals["APP_VERSION"] = APP_VERSION
     app.wsgi_app = mount_middleware(app.wsgi_app)
 
     # Late import: app.auth imports app.db, never the factory (no cycle).

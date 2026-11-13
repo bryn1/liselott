@@ -1,0 +1,153 @@
+/* Liselotts bokhylla — the §9 posture, implemented as CSS custom properties.
+   M7 (T7.1) owns the full DESIGN.md token pass and the contrast checker; what
+   is here is the same palette, the same type scale and the same motion budget
+   the plan pins, so nothing on screen contradicts the document later.
+   Motion: 120ms ease-out on colour properties ONLY, and none at all under
+   prefers-reduced-motion. No parallax, no hover-lift, no gradients-as-
+   decoration, no icon fonts (§9's forbidden list). */
+
+:root {
+  --paper: #FAF6F1;
+  --card: #FFFFFF;
+  --ink: #2E2B27;
+  --muted: #5E5750;
+  --line: #E4DCCF;
+  --accent: #6B7F65;
+  --link: #4E6348;
+  --star: #B07A2B;
+  --danger: #8C4A3F;
+
+  --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px;
+  --s5: 24px; --s6: 40px; --s7: 64px;
+
+  --radius: 6px;
+  --shadow: 0 1px 2px rgb(20 16 12 / .06);
+  --measure: 62ch;
+  --font: "Lora", Georgia, "Times New Roman", serif;
+}
+
+* { box-sizing: border-box; }
+
+html { font-size: 17px; }
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font);
+  font-size: 1rem;
+  line-height: 1.6;
+  -webkit-text-size-adjust: 100%;
+}
+
+h1, h2, h3 { font-weight: 700; line-height: 1.2; margin: var(--s5) 0 var(--s3); }
+h1 { font-size: 2.056rem; margin-top: var(--s5); }
+h2 { font-size: 1.375rem; }
+p { margin: 0 0 var(--s3); max-width: var(--measure); }
+
+a { color: var(--link); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+
+:focus-visible {
+  outline: 2px solid var(--link);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* one header, one nav, no sticky tricks */
+.topp {
+  border-bottom: 1px solid var(--line);
+  padding: var(--s3) var(--s4);
+}
+.meny { display: flex; flex-wrap: wrap; gap: var(--s5); max-width: 1080px; margin: 0 auto; }
+.meny a { color: var(--muted); text-decoration: none; }
+.meny a[aria-current="page"], .meny a:hover { color: var(--ink); }
+.meny a:hover { text-decoration: underline; }
+
+.sida { max-width: 720px; margin: 0 auto; padding: var(--s4) var(--s4) var(--s7); }
+
+/* ── the shelf and the result list share the card, so they share the grid ── */
+.hylla {
+  list-style: none;
+  margin: 0 0 var(--s6);
+  padding: 0;
+  max-width: 1080px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: var(--s5) var(--s4);
+}
+.bok-kort { margin: 0; }
+.bok-lank { display: block; text-decoration: none; color: inherit; }
+.omslag {
+  display: block;
+  width: 100%;
+  height: auto;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+.titel {
+  display: block;
+  margin-top: var(--s2);
+  font-weight: 700;
+  line-height: 1.2;
+}
+.bok-lank:hover .titel { color: var(--link); text-decoration: underline; }
+.forfattare, .meta { color: var(--muted); font-size: .8125rem; margin: var(--s1) 0 0; }
+.stjarnor { color: var(--star); font-size: 1rem; letter-spacing: 1px; }
+
+.grupp { margin-bottom: var(--s6); }
+
+/* ── the book page ── */
+.bok-sida .omslagsfig { margin: var(--s4) 0; max-width: 220px; }
+.bok-sida .omslag { max-width: 220px; }
+figcaption a { color: var(--link); font-size: .8125rem; }
+.uppgifter { display: grid; grid-template-columns: max-content 1fr; column-gap: var(--s4); }
+.uppgifter dt { color: var(--muted); font-size: .8125rem; }
+.uppgifter dd { margin: 0 0 var(--s2); }
+.uppgifter .muted { color: var(--muted); font-variant-numeric: tabular-nums; }
+.anteckningar { margin-top: var(--s4); }
+.fel-meddelande { color: var(--danger); }
+.tom-state, .ledtråd, .ingna-traffar { color: var(--muted); }
+
+/* ── forms: fields on card, full width where they sit ── */
+form { max-width: 480px; }
+label { display: block; font-size: .8125rem; color: var(--muted); margin: var(--s3) 0 var(--s1); }
+input, button { font: inherit; }
+input[type="search"], input[type="password"], input[type="text"], textarea {
+  width: 100%;
+  padding: var(--s2) var(--s3);
+  background: var(--card);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+button {
+  margin-top: var(--s4);
+  padding: var(--s2) var(--s5);
+  background: var(--accent);
+  color: var(--card);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+.sok-form { display: grid; grid-template-columns: 1fr max-content; align-items: end; gap: var(--s2); }
+.sok-form label { grid-column: 1 / -1; margin-top: 0; }
+.sok-form button { margin-top: 0; }
+
+/* §9's motion budget to the letter: 120ms ease-out on opacity,
+   background-color and border-color ONLY. No `color` transition, no lift. */
+a, button, input, .omslag {
+  transition: opacity 120ms ease-out, background-color 120ms ease-out,
+              border-color 120ms ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+}
+
+/* 375px first-class, not an afterthought: two columns, forms full width */
+@media (max-width: 420px) {
+  .hylla { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s4) var(--s3); }
+  .sida { padding-left: var(--s3); padding-right: var(--s3); }
+  form, .sok-form { max-width: none; }
+}
