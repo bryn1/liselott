@@ -6,6 +6,21 @@
   <h1>{{ bok.title }}</h1>
   <p class="forfattare">{{ authors_text(bok) }}</p>
   {% if bok.rating %}<p>{{ stjarnor(bok.rating) }}</p>{% endif %}
+  {# T5.1 (§1): grading UI = five radio stars with Swedish LABELS, integers
+     1–5, no half-steps. Rensa posts the SAME field name with value "clear"
+     (the route lets a clear click win over a checked radio). #}
+  <form class="betyg-form" method="post" action="{{ url_for('betyg', book_id=bok.id) }}">
+    <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+    <p class="betyg-fraga">Betygsätt den här boken</p>
+    {% for n in [1, 2, 3, 4, 5] %}
+    <label class="betyg-val">
+      <input type="radio" name="betyg" value="{{ n }}"
+             {% if bok.rating == n %}checked{% endif %}> Betyg {{ n }}
+    </label>
+    {% endfor %}
+    <button type="submit">Spara betyg</button>
+    <button type="submit" class="linkad" name="betyg" value="clear">Rensa betyg</button>
+  </form>
   <figure class="omslagsfig">
     <img class="omslag" src="{{ url_for('cover', book_id=bok.id) }}"
          alt="Omslag till {{ bok.title }}" width="340" height="510">

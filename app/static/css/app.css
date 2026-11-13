@@ -151,3 +151,12 @@ a, button, input, .omslag {
   .sida { padding-left: var(--s3); padding-right: var(--s3); }
   form, .sok-form { max-width: none; }
 }
+
+/* ── T5.1 grading: five radio stars, labels beside the glyphs' absence ──
+   (M7's pass owns the full visual language; this only keeps the form from
+   rendering as five stacked block labels.) */
+.betyg-form .betyg-fraga { margin-bottom: var(--s1); }
+.betyg-form .betyg-val { display: inline-flex; align-items: center; gap: var(--s1);
+  margin: 0 var(--s4) 0 0; color: var(--ink); font-size: 1rem; }
+.betyg-form button.linkad { background: none; border: none; color: var(--link);
+  text-decoration: underline; padding: 0; margin-left: var(--s4); }
