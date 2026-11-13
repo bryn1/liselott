@@ -2,7 +2,9 @@
 states (P2-7 + P2-c): configured → every non-allow-listed route 302 /logga-in;
 unconfigured+open → 302 /satt-loesenord; unconfigured+closed → gate page
 everywhere EXCEPT /healthz, which answers 200 `ok` in every state (three
-separate healthz assertions below). The ROOT is the one public page in the
+separate healthz assertions below) and /static/, which answers as an asset in
+every state (M8-hotfix-3, MC 12451: the closed gate page served under a .css
+URL is what Cloudflare cached for 4 h). The ROOT is the one public page in the
 first two states and the pinned gate page in the third (M8 staging gate,
 MC 12451): each state test below asserts GET / -> 200, never a 302. The
 mirror-DROPPED root names (QUARANTINED below) answer the guard's own 404 to
@@ -161,6 +163,39 @@ def test_closed_window_gate_except_healthz(tmp_path, monkeypatch):
     assert "Välj ditt lösenord" not in r.text
     r = client.get("/healthz")
     assert r.status_code == 200 and r.data == b"ok"  # healthz assertion 3/3
+
+
+def test_closed_window_serves_static_assets_not_the_gate(tmp_path, monkeypatch):
+    """M8-hotfix-3 (MC 12451), the live bug: in the closed state the guard
+    answered GET /liselott/static/css/app.css with the GATE PAGE — 200, but
+    text/html — and Cloudflare caches .css-extension responses for 4 h by
+    default, so it froze the gate HTML under the stylesheet URL and the
+    landing rendered unstyled until the TTL expired. Static is
+    zero-personal-data by construction (css/js/fonts/placeholder svg) — the
+    same §6.4 argument the allow-list already makes in the two open states —
+    so the closed branch passes /static/ through too. Everything else keeps
+    the §6.1-pinned gate page. The gate page's OWN <link> stylesheet is the
+    leg that actually renders a styled page, so it is fetched from the href
+    the page emits (prefix + ?v= and all), exactly as a browser does."""
+    import re
+    import time
+
+    import app.auth as auth
+    app = make_app(tmp_path, monkeypatch)
+    monkeypatch.setattr(auth, "START_TIME", time.time() - auth.SETUP_WINDOW_S - 1)
+    client = app.test_client()
+    gate = client.get("/liselott/")
+    assert gate.status_code == 200
+    assert "Inställningsfönstret är stängt." in gate.text
+    for entry in ("/", "/bibliotek", "/logga-in", "/x"):
+        r = client.get(entry)
+        assert "Inställningsfönstret är stängt." in r.text, entry
+    href = re.search(r'href="([^"]*?/static/[^"]*)"', gate.text).group(1)
+    assert href.startswith("/liselott/static/css/app.css?v="), href
+    css = client.get(href)
+    assert css.status_code == 200, "the gate page's own stylesheet must load"
+    assert css.mimetype == "text/css", "an asset URL answers as an asset"
+    assert "Inställningsfönstret" not in css.get_data(as_text=True)
 
 
 def test_quarantined_file_shapes_404_configured_state(tmp_path, monkeypatch):

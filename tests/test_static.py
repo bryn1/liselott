@@ -163,3 +163,52 @@ def test_font_urls_resolve_under_any_prefix(tmp_path, monkeypatch):
     flask_app.testing = True
     c = flask_app.test_client()
     assert c.get("/testmonly/static/fonts/lora-400.woff2").status_code == 200
+
+
+# ── M8-hotfix-3 (MC 12451) — cache-correct static + the VERSION fallback ────
+IMMUTABLE = "public, max-age=31536000, immutable"
+
+
+def test_static_response_is_pinned_immutable(client):
+    """Every asset URL already carries ?v=<version>, so the bytes behind one
+    URL never change — immutable + version-key is the correct pairing. Left
+    to Flask's 12 h default Cloudflare applies its own 4 h policy to .css and
+    froze the wrong body under app.css (live 2026-11-13T17:25Z, the closed-
+    window gate page at 378 B)."""
+    r = client.get("/liselott/static/css/app.css")
+    assert r.status_code == 200
+    assert r.headers["Cache-Control"] == IMMUTABLE
+
+
+def test_a_static_miss_is_not_pinned(client):
+    """The same class of bug, mirrored: Cloudflare caches 404s for
+    static-looking URLs by default too, so pinning a miss would freeze the
+    absence for a year. Only a served body gets the pin."""
+    r = client.get("/liselott/static/ingenting.css")
+    assert r.status_code == 404
+    assert "immutable" not in r.headers.get("Cache-Control", "")
+
+
+def test_read_version_reads_the_version_file_when_git_is_gone(tmp_path):
+    """The vm106 mirror carries no .git, so prod booted on the literal "dev"
+    and every deploy shipped an identical ?v= — a poisoned asset URL then
+    survives the deploy that fixes it. The tree's own VERSION file is the key
+    for that shape (git still first, §T4.4 order kept)."""
+    (tmp_path / "VERSION").write_text("2026.11-2\n", encoding="utf-8")
+    assert app_module._read_version(cwd=tmp_path) == "2026.11-2"
+
+
+def test_read_version_still_prefers_the_git_sha(monkeypatch, tmp_path):
+    sha = "a" * 40
+    done = subprocess.CompletedProcess([], 0, stdout=sha + "\n", stderr="")
+    monkeypatch.setattr(subprocess, "run", lambda *a, **kw: done)
+    (tmp_path / "VERSION").write_text("2026.11-2\n", encoding="utf-8")
+    assert app_module._read_version(cwd=tmp_path) == sha
+
+
+def test_shipped_version_file_is_a_version():
+    """The prod fallback must never read as the literal "dev" — that is
+    exactly what made every ?v= identical across deploys."""
+    text = (ROOT / "VERSION").read_text(encoding="utf-8").strip()
+    assert re.fullmatch(r"\d{4}\.\d{1,2}-\d+", text), text
+
