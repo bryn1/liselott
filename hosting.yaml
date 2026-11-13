@@ -5,5 +5,8 @@
   "port": 8166,
   "root": "apps/liselott",
   "title": "Liselotts bokhylla",
-  "description": "Privat läsdagbok — inloggad krävs."
+  "description": "Privat läsdagbok — inloggad krävs.",
+  "mirror": {
+    "cachebust": "off"
+  }
 }
