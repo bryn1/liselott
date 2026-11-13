@@ -17,6 +17,7 @@ SEARCH_ENDPOINT = "https://openlibrary.org/search.json"
 COVER_ENDPOINT = "https://covers.openlibrary.org/b/id/{cover_id}-M.jpg"
 FIELDS = "title,author_name,isbn,first_publish_year,cover_i,subject"
 LIMIT = 5
+AUTHOR_LIMIT = 10                          # §8: candidates ride the top 10
 
 
 def build_url(title, author, *, limit=LIMIT, fields=FIELDS):
@@ -62,7 +63,10 @@ def search(title, author, get_json=None, **kw):
     return map_docs(get_json(build_url(title, author), **kw))
 
 
-def build_author_url(name, *, limit=LIMIT, fields=FIELDS):
+def build_author_url(name, *, limit=AUTHOR_LIMIT, fields=FIELDS):
+    """§8 pins the CANDIDATES breadth: author search asks for the TOP 10 —
+    the book-search LIMIT (5) is a different question and must not silently
+    decide how wide the candidate pool may get (T6.3 leg)."""
     q = f'author:"{name}"'
     return f"{SEARCH_ENDPOINT}?{urlencode({'q': q, 'limit': limit, 'fields': fields})}"
 
