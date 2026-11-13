@@ -21,6 +21,10 @@
     <nav class="meny" aria-label="Huvudmeny">
       <a href="{{ url_for('bibliotek') }}"{% if current == 'hylla' %} aria-current="page"{% endif %}>Din hylla</a>
       <a href="{{ url_for('sok') }}"{% if current == 'sok' %} aria-current="page"{% endif %}>Sök</a>
+      {# M5 gave the app its work surfaces; the nav reached them through
+         url_for from the first commit, like every other link. #}
+      <a href="{{ url_for('lagg_till') }}"{% if current == 'lagg-till' %} aria-current="page"{% endif %}>Lägg till</a>
+      <a href="{{ url_for('onska') }}"{% if current == 'onska' %} aria-current="page"{% endif %}>Önskelista</a>
       <a href="{{ url_for('logga_ut') }}">Logga ut</a>
     </nav>
   </header>

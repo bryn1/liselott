@@ -55,7 +55,7 @@ def init_tillagg(app):
     @app.get("/lagg-till")
     def lagg_till():
         return render_template("tillagg.html", today=date.today().isoformat(),
-                               fel=None, bok=None, current="hylla")
+                               fel=None, bok=None, current="lagg-till")
 
     @app.post("/lagg-till")
     def spara_tillagg():
@@ -65,7 +65,7 @@ def init_tillagg(app):
         values, fel = redigera.form_to_fields(form, {})
         if fel:
             return render_template("tillagg.html", today=date.today().isoformat(),
-                                   fel=fel, bok=None, current="hylla"), 400
+                                   fel=fel, bok=None, current="lagg-till"), 400
         authors = seed.split_authors(form.get("forfattare", ""))
         read_date = values["date_read"] or date.today().isoformat()
         now = auth.utcnow_iso()

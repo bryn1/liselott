@@ -27,9 +27,10 @@ from app import create_app
 from tests.test_browse import PASSWORD, seed_shelf  # one synthetic corpus
 
 # NOT_YET_LANDED reflects reality as pages land (M5): /lagg-till landed with
-# T5.3, so it is swept as the REAL page now — the SWEEP check needs no edit;
-# only this constant moves. /onska moves with T5.4, /rekommendationer with M6.
-NOT_YET_LANDED = ("/onska", "/rekommendationer")
+# T5.3, /onska with T5.4 — each is swept as the REAL page from its own commit
+# (the SWEEP check needs no edit; only this constant moves). /rekommendationer
+# moves with M6.
+NOT_YET_LANDED = ("/rekommendationer",)
 SWEEP = ("/", "/bibliotek", "/bok/1", "/bok/2", "/bok/9999", "/sok?q=a",
          "/logga-in", "/redigera/1",
          "/satt-loesenord", "/robots.txt") + NOT_YET_LANDED
