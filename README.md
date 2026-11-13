@@ -7,25 +7,28 @@ with a real cover on every shelf card. It is built to be served at
 `https://sibbamala.com/liselott` on the fleet's auto lane. The build contract
 is `PLAN-c3` (the pinned plan); this README states what the tree actually is.
 
-## Status snapshot — every number here measured 2026-11-13 (this session)
+## Status snapshot — republished true 2026-11-13 (gate fix wave c2, MC 12451)
 
-- Build milestones M0–M7 are done and committed; the full offline test suite
-  passes: **403 passed, exit 0** (`.venv/bin/pytest -q`, VM350 build clone).
+- Build milestones M0–M7 are done and committed, and **the publish (plan
+  milestone M8) HAS RUN**: `bryn1/liselott` exists on GitHub with visibility
+  **PUBLIC** (`gh repo view`, measured this session) and the app **serves at
+  `https://sibbamala.com/liselott`** — `/` 200, `/logga-in` 200, `/healthz`
+  200 `ok`, `/satt-loesenord` 404 (the owner's password is set, as designed),
+  quarantined names 404 (all re-measured by GET this session). What the
+  publish took — staging-gate landing, static in the closed state,
+  quarantine 404s, the live-500 cachebust fix, the setup-window reopens —
+  is LEDGER rows, not this snapshot's fine print.
+- The full offline test suite passes: **436 passed, exit 0**
+  (`.venv/bin/pytest -q`, VM350 build clone, this commit).
 - The build database holds **724 books** (706 read + 18 wishlist), **671** with
   an ISBN, **6** rated, **52** ljudbok, and a recommendation candidate pool of
   **284** authors' works (`sqlite3 /home/claudecode/liselott-build/liselott.db`).
-- Covers: **74 of 724** books have a cover file (74 files in the build `covers/`
-  dir; 27 of them owner-chosen via upload/URL; 47 books are marked
-  `enrich_fail=1` — no provider had one). Measured twice while this README was
-  written — 72 at 12:22 UTC, 74 at 12:34 UTC — because a second bounded cover
-  wave was running, so this count moves; the authority for production is
-  `GET /rapa/omslag-rapport`, once published.
-- **Publish (plan milestone M8) has NOT run yet**: this clone has no git remote,
-  `bryn1/liselott` does not exist on GitHub, and `https://sibbamala.com/liselott/logga-in`
-  answers 404 (all three measured 2026-11-13). The ordered publish runbook —
-  leak checklist, public flip, owner sets the password in a 20-minute window,
-  seed + bundle + candidate + cover loops over HTTP — is PLAN-c3 §10 with tasks
-  T8.1–T8.8. Nothing in this README claims otherwise.
+- Covers: the build DB held **74 of 724** at T9.1 time (27 owner-chosen via
+  upload/URL; 47 marked `enrich_fail=1` — no provider had one; the count
+  moved 72→74 while that snapshot was written, a second bounded cover wave
+  running). Production serves **80 covers of 724** — orchestrator-measured
+  through the rapport door during the M8 run. The authority for any live
+  count is `GET /rapa/omslag-rapport`, owner-session behind the login.
 
 ## För Liselott — så här använder du boken
 
@@ -79,14 +82,20 @@ inloggningar, även din egen, loggas ut vid bytet — logga in med det nya.
 
 ```bash
 cd /home/claudecode/liselott
-python3 -m venv .venv && .venv/bin/pip install -r requirements.txt -r requirements-dev.txt
+virtualenv .venv && .venv/bin/pip install -r requirements.txt -r requirements-dev.txt
 LISELOTT_ENV=dev PORT=8166 .venv/bin/python server.py   # bind $PORT, no fallback
 ```
+
+`virtualenv` (21.7.1) is the VM350-proven path — measured this session:
+`python3 -m venv` FAILS there ("ensurepip is not available", python3.10
+without the python3.10-venv package) and `virtualenv` creates the working
+3.10.12 venv verbatim; it is also what built the repo's own `.venv`. On a
+Debian box with `python3.10-venv` installed, `python3 -m venv` works too.
 
 Then `http://127.0.0.1:8166/liselott/` — first boot within 20 min shows the
 set-password page; both request shapes (bare `/…` and `/liselott/…`) route.
 Tests: `cd /home/claudecode/liselott && .venv/bin/pytest -q` (offline, no
-provider network; 403 tests green 2026-11-13).
+provider network; 436 tests green at this commit).
 
 ### Suite-location rule (PLAN-c3 §13, verbatim in force)
 
@@ -211,14 +220,14 @@ remain vm106-ROOT actions — owner decision, never assumed.
 
 ### Known limits (all measured or plan-stated, 2026-11-13)
 
-- Cover coverage in the build DB: 74/724 at commit time (12:34 UTC; it moved
-  72→74 during the writing of this file while a second cover wave ran; 47
-  books are provider-exhausted, `enrich_fail=1`). Publish
-  requires the owner's residual acceptance for the remaining misses (plan §12
-  OQ-2 / task T8.7) — never a silent placeholder majority.
-- Not published (see Status); production DB is empty until the runbook seeds it.
-- Production candidate pool starts empty; runbook step 6 builds it (build pool
-  reference: 284).
+- Cover coverage: build DB 74/724 at T9.1 time (47 books provider-exhausted,
+  `enrich_fail=1`); production serves 80/724 (orchestrator rapport-measured
+  in the M8 run). The residual misses ride the fix-me loop (`/rapa/omslag`),
+  owner-driven — never a silent placeholder majority.
+- Production IS published and seeded (M8 ran — see Status). Live counts
+  belong to the rapport doors behind the login, not to this file.
+- The production candidate pool was built by the runbook's candidate loop
+  (build pool reference: 284).
 - Libris is unreachable from VM350 (fixture-tested; may work from the lane —
   upside only). Google Books without a key 429s under load.
 - The recommendation engine and every provider run inside the app's own jail;

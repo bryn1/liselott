@@ -61,12 +61,18 @@ postdating a line make that line STALE — de-stale before quoting it.
   (the T3.6 export predates the S12 cover waves), 2 chunks (893 310 B +
   211 050 B, both ≤ 900 000). ⇒ Re-export + re-chunk immediately before the
   runbook's bundle loop so covers won after T3.6 travel — noted in README.
-- **M8 publish** — NOT RUN (measured 2026-11-13 by this seat: `git remote -v`
-  empty in this clone, `gh repo view bryn1/liselott` → not found,
-  `https://sibbamala.com/liselott/logga-in` → 404). Order of work when the
-  owner gives the go: PLAN-c3 §10 runbook, tasks T8.1–T8.8; the T9.3
-  `git log origin/main` leg and every production number (T8.6 rapport, T8.7
-  owner artifact) land there — none may be quoted before then.
+- **M8 publish** — DONE (2026-11-13, MC 12451). The pre-publish version of
+  this row measured a clone that had no remote yet; the run then happened:
+  `bryn1/liselott` PUBLIC on GitHub, `https://sibbamala.com/liselott` serving
+  — fix wave c2 re-measured by GET 2026-11-13: `/` `/logga-in` `/healthz`
+  200, `/satt-loesenord` 404 (owner password set, §6.1 forever),
+  quarantined names 404. Production counts (724 books, 80 covers, 671 ISBN,
+  candidate pool) are orchestrator rapport-measurements from the run — the
+  rapport doors behind the login stay the authority, never this ledger.
+  The publish chain it took, commit by commit, is the rows below this one:
+  staging-gate public landing, window reopens, hotfix-2 quarantine 404s,
+  hotfix-3 static-in-closed-state, hotfix-4 regression legs, and the
+  live-500 hosting `mirror.cachebust=off` fix.
 - **M9 docs (stage s9, MC 12448)** — T9.1 DONE (this commit): README.md
   written (Swedish usage section + English maintainer half, §4 env table, §13
   suite-location rule verbatim, CODE-ONLY statement, T8 runbook pointer,
@@ -142,3 +148,32 @@ postdating a line make that line STALE — de-stale before quoting it.
   Gate-equivalent curl on a seeded local server (configured state, both
   request shapes byte-identical): `200 577B`; six anonymous probes carry
   zero seed titles. Full suite on this tree: 403 passed, exit 0.
+
+- **Gate fix wave c2 (MC 12451)** — DONE (this commit): both final gates
+  returned verdicts on tree 7b1bc595 (HEAD 5429ce8): DA-verdict FIX
+  (1×P1, 2×P2, 1×P3, seams), TEST-verdict FAIL (F-A P1; mutation 7/9, the
+  two survivors the same shelf behaviour). Seven commits, one per fix,
+  each test-first with its FAIL→PASS recorded in
+  `.audits/20261112-phase2/.tmp/c2-fix-evidence.md`: FIX 0 the shelf
+  groups keyed on read_year — one section per year, "Utan år" trailing,
+  "Att läsa" last — and `tests/test_shelf_grouping.py` kills the corpus-
+  shape blind spot (suite green over 583 headings before; RED on the
+  one-section-per-book plant after); FIX 1 GET /byter-losenord + the nav
+  door "Byt lösenord", happy path proven THROUGH the real server pages,
+  not through a session shortcut (P1-1/F-C); FIX 2 this snapshot + the
+  README brought true to the published reality (F-B/F-D/F-H; the venv
+  line now names `virtualenv` — what actually runs on VM350); FIX 3 the
+  ingest doors answer named 4xx — /seed 413 over 1 MiB, 400
+  "otillräcklig kodning", 400 naming an unknown section, /bundle named-
+  line 400s for domain errors with the WHOLE POST in one transaction
+  (`store_cover commit=False`) and a rollback proof (P3-4); FIX 4 the
+  dead duplicate `return rel` deleted (P4-5); FIX 5 the closed state 404s
+  quarantined names AND /robots.txt — staging posture state-invariant
+  (F-E/F-F); FIX 6 /.tmp/ ignored (F-J). Full suite on this tree:
+  **436 passed, exit 0** (was 422 + 14 new legs). OUT of this wave,
+  named: P2-3 golden corpus rows in the public tree await an OWNER ruling
+  (untouched by dispatch); F-G mutmut layout is fleet-tooling; F-I file
+  sizes stay debt — `app/seed.py` 342, `app/auth.py` 332, `app/bundle.py`
+  ~310 after this wave, test files `test_seed_routes.py` ~530,
+  `test_enrich_resolve.py` 536 — none past the 400/600 gates, all still
+  split candidates per the clean-code doctrine.
