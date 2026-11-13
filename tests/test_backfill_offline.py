@@ -222,3 +222,34 @@ def test_the_report_attributes_every_gain_to_the_provider_that_gave_it(build_db)
     assert by["openlibrary"]["matched"] == 3 and by["openlibrary"]["isbn"] == 3
     assert by["openlibrary"]["covers"] == 3
     assert by["libris"]["matched"] == 0 and by["libris"]["isbn"] == 0
+
+
+def identity_then_cover_transports():
+    """Libris identifies the row (its xsearch page has no cover), OpenLibrary
+    supplies only the cover — the shape cover completion produces."""
+    def libris(title, authors):
+        return [{"source": "libris", "id": "19738367", "title": title,
+                 "authors": list(authors), "isbn13": "9789198559699",
+                 "isbn10": None, "year": 2022, "cover_id": None,
+                 "cover_url": None, "subjects": []}]
+
+    def ol(title, authors):
+        return [{"source": "openlibrary", "title": title, "authors": list(authors),
+                 "isbn13": None, "isbn10": None, "year": None, "cover_id": "1",
+                 "cover_url": "https://covers.openlibrary.org/b/id/1-M.jpg",
+                 "subjects": []}]
+    return {"libris": libris, "ol": ol, "gb": None}
+
+
+def test_a_completed_cover_is_attributed_to_the_lane_that_supplied_the_bytes(build_db):
+    """Per-lane attribution exists so a missed floor names the lane that missed
+    it. If a Libris identity match with an OpenLibrary cover were counted as
+    'libris covers', the cover floor would read green while the cover lane was
+    actually dead — so counts follow the bytes, not the row."""
+    conn, tmp = build_db
+    main(["--report", str(tmp / "r.json")], transports=identity_then_cover_transports(),
+         fetch=cover_fetch, pace=NO_PACE)
+    by = json.loads((tmp / "r.json").read_text(encoding="utf-8"))["by_source"]
+    assert by["libris"] == {"matched": 3, "isbn": 3, "covers": 0, "genres": 3}
+    # ^ subjects [] maps to Övrigt per §5, so libris earns the genres too
+    assert by["openlibrary"] == {"matched": 0, "isbn": 0, "covers": 3, "genres": 0}

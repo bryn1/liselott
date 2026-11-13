@@ -139,10 +139,37 @@ def test_libris_wins_when_it_matches_first(conn):
                     "gb": failing_transport},
         fetch=cover_fetch())
     assert outcome["source"] == "libris"
-    assert seen == []                            # order: later providers skipped
     assert genres_of(conn, book_id) == ["Övrigt"]  # Skönlitteratur/Romaner map nowhere
     row = book_row(conn, book_id)
-    assert (row["cover_path"], row["cover_source"]) == (None, None)  # no cover_url
+    assert (row["isbn13"], row["year"]) == ("9789198559699", 2022)
+    assert (row["cover_path"], row["cover_source"]) == (None, None)  # nothing covered
+    # ORDER, as pinned: this match had no cover, so the later lanes were asked
+    # under COVER_COMPLETION — for a cover only, and they answered with nothing
+    # (ol []) or failed (gb), so no identity field of the row moved. The
+    # leg that used to read `assert seen == []` predates the owner ruling of
+    # 2026-11-13 and is replaced by what the rule actually guarantees.
+    assert seen == ["ol"] and row["tried_providers"] == "libris,ol,gb"
+
+
+def test_a_match_that_carries_its_own_cover_asks_nobody_else(conn):
+    """The completion ask exists for the lane that structurally has no cover
+    (Libris' xsearch). When the matcher does have one, the pinned order still
+    means later providers are never contacted at all."""
+    book_id = conn.execute("SELECT id FROM book").fetchone()[0]
+    libris_hit = [{"source": "libris", "id": "19738367", "title": "Stöld",
+                   "authors": ["Ann-Helén Laestadius"], "isbn13": "9789198559699",
+                   "isbn10": None, "year": 2022, "cover_id": None,
+                   "cover_url": "https://covers.openlibrary.org/b/id/14853286-M.jpg",
+                   "subjects": []}]
+    seen = []
+    enrich.resolve_book(conn, book_id,
+        transports={"libris": libris_transport(libris_hit),
+                    "ol": lambda *a, **k: seen.append("ol") or [ol_cover_hit()],
+                    "gb": lambda *a, **k: seen.append("gb") or []},
+        fetch=cover_fetch())
+    assert seen == []
+    row = book_row(conn, book_id)
+    assert row["cover_source"] == "libris"        # the matcher's own cover
 
 
 def test_similarity_below_0_80_does_not_match(conn):
@@ -397,3 +424,90 @@ def test_a_provider_that_does_not_say_the_type_keeps_first_hit_order(conn):
         "gb": libris_transport([])}, fetch=cover_fetch())
     assert conn.execute("SELECT isbn13 FROM book WHERE id = ?",
                         (book_id,)).fetchone()[0] == "9789198559699"
+
+
+def ol_cover_hit(**over):
+    hit = {"source": "openlibrary", "title": "Stöld", "authors": ["Ann-Helén Laestadius"],
+           "isbn13": "9789100000000", "isbn10": None, "year": 1999,
+           "cover_id": "14853286",
+           "cover_url": "https://covers.openlibrary.org/b/id/14853286-M.jpg",
+           "subjects": ["mord", "thriller"]}
+    hit.update(over)
+    return hit
+
+
+def test_cover_completion_a_later_provider_may_supply_only_the_cover(conn):
+    """The rule the owner ruled on 2026-11-13: Libris identifies this diary's
+    Swedish titles that no other lane has, and its xsearch page carries no
+    cover; the cover lives in OpenLibrary. Providers AFTER the identity matcher
+    may therefore supply a COVER — and nothing else. Identity (isbn, year,
+    genres) must still be the matcher's, or the rule would silently rewrite the
+    pinned 'first provider wins' contract."""
+    book_id = insert_book(conn, key="cc-1")
+    outcome = enrich.resolve_book(conn, book_id, transports={
+        "libris": libris_transport(libris_page_hits("libris_xsearch_stold.json")),
+        "ol": libris_transport([ol_cover_hit()]), "gb": libris_transport([])},
+        fetch=cover_fetch())
+    row = book_row(conn, book_id)
+    assert row["isbn13"] == "9789198559699", "identity must stay the first matcher's"
+    assert row["year"] == 2022, "the cover lane's year must not leak into the row"
+    assert row["cover_source"] == "openlibrary", "cover_source names the COVER lane"
+    assert row["cover_path"] == f"covers/{book_id}.jpg"
+    assert row["tried_providers"] == "libris,ol"
+    assert outcome["source"] == "libris"           # attribution of the match
+    assert outcome["cover_source"] == "openlibrary"  # attribution of the bytes
+    # the cover lane's subjects would have mapped to Kriminalitet; the identity
+    # matcher (Libris) answered with no subjects at all, which the §5 rule maps
+    # to Övrigt — so this line is what proves no identity field leaked
+    assert genres_of(conn, book_id) == ["Övrigt"], "the cover lane's subjects leaked"
+
+
+def test_a_cover_from_a_book_that_failed_the_policy_is_never_adopted(conn):
+    """The completion ask is not a licence to graft any cover that loads: the
+    SAME title+author policy gates the cover hit, or one typo'd query would
+    illustrate the diary with someone else's book."""
+    book_id = insert_book(conn, key="cc-2")
+    enrich.resolve_book(conn, book_id, transports={
+        "libris": libris_transport(libris_page_hits("libris_xsearch_stold.json")),
+        "ol": libris_transport([ol_cover_hit(title="Stöld i Vällingby",
+                                            authors=["Någon Helt Annan"])]),
+        "gb": libris_transport([])}, fetch=cover_fetch())
+    row = book_row(conn, book_id)
+    assert row["isbn13"] == "9789198559699"          # identity still landed
+    assert row["cover_path"] is None and row["cover_source"] is None
+
+
+def test_a_down_lane_is_not_consulted_for_completion_and_not_logged(conn):
+    """None means 'could not be asked' — the completion ask must honour the same
+    transport contract (no log, no exception), never treat a DOWN lane as an
+    answer."""
+    book_id = insert_book(conn, key="cc-3")
+    enrich.resolve_book(conn, book_id, transports={
+        "libris": libris_transport(libris_page_hits("libris_xsearch_stold.json")),
+        "ol": libris_transport(None), "gb": libris_transport(None)},
+        fetch=cover_fetch())
+    row = book_row(conn, book_id)
+    assert row["isbn13"] == "9789198559699" and row["cover_path"] is None
+    assert row["tried_providers"] == "libris"
+
+
+def test_an_admin_cover_is_still_never_completed_over(conn):
+    """The completion ask must not wake up just to overwrite a cover the admin
+    chose — the manual rule outranks the new rule."""
+    book_id = insert_book(conn, key="cc-4")
+    enrich.store_cover(conn, book_id, COVER_FIXTURE.read_bytes(), "manual")
+    calls = []
+    enrich.resolve_book(conn, book_id, transports={
+        "libris": libris_transport(libris_page_hits("libris_xsearch_stold.json")),
+        "ol": recording_transport([ol_cover_hit()], calls), "gb": libris_transport([])},
+        fetch=cover_fetch())
+    assert calls == [], "a manual cover means no completion ask at all"
+    assert conn.execute("SELECT cover_source FROM book WHERE id = ?",
+                        (book_id,)).fetchone()[0] == "manual"
+
+
+def recording_transport(hits, calls):
+    def transport(title, authors):
+        calls.append(title)
+        return hits
+    return transport

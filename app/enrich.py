@@ -122,6 +122,10 @@ MANUAL_COVER_SOURCES = ("manual", "manual-url")
 # The row's own format -> the provider hit types that fit it (§7 enum 'bok' /
 # 'ljudbok'). Libris answers one title as several editions; see prefer_format.
 HIT_TYPE_BY_FORMAT = {"bok": ("book", "text"), "ljudbok": ("sound recording",)}
+# Owner ruling 2026-11-13, the rule named in full because it is the exception
+# that proves the rule beside it: identity is the first matcher's, always.
+COVER_COMPLETION = ("cover completion: providers after the identity matcher may "
+                    "supply ONLY a cover, never identity fields")
 PROVIDER_ORDER = ("libris", "ol", "gb")
 
 # cycle-1 §5 (binding): substring match on lower-cased subject strings, max 3
@@ -283,7 +287,7 @@ def resolve_book(conn, book_id, *, transports=None, fetch=None, now=time.time):
     authors = book_authors(conn, book_id)
     transports = transports or live_transports(conn, now=now)
 
-    tried, chosen = [], None
+    tried, chosen, after = [], None, []
     for name in PROVIDER_ORDER:
         transport = transports.get(name)
         if transport is None:
@@ -301,6 +305,7 @@ def resolve_book(conn, book_id, *, transports=None, fetch=None, now=time.time):
                       and authors_overlap(authors, hit.get("authors"))]
         if candidates:
             chosen = prefer_format(candidates, row[6])
+            after = PROVIDER_ORDER[PROVIDER_ORDER.index(name) + 1:]
             break                          # order wins: never ask the next one
 
     ts = auth.utcnow_iso()
@@ -318,12 +323,41 @@ def resolve_book(conn, book_id, *, transports=None, fetch=None, now=time.time):
     # An admin's own cover — uploaded ('manual') or found via hitta-omslag
     # ('manual-url', the OQ-2 ruling) — is never painted over by a provider.
     cover_ok = row[5] not in MANUAL_COVER_SOURCES
-    cover_written = None
+    cover_written, cover_from = None, chosen["source"]
+    if cover_ok and not chosen.get("cover_url"):
+        # COVER_COMPLETION (owner ruling 2026-11-13): the matcher found the
+        # work but has no cover to offer (Libris' xsearch page never does), so
+        # the providers AFTER it are asked — for a cover only. The same
+        # title+author policy gates the cover hit; no identity field is read
+        # from it. When the matcher DID have a cover, nothing further is asked.
+        if after:
+            for name in after:
+                transport = transports.get(name)
+                if transport is None:
+                    continue                       # not consulted, not logged
+                try:
+                    hits = transport(title, authors)
+                except ProviderUnavailable:
+                    tried.append(name)
+                    continue
+                if hits is None:
+                    continue
+                tried.append(name)
+                offering = [hit for hit in hits
+                            if hit.get("cover_url")
+                            and title_similarity(title, hit.get("title")) >= MAX_TITLE_SIMILARITY_MIN
+                            and authors_overlap(authors, hit.get("authors"))]
+                if offering:
+                    cover_hit = prefer_format(offering, row[6])
+                    chosen = dict(chosen, cover_url=cover_hit["cover_url"])
+                    # cover_source names the COVER lane, never the identity lane
+                    cover_from = cover_hit.get("source") or cover_from
+                    break
     if cover_ok and chosen.get("cover_url"):
         try:
             cover_written = store_cover(conn, book_id,
                                         fetch_cover(chosen["cover_url"], fetch=fetch),
-                                        chosen["source"])
+                                        cover_from)
         except (ProviderUnavailable, CoverRejected):
             cover_written = None           # a cover failure never loses the isbn
 
@@ -338,6 +372,7 @@ def resolve_book(conn, book_id, *, transports=None, fetch=None, now=time.time):
                  (isbn13, chosen.get("isbn10"), year, ",".join(tried), ts, book_id))
     conn.commit()
     return {"resolved": True, "source": chosen["source"], "tried": tried,
+            "cover_source": cover_from if cover_written else None,
             "genres": genres, "genres_written": genres_written,
             "isbn_written": isbn_written, "cover": cover_written}
 
