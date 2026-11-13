@@ -94,12 +94,17 @@ def run_pass(conn, ids, transports, fetch, pace, persist=True):
             outcome.get("source") or "unknown",
             {"matched": 0, "isbn": 0, "covers": 0, "genres": 0})
         lane["matched"] += 1
+        # a cover supplied under COVER_COMPLETION belongs to the lane that
+        # supplied the BYTES, not the lane that identified the work
+        cover_lane = report["by_source"].setdefault(
+            outcome.get("cover_source") or outcome.get("source") or "unknown",
+            {"matched": 0, "isbn": 0, "covers": 0, "genres": 0})
         if outcome.get("isbn_written"):
             report["isbn_resolved"] += 1
             lane["isbn"] += 1
         if outcome.get("cover"):
             report["covers_stored"] += 1
-            lane["covers"] += 1
+            cover_lane["covers"] += 1
         if outcome.get("genres_written"):
             report["genres_set"] += 1
             lane["genres"] += 1
