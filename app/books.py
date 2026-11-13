@@ -83,8 +83,15 @@ def group_for_shelf(books):
     by_year = {}
     utan_ar = []
     for book in read:
-        if book["read_year"]:
-            by_year.setdefault(book["read_year"], []).append(book)
+        try:                                   # F-A2 (b, MC 12451): a DB
+            year = int(book["read_year"])      # written before the write-
+        except (TypeError, ValueError,         # door fix CAN carry a TEXT
+                OverflowError):                # year — ONE guarded int
+            year = 0                           # conversion so sorted() can
+                                               # never compare str against
+                                               # int (the shelf-brick 500)
+        if year:
+            by_year.setdefault(year, []).append(book)
         else:
             utan_ar.append(book)
     groups = [(year, by_year[year])

@@ -97,6 +97,19 @@ def parse_bundle(raw: bytes) -> list[dict]:
             # the value domain belongs to the vocabulary parse already owns.
             raise BundleError(n, f"betyg {rating!r} är utanför 1–5 — ska "
                                  "vara ett heltal 1–5 eller tomt")
+        read_year = obj.get("read_year")
+        if read_year is not None and (
+                isinstance(read_year, bool) or not isinstance(read_year, int)
+                or not (read_year == 0 or 1000 <= read_year <= 9999)):
+            # F-A2 (a, MC 12451): the INTEGER column has affinity, NOT
+            # constraint — "okänt-2025" landed as TEXT and the shelf sort
+            # died on it (home page 500 until a DB repair). The year joins
+            # the vocabulary parse already owns; 0 is the §5.11 wishline
+            # sentinel, a real year is the four digits the seed's own
+            # section regex (\d{4}) has always required.
+            raise BundleError(n, f"read_year {read_year!r} är inget giltigt "
+                                 "år — ett heltal med fyra siffror, 0 eller "
+                                 "tomt")
         if obj.get("cover_source") not in (
                 None, "libris", "googlebooks", "openlibrary", "manual",
                 "manual-url"):

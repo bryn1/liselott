@@ -146,3 +146,26 @@ def test_undated_read_rows_form_one_trailing_group(shelf):
     utan = grupper["Utan år"]
     assert len(utan) == N_NOYEAR
     assert "Att läsa" in list(grupper)[-1]            # wishlist stays last
+
+
+# ── F-A2 (b) (DA-verdict-c2) — the read model survives a TEXT year ───────────
+def test_group_for_shelf_survives_a_text_year_and_lands_it_in_utan_ar():
+    """A DB written before the F-A2 write-door fix CAN carry a TEXT
+    read_year (the /bundle door used to store one with a 200). This rows
+    list goes straight into the grouping: the shipped code keyed on the raw
+    value, so sorted() compared str against int → TypeError → the whole
+    shelf, and the root with it, 500s on every GET — permanently, until the
+    DB was repaired by hand. The guard is ONE int conversion: a non-integer
+    year lands in "Utan år", sorted() only ever sees ints, and the real
+    years still descend."""
+    books = [
+        {"title": "Skadan", "date_read": None, "read_year": "okänt-2025",
+         "status": "read"},
+        {"title": "Tjugo-tjugo fyra", "date_read": None, "read_year": 2024,
+         "status": "read"},
+        {"title": "Tjugo-tjugo tre", "date_read": None, "read_year": 2023,
+         "status": "read"},
+    ]
+    grupper = group_for_shelf(books)
+    assert [label for label, _ in grupper] == [2024, 2023, "Utan år"]
+    assert [b["title"] for b in grupper[-1][1]] == ["Skadan"]
