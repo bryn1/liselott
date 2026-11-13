@@ -511,3 +511,25 @@ def recording_transport(hits, calls):
         calls.append(title)
         return hits
     return transport
+
+
+STUB_FIXTURE = ROOT / "tests" / "fixtures" / "ol_no_cover_stub.gif"
+
+
+def test_openlibrarys_no_cover_stub_is_refused_as_a_cover(conn):
+    """RECORDED live bytes (covers.openlibrary.org/b/isbn/<isbn>-M.jpg, 43 B):
+    when OpenLibrary has no cover it answers 200 with a 1×1 GIF, not a 404.
+    store_cover used to accept that and write a real JPEG file, so the diary
+    would show a blank square as the book's cover and the F-2 loop would
+    CONVERGE on garbage — the false-green a cover floor must never allow.
+    The gate is a minimum dimension, so it holds for every lane, including an
+    admin's hitta-omslag url and any future provider."""
+    assert STUB_FIXTURE.exists(), "the recorded stub fixture is missing"
+    stub = STUB_FIXTURE.read_bytes()
+    assert len(stub) < 100 and stub[:6] == b"GIF89a", "not the stub fixture"
+    book_id = insert_book(conn, key="stub-1")
+    with pytest.raises(enrich.CoverRejected):
+        enrich.store_cover(conn, book_id, stub, "openlibrary")
+    row = conn.execute("SELECT cover_path, cover_source FROM book WHERE id = ?",
+                       (book_id,)).fetchone()
+    assert (row[0], row[1]) == (None, None), "the stub was recorded as the cover"

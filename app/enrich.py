@@ -118,6 +118,9 @@ MAX_TITLE_SIMILARITY_MIN = 0.80      # difflib ratio floor for a provider hit
 MAX_COVER_EDGE = (340, 510)          # §5.11: normalized covers are ≤340×510
 COVER_QUALITY = 82
 COVER_SUBDIR = "covers"
+# OpenLibrary's "no cover" answer is a 200 with a 1×1 GIF, and an arbitrary page
+# url can hand over anything; anything this small is a placeholder, never art.
+MIN_COVER_PX = 60
 MANUAL_COVER_SOURCES = ("manual", "manual-url")
 # The row's own format -> the provider hit types that fit it (§7 enum 'bok' /
 # 'ljudbok'). Libris answers one title as several editions; see prefer_format.
@@ -219,6 +222,13 @@ def store_cover(conn, book_id, data, source):
         img.load()
     except (UnidentifiedImageError, OSError, ValueError) as e:
         raise CoverRejected(f"inte en bild: {e}") from e
+    if img.width < MIN_COVER_PX or img.height < MIN_COVER_PX:
+        # A 1×1 GIF is not a cover. covers.openlibrary.org answers 200 with
+        # exactly that when it has none (RECORDED in tests/fixtures/
+        # ol_no_cover_stub.gif), so accepting it would write a blank square as
+        # the book's cover and let the F-2 loop converge on garbage.
+        raise CoverRejected(
+            f"bilden är {img.width}×{img.height} px — för liten för att vara ett omslag")
     img = img.convert("RGB")
     img.thumbnail(MAX_COVER_EDGE)
     rel = f"{COVER_SUBDIR}/{book_id}.jpg"
