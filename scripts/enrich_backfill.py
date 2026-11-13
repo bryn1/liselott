@@ -35,59 +35,8 @@ from app import db, enrich  # noqa: E402
 # The pacing helpers MOVED to app/enrich_loop.py when the app's own doors
 # (add / omslag / backfill route) became their second caller — this CLI
 # imports the mechanism, it does not own a twin (P2-d one-mechanism rule).
-from app.enrich_loop import PACE_S, paced, paced_fetch  # noqa: E402
-
-SCOPE_WHERE = "isbn13 IS NULL OR cover_path IS NULL"
-
-
-def scope_ids(conn, limit=None):
-    sql = f"SELECT id FROM book WHERE {SCOPE_WHERE} ORDER BY id"
-    if limit:
-        sql += f" LIMIT {int(limit)}"
-    return [r[0] for r in conn.execute(sql)]
-
-
-def run_pass(conn, ids, transports, fetch, pace, persist=True):
-    # isbn_resolved counts isbn13 values WRITTEN (the DoD's floor metric: what
-    # the diary GAINED), matched counts provider hits that passed the policy —
-    # conflating them made a re-run report "54 resolved" while writing nothing.
-    report = {"scanned": 0, "processed": 0, "matched": 0, "isbn_resolved": 0,
-              "covers_stored": 0, "genres_set": 0, "failures": 0, "writes": 0,
-              # per-lane attribution (owner ruling 2026-11-13): a missed floor
-              # must name which provider missed it
-              "by_source": {lane: {"matched": 0, "isbn": 0, "covers": 0,
-                                   "genres": 0}
-                            for lane in ("libris", "openlibrary", "googlebooks")}}
-    for book_id in ids:
-        report["scanned"] += 1
-        outcome = enrich.resolve_book(conn, book_id, transports=transports,
-                                      fetch=fetch)
-        report["processed"] += 1
-        if not outcome.get("resolved"):
-            report["failures"] += 1
-            continue
-        report["matched"] += 1
-        lane = report["by_source"].setdefault(
-            outcome.get("source") or "unknown",
-            {"matched": 0, "isbn": 0, "covers": 0, "genres": 0})
-        lane["matched"] += 1
-        # a cover supplied under COVER_COMPLETION belongs to the lane that
-        # supplied the BYTES, not the lane that identified the work
-        cover_lane = report["by_source"].setdefault(
-            outcome.get("cover_source") or outcome.get("source") or "unknown",
-            {"matched": 0, "isbn": 0, "covers": 0, "genres": 0})
-        if outcome.get("isbn_written"):
-            report["isbn_resolved"] += 1
-            lane["isbn"] += 1
-        if outcome.get("cover"):
-            report["covers_stored"] += 1
-            cover_lane["covers"] += 1
-        if outcome.get("genres_written"):
-            report["genres_set"] += 1
-            lane["genres"] += 1
-        if persist:
-            report["writes"] += 1
-    return report
+from app.enrich_loop import (  # noqa: E402
+    PACE_S, paced, paced_fetch, run_pass, scope_ids)
 
 
 def scratch_pass(ids, transports, fetch, pace):

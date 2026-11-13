@@ -60,3 +60,16 @@ def search(title, author, get_json=None, **kw):
     enrich.ProviderUnavailable, which means it could not be asked at all."""
     get_json = get_json or enrich.http_get_json
     return map_docs(get_json(build_url(title, author), **kw))
+
+
+def build_author_url(name, *, limit=LIMIT, fields=FIELDS):
+    q = f'author:"{name}"'
+    return f"{SEARCH_ENDPOINT}?{urlencode({'q': q, 'limit': limit, 'fields': fields})}"
+
+
+def author_search(name, get_json=None, **kw):
+    """Live (or fixture-replayed) OL author search — the candidates-mode
+    transport (T5.6/T6.3), same [] vs ProviderUnavailable vocabulary as
+    `search` (T3's contract, no new postures)."""
+    get_json = get_json or enrich.http_get_json
+    return map_docs(get_json(build_author_url(name), **kw))

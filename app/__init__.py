@@ -73,13 +73,15 @@ def create_app():
     app.wsgi_app = mount_middleware(app.wsgi_app)
 
     # Late import: app.auth imports app.db, never the factory (no cycle).
-    from app import auth, onska, redigera, report, routes, tillagg
+    from app import (auth, backfill, onska, redigera, report,
+                         routes, tillagg)
     auth.init_auth(app)
     routes.init_routes(app)
     redigera.init_redigera(app)
     tillagg.init_tillagg(app)
     onska.init_onska(app)
     report.init_report(app)
+    backfill.init_backfill(app)
 
     @app.get("/healthz")
     def healthz():
