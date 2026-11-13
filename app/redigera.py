@@ -30,11 +30,17 @@ FORMATS = ("bok", "ljudbok")
 CONFIRM_WORD = "ta bort"          # the delete button's own form value
 
 
-def _parsed_form(conn, form, existing):
-    """Merge posted fields onto the stored row; returns (values, fel). Any
+def form_to_fields(form, existing):
+    """Merge posted fields onto a value dict; returns (values, fel). Any
     invalid field aborts the whole merge with the Swedish message — a form
-    POST is all-or-nothing, never a half-applied edit."""
-    v = dict(existing)
+    POST is all-or-nothing, never a half-applied edit. TWO doors share it:
+    the edit form (existing = the stored row) and the add form (existing =
+    {}), so the field vocabulary and every Swedish message cannot drift.
+    Fields not posted are not present in the result (the edit route keeps
+    the stored value for those; the add route answers its own defaults)."""
+    v = {"title": None, "year": None, "format": None, "date_read": None,
+         "isbn13": None, "isbn10": None, "notes": None}
+    v.update(existing)
     if "titel" in form:
         title = form.get("titel", "").strip()
         if not title:
@@ -101,7 +107,7 @@ def init_redigera(app):
         existing = _existing(conn, id)
         if existing is None:
             abort(404)
-        values, fel = _parsed_form(conn, request.form, existing)
+        values, fel = form_to_fields(request.form, existing)
         if fel:
             bok = books.load_books(conn, ids=[id])[0]
             return render_template("redigera.html", bok=bok, fel=fel,

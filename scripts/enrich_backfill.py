@@ -32,8 +32,11 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 from app import db, enrich  # noqa: E402
+# The pacing helpers MOVED to app/enrich_loop.py when the app's own doors
+# (add / omslag / backfill route) became their second caller — this CLI
+# imports the mechanism, it does not own a twin (P2-d one-mechanism rule).
+from app.enrich_loop import PACE_S, paced, paced_fetch  # noqa: E402
 
-PACE_S = 1.0                       # §12: 1 req/s against the providers
 SCOPE_WHERE = "isbn13 IS NULL OR cover_path IS NULL"
 
 
@@ -42,32 +45,6 @@ def scope_ids(conn, limit=None):
     if limit:
         sql += f" LIMIT {int(limit)}"
     return [r[0] for r in conn.execute(sql)]
-
-
-def paced_fetch(fetch, pace):
-    """A cover image is an outbound request too — the 1 req/s courtesy covers
-    it, not just the search calls."""
-    def call(url, **kw):
-        pace(PACE_S)
-        return fetch(url, **kw)
-    return call
-
-
-def paced(transports, pace):
-    """1 req/s wrapped around every CONSULTED provider call (a provider the
-    transport skips with None is not asked, so it never costs a pause)."""
-    wrapped = {}
-    for name, transport in transports.items():
-        if transport is None:
-            wrapped[name] = None
-            continue
-
-        def call(title, authors, _t=transport):
-            pace(PACE_S)
-            return _t(title, authors)
-
-        wrapped[name] = call
-    return wrapped
 
 
 def run_pass(conn, ids, transports, fetch, pace, persist=True):

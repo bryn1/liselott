@@ -57,8 +57,27 @@
            placeholder="https://…">
     <button type="submit">Hämta omslag från adress</button>
   </form>
-  {# T5.3 lands the remaining cover doors here: "Hämta omslag" (provider) and
-     the manual upload with its client-side downscale guard. #}
+
+  {# T5.3 — the other two honest cover doors: the provider fetch (same
+     resolve_book the backfill loop runs, 6 s budget, placeholder on failure)
+     and the manual upload ('manual' through THE one normalizer). #}
+  <form method="post" action="{{ url_for('hamta_omslag', book_id=bok.id) }}">
+    <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+    <button type="submit">Hämta omslag</button>
+  </form>
+
+  <form method="post" enctype="multipart/form-data" class="uppladdning"
+        action="{{ url_for('ladda_up_omslag', book_id=bok.id) }}">
+    <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+    <label for="fil">Ladda upp egen bild (webbläsaren gör den mindre först)</label>
+    <input id="fil" name="fil" type="file" accept="image/*">
+    <p class="fel-meddelande" id="uppladdningsfel" hidden></p>
+    <button type="submit">Ladda upp omslag</button>
+  </form>
+  {# OQ-2 (ruling b) + P1-1: client-side downscale guard, delivered through
+     url_for like every other asset (prefix + cache-bust). #}
+  <script src="{{ url_for('static', filename='js/omslag-upp.js', v=APP_VERSION) }}"
+          defer></script>
 </section>
 
 <section class="radera">

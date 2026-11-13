@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Lägg till bok — Liselotts bokhylla{% endblock %}
+{% block content %}
+{# T5.3 — add one book. Same field vocabulary as the edit form (one shared
+   validator behind both); the reading date is PREFILLED WITH TODAY because
+   this door means "I read it now" (§5.11). #}
+<h1>Lägg till en bok</h1>
+{% if fel %}<p class="fel-meddelande">{{ fel }}</p>{% endif %}
+<form method="post" action="{{ url_for('spara_tillagg') }}">
+  <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+
+  <label for="titel">Titel</label>
+  <input id="titel" name="titel" type="text" required>
+
+  <label for="forfattare">Författare (åtskilj med komma eller "och")</label>
+  <input id="forfattare" name="forfattare" type="text">
+
+  <label for="utgivningsar">Utgivningsår</label>
+  <input id="utgivningsar" name="utgivningsar" type="text" inputmode="numeric">
+
+  <label for="format">Format</label>
+  <select id="format" name="format">
+    <option value="bok">Bok</option>
+    <option value="ljudbok">Ljudbok</option>
+  </select>
+
+  <label for="last">Läst (datum)</label>
+  <input id="last" name="last" type="date" value="{{ today }}">
+
+  <label for="isbn">ISBN (10 eller 13 siffror, valfritt)</label>
+  <input id="isbn" name="isbn13" type="text" inputmode="numeric">
+
+  <label for="anteckningar">Anteckningar</label>
+  <textarea id="anteckningar" name="anteckningar" rows="3"></textarea>
+
+  <button type="submit">Lägg till</button>
+</form>
+{% endblock %}
