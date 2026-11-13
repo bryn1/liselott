@@ -219,3 +219,20 @@ def test_downscale_keeps_a_valid_image_under_the_budget():
     small = cp.downscale_for_vision(img_bytes(3000, 4000))
     assert len(small) < enrich.MAX_BODY
     assert Image.open(io.BytesIO(small)).size == (960, 1280)
+
+
+# ---- the next-batch selector (S12b wave continuation) ------------------------
+
+def test_prior_wave_ids_collects_ids_from_each_report(tmp_path):
+    a, b = tmp_path / "w1.csv", tmp_path / "w2.csv"
+    head = ",".join(cp.REPORT_FIELDS) + "\n"
+    a.write_text(head + "7,x,,,,,,\n9,x,,,,,,\n")
+    b.write_text(head + "9,x,,,,,,\n11,x,,,,,,\n")
+    assert cp.prior_wave_ids([str(a), str(b)]) == {7, 9, 11}
+
+
+def test_prior_wave_ids_refuses_a_malformed_report(tmp_path):
+    bad = tmp_path / "bad.csv"
+    bad.write_text(",".join(cp.REPORT_FIELDS) + "\nx,x,,,,,,\n")
+    with pytest.raises(ValueError):        # never skip on a guessed id
+        cp.prior_wave_ids([str(bad)])

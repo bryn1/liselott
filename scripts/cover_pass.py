@@ -25,6 +25,7 @@ evading walls); caps: books attempted AND wall minutes, whichever binds first.
 Run against the build DB only:
   LISELOTT_DATA_DIR=/home/claudecode/liselott-build \
       .venv/bin/python scripts/cover_pass.py --csv <report.csv>
+  # next wave: also pass --skip-report <previous report.csv>
 """
 import argparse
 import base64
@@ -210,12 +211,27 @@ REPORT_FIELDS = ["book_id", "title", "author", "isbn13", "outcome", "detail",
                  "cover_source", "page_url", "image_url"]
 
 
+def prior_wave_ids(paths):
+    """book_ids already attempted by earlier wave reports. A second wave
+    continues where the last one ended: the report CSV is the wave record,
+    so skipping its ids is the next-batch selector (an offset number would
+    drift the moment a manual cover lands between waves)."""
+    ids = set()
+    for p in paths:
+        with open(p, newline="") as fh:
+            ids |= {int(r["book_id"]) for r in csv.DictReader(fh)}
+    return ids
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--csv", required=True,
                     help="report path (MC evidence, not repo content)")
     ap.add_argument("--books", type=int, default=60, help="max books attempted")
     ap.add_argument("--minutes", type=float, default=60.0, help="wall budget")
+    ap.add_argument("--skip-report", nargs="+", default=[], metavar="CSV",
+                    help="earlier wave report CSVs: their book_ids are already "
+                         "attempted and are skipped (the next-batch selector)")
     args = ap.parse_args(argv)
 
     start = time.monotonic()
@@ -229,6 +245,9 @@ def main(argv=None):
         " b.isbn13, b.isbn10 FROM book b"
         " WHERE b.cover_path IS NULL OR b.cover_path = ''"
         " ORDER BY CASE b.status WHEN 'read' THEN 0 ELSE 1 END, b.id").fetchall()
+    if args.skip_report:
+        skip = prior_wave_ids(args.skip_report)
+        todo = [b for b in todo if b["id"] not in skip]
     before = conn.execute("SELECT COUNT(*) FROM book"
                           " WHERE cover_path IS NOT NULL").fetchone()[0]
 
