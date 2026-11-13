@@ -321,15 +321,24 @@ def init_bundle(app):
             raw.write_bytes(body)
             conn = db.get_db()
             try:
-                report = seed.load(conn, raw, SEED_ALIASES, SEED_OVERRIDES)
+                # F-C2 (MC 12451): the commit is the DOOR's, not the core's.
+                # Every 4xx from this route says "Ingen rad är importerad",
+                # so the body lands as ONE transaction: a flagged or refused
+                # row rolls the WHOLE import back, not just its own line.
+                # (The CLI keeps its survivor posture — seed.load default.)
+                report = seed.load(conn, raw, SEED_ALIASES, SEED_OVERRIDES,
+                                   commit=False)
             except ValueError as fel:
                 conn.rollback()
                 return (f"Seed-filen duger inte: {fel}. Ingen rad är "
                         "importerad"), 400
         if report["flagged"]:
+            conn.rollback()
             return ("Importeraden hittade rader den inte litar på: "
                     + ", ".join(report["flagged"])
-                    + " — se data-import/import_overrides.csv"), 400
+                    + " — se data-import/import_overrides.csv. Ingen rad är "
+                    "importerad"), 400
+        conn.commit()
         return (f"parsed={report['parsed']} stored={report['stored']} "
                 f"duplicates={report['duplicates']}")
 

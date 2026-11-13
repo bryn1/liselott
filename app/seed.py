@@ -209,9 +209,14 @@ def dedupe_read(records: list[dict]):
     return survivors, pairs
 
 
-def load(conn, raw_path, aliases_path, overrides_path) -> dict:
+def load(conn, raw_path, aliases_path, overrides_path, commit=True) -> dict:
     """Parse the raw seed md and store books+authors per §5. Idempotent:
-    re-importing the same rows updates nothing new (book_key UNIQUE)."""
+    re-importing the same rows updates nothing new (book_key UNIQUE).
+    commit=False (F-C2, MC 12451) defers the transaction boundary to the
+    CALLER: POST /seed answers "Ingen rad är importerad" on a flagged row,
+    so nothing may commit while ANY row is refused — the CLI keeps the
+    default (import_seed.py commits survivors, then exits 2: intentional
+    parity, untouched by the route's posture change)."""
     aliases = load_aliases(aliases_path)
     overrides = read_overrides(overrides_path)
     entries = parse_file(raw_path)
@@ -248,7 +253,8 @@ def load(conn, raw_path, aliases_path, overrides_path) -> dict:
         for aid in set(author_ids):
             conn.execute("INSERT OR IGNORE INTO book_author (book_id, author_id)"
                          " VALUES (?,?)", (book_id, aid))
-    conn.commit()
+    if commit:
+        conn.commit()
 
     def q(sql):
         return conn.execute(sql).fetchone()[0]
