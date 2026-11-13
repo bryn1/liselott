@@ -73,12 +73,17 @@ def test_change_password_rotates_hash_secret_kills_sessions(env):
     assert new_hash != old_hash and new_hash.startswith("$argon2id$")
     assert setting(tmp_path, "password_set_at")
     assert (tmp_path / "secret.key").read_text() != prev_signing_key
-    # every old cookie dies (§6.7): next GET bounces to login
-    assert client.get("/liselott/").status_code == 302
+    # every old cookie dies (§6.7): a data route is back behind the guard…
+    r = client.get("/liselott/bibliotek")
+    assert (r.status_code, r.headers["Location"]) == (302, "/liselott/logga-in")
+    # …and the root answers its public landing again, not the shelf (MC 12451)
+    r = client.get("/liselott/")
+    assert r.status_code == 200 and "Din hylla" not in r.text
     # re-login with the new password works
     r = client.post("/liselott/logga-in", data={"loesenord": NEW})
     assert r.status_code == 302
-    assert client.get("/liselott/").status_code == 200
+    r = client.get("/liselott/")
+    assert r.status_code == 200 and "Din hylla" in r.text  # the shelf again
 
 
 def test_wrong_current_401_changes_nothing(env):
@@ -89,7 +94,8 @@ def test_wrong_current_401_changes_nothing(env):
     assert r.status_code == 401
     assert setting(tmp_path, "password_hash") == old_hash
     assert (tmp_path / "secret.key").read_text() == prev_signing_key
-    assert client.get("/liselott/").status_code == 200  # session survives
+    r = client.get("/liselott/")
+    assert r.status_code == 200 and "Din hylla" in r.text  # session survives
 
 
 def test_new_password_validation(env):
@@ -122,4 +128,5 @@ def test_reset_password_script_against_state_base(tmp_path, monkeypatch):
     client = app.test_client()
     assert client.post("/liselott/logga-in", data={"loesenord": OLD}).status_code == 401
     assert client.post("/liselott/logga-in", data={"loesenord": NEW}).status_code == 302
-    assert client.get("/liselott/").status_code == 200
+    r = client.get("/liselott/")
+    assert r.status_code == 200 and "Din hylla" in r.text  # the shelf, logged in

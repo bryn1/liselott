@@ -123,3 +123,22 @@ postdating a line make that line STALE — de-stale before quoting it.
   passed, exit 0. Not covered here and unchanged: T9.3's `git log
   origin/main` leg lands with the M8 push, and the §11 weekly pull stays a
   named-actor runbook step, not a daemon.
+
+- **M8 staging-gate fix — public root landing (MC 12451)** — DONE (this
+  commit): the vm106 staging gate refused the product path (`GET /liselott/`
+  → 302/235 B, floor 256 B; reconcile.log 2026-11-13T14:34:18Z) while the
+  three live service apps answer 200 at their roots (fest40 1815 B, matapp
+  12388 B, klartx 4056 B, measured 2026-11-13). §6.4's allow-list widened by
+  EXACTLY one leg: the root, reads only (`_is_public_root` in `app/auth.py`)
+  — `GET /` now answers 200 in every state: `templates/start.html` (fixed
+  copy, zero book data, ONE state-legal door — window-open → "Välj ditt
+  lösenord", configured → "Logga in") in the two open states, and the §6.1-
+  pinned gate page in the closed one (already 200/>256 B — no second closed-
+  state page added). Every data route keeps its guard. Sweep legs updated to
+  assert `/` 200 + no-leak instead of 302 (`test_guard` three states,
+  `test_no_leak` matrix with the >256 B floor pinned); the legs that proved
+  a session by "/" answering 200 now prove it by the owner nav. Red-proven:
+  the `/` assert planted to 302 → `assert 200 == 302` FAILED → reverted.
+  Gate-equivalent curl on a seeded local server (configured state, both
+  request shapes byte-identical): `200 577B`; six anonymous probes carry
+  zero seed titles. Full suite on this tree: 403 passed, exit 0.

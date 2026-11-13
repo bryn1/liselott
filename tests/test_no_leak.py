@@ -56,12 +56,19 @@ def assert_no_seed_bytes(response):
 
 
 def test_unauthenticated_leak_matrix(seeded):
-    """Configured state: every data route 302s (or 404s — a path that exists
-    not), and NO body carries a single seed title."""
+    """Configured state: the ROOT answers its public landing 200 (M8 staging
+    gate, MC 12451 — and stays over the gate's 256 B floor, asserted so no
+    future trim silently breaks the publish), every data route 302s (or 404s
+    — a path that exists not), and NO body — landing included — carries a
+    single seed title."""
     _, client = configured_client(seeded)
     for entry in ROUTES:
         r = client.get(entry)
-        assert r.status_code in (302, 404), entry
+        if entry == "/":
+            assert r.status_code == 200, entry  # the landing leg, not a 302
+            assert len(r.data) > 256, entry      # the staging gate's floor
+        else:
+            assert r.status_code in (302, 404), entry
         assert_no_seed_bytes(r)
 
 
