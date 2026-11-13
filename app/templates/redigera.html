@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}Redigera {{ bok.title }} — Liselotts bokhylla{% endblock %}
+{% block content %}
+{# T5.2 — the fix-me landing page (§9's "Omslag saknas — fixa" lands here).
+   One form carries the identity fields; the cover block below carries the
+   three honest cover doors (provider fetch, the OQ-2 paste-url helper, manual
+   upload) and the confirm-gated delete. A field that is not posted is not
+   changed (the rapport page posts ONLY the ISBN input through this route). #}
+<h1>Redigera boken</h1>
+{% if fel %}<p class="fel-meddelande">{{ fel }}</p>{% endif %}
+
+<form method="post" action="{{ url_for('spara_redigera', id=bok.id) }}">
+  <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+
+  <label for="titel">Titel</label>
+  <input id="titel" name="titel" type="text" value="{{ bok.title }}" required>
+
+  <label for="forfattare">Författare (åtskilj med komma eller "och")</label>
+  <input id="forfattare" name="forfattare" type="text"
+         value="{{ bok.authors | join(', ') }}">
+
+  <label for="utgivningsar">Utgivningsår</label>
+  <input id="utgivningsar" name="utgivningsar" type="text" inputmode="numeric"
+         value="{{ bok.year if bok.year is not none else '' }}">
+
+  <label for="format">Format</label>
+  <select id="format" name="format">
+    <option value="bok" {% if bok.format == 'bok' %}selected{% endif %}>Bok</option>
+    <option value="ljudbok" {% if bok.format == 'ljudbok' %}selected{% endif %}>Ljudbok</option>
+  </select>
+
+  <label for="last">Läst (datum)</label>
+  <input id="last" name="last" type="date" value="{{ bok.date_read or '' }}">
+
+  <label for="isbn">ISBN (10 eller 13 siffror)</label>
+  <input id="isbn" name="isbn13" type="text" inputmode="numeric"
+         value="{{ bok.isbn13 or bok.isbn10 or '' }}">
+
+  <label for="anteckningar">Anteckningar</label>
+  <textarea id="anteckningar" name="anteckningar" rows="3">{{ bok.notes or '' }}</textarea>
+
+  <button type="submit">Spara</button>
+</form>
+
+<section class="omslagsfix">
+  <h2>Omslag</h2>
+  <img class="omslag" src="{{ url_for('cover', book_id=bok.id) }}"
+       alt="Omslag till {{ bok.title }}" width="340" height="510">
+  {% if not bok.has_cover %}
+  <p class="ledtråd">Omslag saknas — välj en av vägarna nedan.</p>
+  {% endif %}
+
+  <form method="post" action="{{ url_for('hitta_omslag', book_id=bok.id) }}">
+    <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+    <label for="sida_url">Adress till sida med omslaget</label>
+    <input id="sida_url" name="sida_url" type="text" inputmode="url"
+           placeholder="https://…">
+    <button type="submit">Hämta omslag från adress</button>
+  </form>
+  {# T5.3 lands the remaining cover doors here: "Hämta omslag" (provider) and
+     the manual upload with its client-side downscale guard. #}
+</section>
+
+<section class="radera">
+  <h2>Ta bort boken</h2>
+  <form method="post" action="{{ url_for('ta_bort', id=bok.id) }}">
+    <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+    <input type="hidden" name="bekrafta" value="ta bort">
+    <button type="submit" class="overopande">Ta bort boken</button>
+  </form>
+</section>
+{% endblock %}
