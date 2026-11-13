@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% from "_bokkort.html" import bokkort with context %}
+{% block title %}Sök — Liselotts bokhylla{% endblock %}
+{% block content %}
+{# One form, one mechanism (§7): a GET with the query in `q` — a search she
+   can bookmark and press back on. The empty state and the no-hits state are
+   DIFFERENT sentences: she has not asked yet vs. the diary has nothing. #}
+<h1>Sök</h1>
+<form class="sok-form" method="get" action="{{ url_for('sok') }}" role="search">
+  <label for="frag">Sök i hyllan</label>
+  <input id="frag" name="q" type="search" value="{{ q }}"
+         placeholder="Titel, författare, ISBN, årtal eller genre"
+         autocomplete="off">
+  <button type="submit">Sök</button>
+</form>
+{% if traffar is none %}
+<p class="ledtråd">Sök på titel, författare, ISBN, årtal eller genre.</p>
+{% elif not traffar %}
+<p class="ingna-traffar">Inga träffar. Prova ett annat ord, ett årtal eller ett
+  ISBN utan bindestreck.</p>
+{% else %}
+<p class="antal">{{ number_and_word(traffar | length, "träff", "träffar") }}</p>
+<ul class="hylla">
+  {% for b in traffar %}{{ bokkort(b) }}{% endfor %}
+</ul>
+{% endif %}
+{% endblock %}

@@ -5,7 +5,7 @@ from pathlib import Path
 
 from flask import abort, jsonify, render_template, request, send_file, session
 
-from app import auth, books, db, omslag
+from app import auth, books, db, omslag, search
 
 
 def init_routes(app):
@@ -22,6 +22,11 @@ def init_routes(app):
     for fn in (books.authors_text, books.format_word, books.sw_date,
                books.year_text):
         app.jinja_env.globals.setdefault(fn.__name__, fn)
+    # "1 träff" / "13 träffar" on one line — a count and its noun may not be
+    # split across source lines the reader then renders as a paragraph break.
+    app.jinja_env.globals.setdefault(
+        "number_and_word",
+        lambda n, one, many: f"{n} {one if n == 1 else many}")
 
     def _hylla():
         """One read, one render — shared by the two rules below."""
@@ -52,6 +57,17 @@ def init_routes(app):
         if not rows:
             abort(404)          # the §9 404 page echoes nothing back
         return render_template("bok.html", bok=rows[0], current="hylla")
+
+    @app.get("/sok")
+    def sok():
+        """T4.3 — the ONE search mechanism (§7) behind one form. `traffar` is
+        None until she has actually asked for something (an empty q is a blank
+        page, not a zero-result page), and the search module owns every rule
+        about what a query means."""
+        q = request.args.get("q", "")
+        traffar = search.search(db.get_db(), q) if q.strip() else None
+        return render_template("sok.html", q=q, traffar=traffar,
+                               current="sok")
 
     @app.errorhandler(404)
     def inte_hittad(error):
