@@ -273,4 +273,4 @@ a, button, input, .omslag {
   padding-top: var(--s4); }
 .uppladdning { margin-top: var(--s4); }
 
-/* deploy-marker 2026-11-13b: window reopen #2 (MC 12451) — lane restart is the ONLY window reopener; each restart grants a fresh 20-min first-login window. */
+/* deploy-marker cycle-3: owner standing order 2026-11-13 'Keep the window open' — restart keeps the first-login window continuously open until the password is set. */
