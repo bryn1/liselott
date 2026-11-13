@@ -34,15 +34,12 @@ def fetch_cover(url, *, fetch=None, max_bytes=MAX_BODY):
     return data
 
 
-def store_cover(conn, book_id, data, source):
-    """THE cover normalizer (T5.3 upload and T6.4 bundle write reuse THIS):
-    Pillow → RGB → thumbnail ≤340×510 → JPEG q82 → <state_base()>/covers/
-    <book_id>.jpg, and the row's cover_path/cover_source are written here so
-    file and row can never disagree. Bytes that are not an image are refused
-    with nothing written."""
+def validate_cover_bytes(data):
+    """The image refusal, factored out of store_cover for T6.4's PARSE phase:
+    a POSTed bundle must reject a broken cover line BEFORE anything is
+    written, so the whole POST can roll back (T6.4 leg g). ONE definition of
+    "is this an image" — store_cover calls the same function it guards."""
     from PIL import Image, UnidentifiedImageError
-
-    from app import db
     try:
         img = Image.open(io.BytesIO(data))
         img.load()
@@ -55,17 +52,41 @@ def store_cover(conn, book_id, data, source):
         # the book's cover and let the F-2 loop converge on garbage.
         raise CoverRejected(
             f"bilden är {img.width}×{img.height} px — för liten för att vara ett omslag")
+    return img
+
+
+def normalize_image(data) -> bytes:
+    """THE byte pipeline behind store_cover, exposed for T6.4's idempotence
+    check: a re-POST's raw bytes differ from the stored JPEG q82, so only
+    normalizing first can answer "does this write change anything" — and the
+    definition of normalizing lives in ONE place (P1-2's reuse rule)."""
+    img = validate_cover_bytes(data)
     img = img.convert("RGB")
     img.thumbnail(MAX_COVER_EDGE)
+    buf = io.BytesIO()
+    img.save(buf, "JPEG", quality=COVER_QUALITY)
+    return buf.getvalue()
+
+
+def store_cover(conn, book_id, data, source):
+    """THE cover normalizer (T5.3 upload and T6.4 bundle write reuse THIS):
+    normalize_image → covers/<book_id>.jpg, and the row's cover_path/
+    cover_source are written here so file and row can never disagree. Bytes
+    that are not an image are refused with nothing written. A write whose
+    bytes are already on disk byte-identical touches the disk not at all
+    (T6.4 leg e); the rel path is returned either way — the row IS the
+    cover's truth."""
+    from app import db
+    payload = normalize_image(data)
     rel = f"{COVER_SUBDIR}/{book_id}.jpg"
     target = db.state_base() / COVER_SUBDIR / f"{book_id}.jpg"
     target.parent.mkdir(parents=True, exist_ok=True)
-    buf = io.BytesIO()
-    img.save(buf, "JPEG", quality=COVER_QUALITY)
-    target.write_bytes(buf.getvalue())
+    if (not target.exists()) or target.read_bytes() != payload:
+        target.write_bytes(payload)
 
     from app import auth
     conn.execute("UPDATE book SET cover_path = ?, cover_source = ?, updated = ? "
                  "WHERE id = ?", (rel, source, auth.utcnow_iso(), book_id))
     conn.commit()
+    return rel
     return rel
