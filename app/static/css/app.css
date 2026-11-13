@@ -108,6 +108,11 @@ figcaption a { color: var(--link); font-size: .8125rem; }
 .uppgifter .muted { color: var(--muted); font-variant-numeric: tabular-nums; }
 .anteckningar { margin-top: var(--s4); }
 .fel-meddelande { color: var(--danger); }
+/* §9 puts --accent to two named uses: active states (nav below) and the
+   covers' halo — a hairline of sage on hover/focus, never a lift. */
+.bok-lank:hover .omslag, .bok-lank:focus-visible .omslag {
+  border-color: var(--accent);
+}
 .tom-state, .ledtråd, .ingna-traffar { color: var(--muted); }
 
 /* ── forms: fields on card, full width where they sit ── */
