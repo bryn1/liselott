@@ -25,7 +25,7 @@ USER_AGENT = "liselott-bokhylla/1.0 (personal book diary)"
 # Lane fact (§10, P1-1): every byte transfer INTO the app is chunked below a
 # 900,000-byte budget; the same number bounds what the app itself accepts to
 # read back from any single response.
-MAX_BODY = 900_000
+MAX_FETCH = 900_000
 
 
 class ProviderUnavailable(Exception):
@@ -43,7 +43,7 @@ class BodyTooLarge(ProviderUnavailable):
 
 
 def http_get(url, *, timeout=3.0, attempts=3, backoff=2.0,
-             max_bytes=MAX_BODY, opener=None, sleep=time.sleep):
+             max_bytes=MAX_FETCH, opener=None, sleep=time.sleep):
     """GET url -> bytes. Retries URLError/429/5xx with exponential backoff
     (backoff * 2**n, VERIFIED red-capable in tests/test_enrich_ol.py); a
     definitive 4xx (not 429) is not retried. Raises RateLimited on a final 429,

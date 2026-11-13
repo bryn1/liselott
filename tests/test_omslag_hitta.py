@@ -127,7 +127,7 @@ def test_non_http_page_url_is_refused_before_any_fetch(state):
 
 def test_oversize_page_body_is_refused(state):
     conn, tmp = state
-    fat = FakeFetch({"https://x.test/a": b"<html>" + b"x" * (enrich.MAX_BODY + 1)})
+    fat = FakeFetch({"https://x.test/a": b"<html>" + b"x" * (enrich.MAX_FETCH + 1)})
     outcome = omslag.hamta_omslag(conn, 1, "https://x.test/a", get=fat)
     assert outcome["ok"] is False and "900" in outcome["fel"]
     assert not (tmp / "covers").exists()                   # nothing half-written
@@ -137,7 +137,7 @@ def test_oversize_page_body_is_refused(state):
 def test_oversize_image_body_is_refused(state):
     conn, tmp = state
     fat = FakeFetch({"https://x.test/a": PAGE_WITH_OG.encode(),
-                     "https://x.test/bilder/omslag.jpg": b"\xff\xd8\xff" + b"y" * (enrich.MAX_BODY + 1)})
+                     "https://x.test/bilder/omslag.jpg": b"\xff\xd8\xff" + b"y" * (enrich.MAX_FETCH + 1)})
     outcome = omslag.hamta_omslag(conn, 1, "https://x.test/a", get=fat)
     assert outcome["ok"] is False and "900" in outcome["fel"]
     assert not (tmp / "covers").exists()

@@ -1,6 +1,6 @@
 """T3.5 — the backfill CLI, tested OFFLINE (plan §13: live calls belong to this
 script, never to the suite). Flags are EXACTLY the plan's set: --dry-run
---limit N --offline --authors --report PATH (P2-b: NO --only-missing flag
+--limit N --offline --authors --report PATH (P2-b: no skip-already-done flag
 exists — the default scope already targets rows missing isbn/cover).
 
 The test drives main() with an injected fixture transport (the same seam the
@@ -130,7 +130,8 @@ def test_limit_bounds_the_work(build_db):
 
 def test_live_mode_writes_and_resumes_on_what_is_left(build_db):
     """The DEFAULT scope is rows missing isbn/cover (P2-b: that IS the flag —
-    no --only-missing exists), so a second run after a partial pass continues."""
+    no skip-already-done flag exists), so a second run after a partial pass
+    continues."""
     conn, tmp = build_db
     assert main(["--report", str(tmp / "r.json"), "--limit", "1"],
                 transports=fixture_transports(), fetch=cover_fetch,

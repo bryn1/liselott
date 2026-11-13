@@ -280,7 +280,7 @@ def test_store_cover_refuses_non_image_bytes(conn, tmp_path, monkeypatch):
 
 def test_cover_fetch_over_budget_is_refused(conn):
     def huge(url, **kw):
-        return b"x" * (enrich.MAX_BODY + 1)
+        return b"x" * (enrich.MAX_FETCH + 1)
     with pytest.raises(enrich.BodyTooLarge):
         enrich.fetch_cover("https://covers.openlibrary.org/b/id/1-M.jpg",
                            fetch=huge)

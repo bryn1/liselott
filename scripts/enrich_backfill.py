@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Enrichment backfill (§10/T3.5) — the ONLY place in this project that calls
 the providers in a loop. Flags are EXACTLY the plan's: --dry-run --limit N
---offline --authors --report PATH. There is NO --only-missing flag (P2-b): the
-DEFAULT scope already is "rows missing isbn/cover", so a re-run resumes by
+--offline --authors --report PATH. There is NO skip-already-done flag (P2-b):
+the DEFAULT scope already is "rows missing isbn/cover", so a re-run resumes by
 itself — which is how the F-2 convergence loop runs (plain re-run, no flags
 invented, until two consecutive full passes add covers_stored == 0).
 
