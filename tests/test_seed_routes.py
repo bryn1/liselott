@@ -464,6 +464,27 @@ def test_seed_unknown_section_400_naming_it(authed):
     assert stored_count(tmp) == 0
 
 
+def test_seed_one_flagged_row_commits_nothing(authed):
+    """F-C2 (DA-verdict-c2, MC 12451): the shipped door answered 400 AFTER
+    COMMITTING the same body's clean rows (measured 6→7) — one door, two
+    postures, while its three sibling 400s all say "Ingen rad är
+    importerad". Here one §5.4-flagged row (tab-form av-tail) stands beside
+    one clean row: the flagged title is still NAMED in the 400, the copy
+    now says what the door does, and the clean row did NOT land either —
+    the count proves nothing committed."""
+    tmp, client = authed
+    r = client.post("/liselott/seed", data=(
+        "## Lästa böcker 2026\n"
+        "- 260101 Flaggad av Författare\tav\tTabbe T\n"
+        "- 260202 Rena rader av Aino A\n").encode("utf-8"),
+        content_type="application/octet-stream")
+    assert r.status_code == 400
+    text = r.get_data(as_text=True)
+    assert "Flaggad" in text                           # the flagged row, named
+    assert "Ingen rad är importerad" in text           # copy = behaviour
+    assert stored_count(tmp) == 0                      # clean row NOT stored
+
+
 def test_seed_over_one_mebibyte_413_naming_the_budget(authed):
     """P3-4 leg 3: /seed accepted ANY size on the shipped code (the 900 000
     rule was /bundle-only; only the lane edge 413s). The app now caps at
