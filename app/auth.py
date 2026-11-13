@@ -189,9 +189,18 @@ def _file_shaped() -> bool:
 
 
 def _closed_gate():
-    """Closed-window state (§6.1): zero app data answered; POST setup -> 403."""
+    """Closed-window state (§6.1): zero app data answered; POST setup -> 403.
+    M8-hotfix-3 (MC 12451): /static/ is allowed through FIRST, exactly as in
+    the two open states — it is zero-personal-data by construction (css/js/
+    fonts/placeholder svg), the same argument §6.4's allow-list already makes.
+    Serving the gate PAGE under an asset URL is what poisoned the live site:
+    Cloudflare caches .css-extension responses 4 h by default and froze 378 B
+    of gate HTML under app.css, so the landing rendered unstyled until the TTL
+    expired. Everything else keeps the §6.1-pinned gate page."""
     if request.path == "/healthz":
         return None
+    if request.path.startswith(STATIC_PREFIX):
+        return _csrf_gate()
     if request.path == "/satt-loesenord" and request.method == "POST":
         return render_template("stangd.html"), 403
     return render_template("stangd.html")
