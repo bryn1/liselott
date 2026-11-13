@@ -196,11 +196,19 @@ def _closed_gate():
     Serving the gate PAGE under an asset URL is what poisoned the live site:
     Cloudflare caches .css-extension responses 4 h by default and froze 378 B
     of gate HTML under app.css, so the landing rendered unstyled until the TTL
-    expired. Everything else keeps the §6.1-pinned gate page."""
+    expired. F-E/F-F (MC 12451) make the staging posture STATE-INVARIANT:
+    the quarantined file-shaped names — and with them §6.4's dotted
+    /robots.txt leg, named a second time beside the rule that already covers
+    it — 404 BEFORE the gate page renders, exactly as in the open states;
+    a probe must read 404/403 for those names in EVERY state, a 200 reads
+    "reachable". Everything else shapeless keeps the §6.1-pinned gate
+    page."""
     if request.path == "/healthz":
         return None
     if request.path.startswith(STATIC_PREFIX):
         return _csrf_gate()
+    if _file_shaped() or request.path == "/robots.txt":
+        abort(404)  # the SAME indistinguishable 404 the open states emit
     if request.path == "/satt-loesenord" and request.method == "POST":
         return render_template("stangd.html"), 403
     return render_template("stangd.html")

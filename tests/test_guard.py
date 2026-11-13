@@ -246,3 +246,43 @@ def test_logged_in_file_shape_still_reaches_flask_404(tmp_path, monkeypatch):
         r = client.get(path)
         assert r.status_code == 404, path
         assert "hittas inte" in r.text.lower(), path
+
+
+def test_closed_window_quarantined_names_and_robots_404(tmp_path, monkeypatch):
+    """F-E + F-F (TEST-verdict 2026-11-13, MC 12451): in the CLOSED state the
+    gate page answered the quarantined names AND /robots.txt with 200 — the
+    staging posture says those names answer 404/403 ONLY, and a 200 reads
+    "reachable" to a probe. The 404 is now STATE-INVARIANT: _file_shaped (the
+    §6.4 allow-list's /robots.txt is file-shaped by that rule too, and is
+    named a second time beside it) runs BEFORE the gate page renders. What
+    the closed state must KEEP answering — the landing gate page, /static,
+    and the setup door's 403 — is asserted here too, so the fix cannot trade
+    one pinned behaviour for the other."""
+    import time
+
+    import app.auth as auth
+    app = make_app(tmp_path, monkeypatch)
+    monkeypatch.setattr(auth, "START_TIME",
+                        time.time() - auth.SETUP_WINDOW_S - 1)
+    client = app.test_client()
+    for path in QUARANTINED:
+        r = client.get(path)
+        assert r.status_code == 404, path
+        assert "Location" not in r.headers, path
+        assert "Inställningsfönstret" not in r.text, path
+        r = client.get("/liselott" + path)         # prefixed shape, same 404
+        assert r.status_code == 404, path
+    r = client.get("/robots.txt")                   # F-F, explicitly named
+    assert r.status_code == 404
+    assert "Disallow" not in r.text and "Inställningsfönstret" not in r.text
+    # the pinned closed-state answers stay untouched (§6.1):
+    gate = client.get("/")
+    assert gate.status_code == 200
+    assert "Inställningsfönstret är stängt." in gate.text
+    assert client.get("/static/css/app.css").status_code == 200
+    assert client.get("/static/css/app.css").mimetype == "text/css"
+    r = client.get("/något-utan-punkt")             # shapeless: the gate page
+    assert "Inställningsfönstret är stängt." in r.text
+    r = client.post("/satt-loesenord",
+                    data={"loesenord": PASSWORD, "bekrafta": PASSWORD})
+    assert r.status_code == 403
