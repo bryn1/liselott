@@ -9,6 +9,11 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}Liselotts bokhylla{% endblock %}</title>
+  {# T4.4 — url_for carries BOTH the mount prefix and the cache-busting `v`;
+     a hand-written /static/ path would break the moment the app is mounted
+     somewhere else. #}
+  <link rel="stylesheet"
+        href="{{ url_for('static', filename='css/app.css', v=APP_VERSION) }}">
 </head>
 <body>
   {% if inloggad() %}
