@@ -43,6 +43,15 @@ STATIC_PREFIX = "/static/"
 PUBLIC_ROOT = "/"
 READ_METHODS = ("GET", "HEAD")
 
+# F-F2 (DA-verdict-c2, MC 12451): the _file_shaped() dot heuristic has
+# exactly one known miss — VERSION, the extension-less repo-root file the
+# lane mirror carries (hotfix-3's own cache key). The staging gate probes it
+# like the dotted names, and live it fingerprinted the gate (anonymous 302,
+# closed state 200 gate page). Named beside the rule instead of widening
+# the rule: a bare name, not a route or asset spelling, keeps landing,
+# /static and every allow-listed path exactly as they were.
+QUARANTINED_DOTTED_LESS = ("VERSION",)
+
 # §6.6 + P2-r4 (DA-verdict-c3 Part 3): state-change methods carry the CSRF
 # rule. TOKENLESS_POSTS are checked by ORIGIN ONLY — the machine trio per
 # §6.6's curl posture, and /logga-in + /satt-loesenord per P2-r4 so the runbook
@@ -178,14 +187,17 @@ def _file_shaped() -> bool:
     LEDGER.md, hosting.yaml, data-import/*.csv, server.py …) and passes a
     quarantined name only on 404/403 — a 302 fingerprints the auth gate and
     reads as "reachable". A final path segment carrying a dot is a
-    file-shaped name; the guard asks this ONLY on its unauthenticated
-    redirect branches, so allow-listed routes (/robots.txt has a dot) and
-    /static/ are already through. The answer is abort(404) — the SAME
-    errorhandler an owner gets (routes.py: 404.html, plain Swedish copy,
-    zero app data, no hint of why), so anonymous and logged-in 404s are
-    indistinguishable and leak nothing. Extension-less unknown paths keep
-    the §6.4 uniform 302 (the T2.6 contract — not churned)."""
-    return "." in request.path.rsplit("/", 1)[-1]
+    file-shaped name, and the ONE quarantined dotted-less name
+    (QUARANTINED_DOTTED_LESS, F-F2) counts too; the guard asks this ONLY on
+    its unauthenticated redirect branches, so allow-listed routes
+    (/robots.txt has a dot) and /static/ are already through. The answer is
+    abort(404) — the SAME errorhandler an owner gets (routes.py: 404.html,
+    plain Swedish copy, zero app data, no hint of why), so anonymous and
+    logged-in 404s are indistinguishable and leak nothing. Extension-less
+    unknown paths keep the §6.4 uniform 302 (the T2.6 contract — not
+    churned)."""
+    last = request.path.rsplit("/", 1)[-1]
+    return "." in last or last in QUARANTINED_DOTTED_LESS
 
 
 def _closed_gate():
