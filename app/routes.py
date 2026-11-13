@@ -1,12 +1,31 @@
 """Logged-in page routes (§6.7 password lifecycle; M4+ adds browse/search).
 Guard + CSRF already ran before any view here — request is owner-authenticated
 and (for state changes) token- and origin-checked (T2.3/T2.5)."""
-from flask import render_template, request
+from pathlib import Path
+
+from flask import abort, render_template, request, send_file
 
 from app import auth, db
 
 
 def init_routes(app):
+
+    @app.get("/cover/<int:book_id>")
+    def cover(book_id):
+        """T3.4 — the stored cover, or the placeholder SVG when the row has
+        none (the §6.4 guard already put this route behind the login; the
+        placeholder is served as data, never as a redirect to anything)."""
+        conn = db.get_db()
+        row = conn.execute("SELECT cover_path FROM book WHERE id = ?",
+                           (book_id,)).fetchone()
+        if row is None:
+            abort(404)
+        if row[0]:
+            stored = db.state_base() / row[0]
+            if stored.is_file():
+                return send_file(stored, mimetype="image/jpeg")
+        return send_file(Path(app.static_folder) / "omslag-saknas.svg",
+                         mimetype="image/svg+xml")
 
     @app.post("/byter-losenord")
     def byter_losenord():
