@@ -31,9 +31,14 @@ PROTECTED = (
 # 404/403, never on the guard's uniform 302 (which fingerprints the auth
 # gate and reads as reachable). import_overrides.csv is the personal-data
 # leg of P0-1: one owner row, never served anonymous.
+# F-F2 (DA-verdict-c2, MC 12451): VERSION is the one quarantined root file
+# WITHOUT a dot — the dot-heuristic missed it and it fingerprinted the gate
+# LIVE (GET /liselott/VERSION → 302; closed state → 200 gate page). The
+# lane mirror carries it (the no-git cache key), so it joins the probed
+# names and the guard must 404 it in EVERY state.
 QUARANTINED = (
     "/DESIGN.md", "/LEDGER.md", "/README.md", "/hosting.yaml",
-    "/data-import/import_overrides.csv", "/server.py",
+    "/data-import/import_overrides.csv", "/server.py", "/VERSION",
 )
 
 
