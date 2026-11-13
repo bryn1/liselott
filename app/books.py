@@ -13,6 +13,8 @@ MONTHS_SV = ("januari", "februari", "mars", "april", "maj", "juni", "juli",
 FORMAT_WORDS = {"bok": "Bok", "ljudbok": "Ljudbok"}
 NO_AUTHOR = "Okänd författare"
 NO_DATE = "Utan läsdatum"
+NO_YEAR = "Utan år"               # one trailing group for yearless read rows
+WISHLIST_SECTION = "Att läsa"     # §9: the wishlist section's own name
 _DATE_RE = re.compile(r"^(\d{4})-(\d{1,2})-(\d{1,2})")
 
 
@@ -65,18 +67,32 @@ def sort_by_read_date(books):
 
 
 def group_for_shelf(books):
-    """[(label, rows)] for the shelf: the read years newest first, then the
-    wishlist as the §9 section "Att läsa" LAST. read_year 0 is the seed's
-    wishlist sentinel, so `status` — never the year — decides the split."""
+    """[(label, rows)] for the shelf: ONE section per read_year, the years
+    newest first; read rows without a usable year (the seed's 0 sentinel)
+    form ONE trailing "Utan år" group; the wishlist is the §9 section
+    "Att läsa" LAST; within a group the sort_by_read_date order stands.
+
+    Keyed on the read_year VALUE, never run-length over the sorted rows:
+    most corpus rows carry no date_read, so the sorted block runs in title
+    order and its years jump on nearly every row — run-length opened a new
+    section at each jump (F-A: 583 headings over 12 real years). `status`,
+    never the year, decides the read/wish split (a wish row's 0 is its
+    sentinel, not a year)."""
     read = sort_by_read_date([b for b in books if b["status"] == "read"])
     wishlist = sort_by_read_date([b for b in books if b["status"] != "read"])
-    groups = []
+    by_year = {}
+    utan_ar = []
     for book in read:
-        if not groups or groups[-1][0] != book["read_year"]:
-            groups.append((book["read_year"], []))
-        groups[-1][1].append(book)
+        if book["read_year"]:
+            by_year.setdefault(book["read_year"], []).append(book)
+        else:
+            utan_ar.append(book)
+    groups = [(year, by_year[year])
+              for year in sorted(by_year, reverse=True)]
+    if utan_ar:
+        groups.append((NO_YEAR, utan_ar))
     if wishlist:
-        groups.append((None, wishlist))
+        groups.append((WISHLIST_SECTION, wishlist))
     return groups
 
 
