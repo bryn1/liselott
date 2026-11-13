@@ -46,3 +46,49 @@ postdating a line make that line STALE — de-stale before quoting it.
     overlap/garble), one real 375px defect found+fixed (`input[type=file]`
     11px overflow on redigera) — DONE (this commit). Evidence
     `.audits/20261112-M7-design/` + `s7-evidence.md` in the phase2 `.tmp/`.
+- **Cover waves S12 / S12b (MC 12466)** — S12 committed (d7f1ed3, bounded
+  fleet-browser pass over the build DB). Build-DB state measured by this seat
+  2026-11-13 12:22 UTC (live `sqlite3`, wave 2 still running — treat as a
+  floor): covers 72/724 (72 files in `covers/`), re-measured 12:34 UTC:
+  covers 74/724 (74 files), manual+manual-url 27,
+  `enrich_fail=1` 47, isbn13 671/724, candidate pool 284. Wave 2 report
+  `s12b-covers-pass-report.csv` lands in the phase2 `.tmp/` beside this ledger.
+- **T3.5/T3.6 live artifacts** (measured by this seat 2026-11-13, build DB
+  `LISELOTT_DATA_DIR=/home/claudecode/liselott-build`): book 724 = 706 read +
+  18 wishlist, ratings 6, ljudbok 52 (plan §5.8 outcome, exact); seed file
+  sha256 matches the plan pin `420259164605b1b9…55ec24dc` byte-for-byte.
+  Bundle `/home/claudecode/liselott-bundle/`: 724 lines, 45 carrying a cover
+  (the T3.6 export predates the S12 cover waves), 2 chunks (893 310 B +
+  211 050 B, both ≤ 900 000). ⇒ Re-export + re-chunk immediately before the
+  runbook's bundle loop so covers won after T3.6 travel — noted in README.
+- **M8 publish** — NOT RUN (measured 2026-11-13 by this seat: `git remote -v`
+  empty in this clone, `gh repo view bryn1/liselott` → not found,
+  `https://sibbamala.com/liselott/logga-in` → 404). Order of work when the
+  owner gives the go: PLAN-c3 §10 runbook, tasks T8.1–T8.8; the T9.3
+  `git log origin/main` leg and every production number (T8.6 rapport, T8.7
+  owner artifact) land there — none may be quoted before then.
+- **M9 docs (stage s9, MC 12448)** — T9.1 DONE (this commit): README.md
+  written (Swedish usage section + English maintainer half, §4 env table, §13
+  suite-location rule verbatim, CODE-ONLY statement, T8 runbook pointer,
+  stale-seed-header warning, §11 backup story) + this LEDGER brought true.
+  T9.1 DoD greps on this commit: the per-file placeholder count (plan T9.1's
+  grep line, markers of the to-do family) is 0 for each file, and the two
+  retired-mechanism greps that line names (the deleted seed token, the
+  history-rewrite tool) are 0 on the README. Full suite on this tree: 403
+  passed, exit 0 (measured 2026-11-13). Evidence `s9-evidence.md` in the
+  phase2 `.tmp/`. Two stage findings, both outside the docs-only file
+  ownership of this stage, filed for the orchestrator: (1) T9.2 NOT LANDED —
+  `scripts/backup.sh`, `GET /backup` and `tests/test_backup.sh` are absent
+  (grep-measured); it needs a code child; the README states the current truth
+  meanwhile. (2) T9.3's retired-string gate is RED in code files this docs
+  stage may not edit: the shared 900 000-byte budget lives under a retired
+  constant name with 15 measured hits (13 in `app/*.py`, 2 in
+  `app/static/js/omslag-upp.js` comments — run T9.3's gate-2 grep for the
+  exact list) and `scripts/enrich_backfill.py`'s header quotes a
+  retired flag name (1 hit) — a rename pass (code profile) closes it, and it
+  must keep LEDGER.md + README.md clean too (they are: measured 0 this
+  session). The placeholder gate (plan's case-sensitive form) is GREEN
+  (exit 1) on the whole tree; the only case-INsensitive substring hits are
+  `todo` as a local variable name in `scripts/cover_pass.py` (lines
+  241/250/259) and `tbd` inside opaque Libris record ids in a fixture —
+  substring noise, not placeholders.
