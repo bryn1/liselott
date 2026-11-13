@@ -313,3 +313,25 @@ def test_cover_route_serves_the_stored_jpeg(tmp_path, monkeypatch):
 def test_cover_route_unknown_id_is_404(tmp_path, monkeypatch):
     _, client = authed_client(tmp_path, monkeypatch)
     assert client.get("/liselott/cover/9999").status_code == 404
+
+
+def test_cover_route_never_follows_a_path_outside_the_covers_dir(tmp_path, monkeypatch):
+    """/cover builds a filesystem path from a DB column. Only store_cover writes
+    that column (a fixed covers/<id>.jpg shape), but a route must not turn a
+    corrupted or hand-edited value into an arbitrary file read — a traversal
+    value serves the placeholder, never the file it points at."""
+    app, client = authed_client(tmp_path, monkeypatch)
+    conn = db.connect()
+    db.init_db(conn)
+    book_id = insert_book(conn)
+    secret = tmp_path / "hemlighet.txt"
+    secret.write_text("HEMLIG TEXT", encoding="utf-8")
+    conn.execute("UPDATE book SET cover_path = ?, cover_source = 'manual' WHERE id = ?",
+                 ("hemlighet.txt", book_id))
+    conn.execute("UPDATE book SET cover_path = ?, cover_source = 'manual' WHERE id = ?",
+                 ("../../../etc/passwd", book_id + 1))     # if a 2nd row exists
+    conn.commit()
+    conn.close()
+    svg = (ROOT / "app" / "static" / "omslag-saknas.svg").read_bytes()
+    r = client.get(f"/liselott/cover/{book_id}")
+    assert r.status_code == 200 and r.data == svg, "the route served a non-cover file"
