@@ -14,6 +14,7 @@ import time
 import unicodedata
 import urllib.error
 import urllib.request
+from urllib.parse import urlsplit
 
 # ASCII ONLY: urllib encodes headers as latin-1, so one em dash here would
 # kill every real request (UnicodeEncodeError) while fixture transports, which
@@ -47,6 +48,12 @@ def http_get(url, *, timeout=3.0, attempts=3, backoff=2.0,
     (backoff * 2**n, VERIFIED red-capable in tests/test_enrich_ol.py); a
     definitive 4xx (not 429) is not retried. Raises RateLimited on a final 429,
     ProviderUnavailable otherwise."""
+    # Scheme rule in the MECHANISM, not in each caller: urllib's default opener
+    # ships FileHandler/FTPHandler, so an unchecked url turns this function into
+    # a local file reader (measured: file:///etc/hostname returned its bytes).
+    parts = urlsplit(str(url))
+    if parts.scheme not in ("http", "https") or not parts.netloc:
+        raise ProviderUnavailable(f"endast http/https hämtas — nekar {url!r}")
     op = opener or _default_opener()
     last = None
     for attempt in range(attempts):
