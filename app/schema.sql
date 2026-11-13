@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS book (
   read_year INTEGER NOT NULL,   -- from seed section; wishlist rows use 0 sentinel
   rating INTEGER CHECK (rating BETWEEN 1 AND 5),   -- NULL = unrated
   notes TEXT,
-  cover_path TEXT, cover_source TEXT CHECK (cover_source IN ('libris','googlebooks','openlibrary','manual')),
+  cover_path TEXT, cover_source TEXT CHECK (cover_source IN ('libris','googlebooks','openlibrary','manual','manual-url')),
   status TEXT NOT NULL DEFAULT 'read' CHECK (status IN ('read','wishlist')),
   book_key TEXT NOT NULL UNIQUE,   -- §5.3: sha256 key, the ONLY bundle-upsert match key
   tried_providers TEXT,            -- csv of provider names attempted, e.g. 'libris,ol,gb'
@@ -21,7 +21,7 @@ CREATE TABLE IF NOT EXISTS author_alias (alias TEXT NOT NULL UNIQUE, author_id I
 CREATE TABLE IF NOT EXISTS genre (id INTEGER PRIMARY KEY, name TEXT NOT NULL UNIQUE);
 CREATE TABLE IF NOT EXISTS book_genre (book_id INTEGER NOT NULL, genre_id INTEGER NOT NULL, PRIMARY KEY (book_id, genre_id));
 CREATE TABLE IF NOT EXISTS candidate (id INTEGER PRIMARY KEY, title TEXT NOT NULL, author_name TEXT, isbn13 TEXT,
-  year INTEGER, cover_path TEXT, cover_source TEXT CHECK (cover_source IN ('libris','googlebooks','openlibrary','manual')),
+  year INTEGER, cover_path TEXT, cover_source TEXT CHECK (cover_source IN ('libris','googlebooks','openlibrary','manual','manual-url')),
   fetched_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS dismissed (key TEXT PRIMARY KEY, ts TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS login_attempts (id INTEGER PRIMARY KEY, ip TEXT NOT NULL, ts TEXT NOT NULL);

@@ -135,3 +135,14 @@ def test_every_request_header_survives_latin1_encoding():
     (they never encode a header). The opener's own headers are the contract."""
     for name, value in enrich.build_opener().addheaders:
         f"{name}: {value}".encode("latin-1")
+
+
+def test_http_get_refuses_a_non_http_scheme_before_any_io():
+    """The one http mechanism must never be a file reader. Measured before this
+    guard existed: http_get("file:///etc/hostname") RETURNED the file's bytes,
+    because urllib's default opener ships FileHandler — so the refusal lives in
+    the mechanism, where no caller can forget to add it."""
+    for bad in ("file:///etc/hostname", "gopher://x.test/", "data:text/plain,hi"):
+        with pytest.raises(enrich.ProviderUnavailable) as e:
+            enrich.http_get(bad, attempts=1)
+        assert "http" in str(e.value)

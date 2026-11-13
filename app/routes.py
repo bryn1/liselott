@@ -3,9 +3,9 @@ Guard + CSRF already ran before any view here — request is owner-authenticated
 and (for state changes) token- and origin-checked (T2.3/T2.5)."""
 from pathlib import Path
 
-from flask import abort, render_template, request, send_file
+from flask import abort, jsonify, render_template, request, send_file
 
-from app import auth, db
+from app import auth, db, omslag
 
 
 def init_routes(app):
@@ -26,6 +26,17 @@ def init_routes(app):
                 return send_file(stored, mimetype="image/jpeg")
         return send_file(Path(app.static_folder) / "omslag-saknas.svg",
                          mimetype="image/svg+xml")
+
+    @app.post("/omslag/<int:book_id>/hitta")
+    def hitta_omslag(book_id):
+        """OQ-2 (owner ruling 2026-11-12): the admin pastes a page url, the app
+        fetches it server-side, takes its og:image (or largest <img>) and keeps
+        it as the cover, cover_source='manual-url'. Guard + CSRF already ran —
+        this is a state change, so the session token is required (NOT a
+        TOKENLESS_POSTS machine route). JSON answer: S5 wires the button."""
+        outcome = omslag.hamta_omslag(db.get_db(), book_id,
+                                      request.form.get("sida_url", ""))
+        return jsonify(outcome), (200 if outcome["ok"] else 400)
 
     @app.post("/byter-losenord")
     def byter_losenord():
