@@ -242,8 +242,15 @@ def init_routes(app):
             return f"Säkerhetskopieringen misslyckades: {error}", 400
         return _stream_and_delete(target, tmp_dir, mimetype, name)
 
-    @app.post("/byter-losenord")
+    @app.route("/byter-losenord", methods=["GET", "POST"])
     def byter_losenord():
+        # P1-1 (MC 12451): the door exists — GET renders the form the POST
+        # below validates, csrf token riding the render (the logga-in GET/POST
+        # idiom on one rule). Before this commit the template was reachable
+        # only as the POST's 401/400 error body: no GET, no nav link, no door.
+        if request.method == "GET":
+            return render_template("byter-losenord.html", fel=None,
+                                   current="byter-losenord")
         conn = db.get_db()
         current = request.form.get("nuvarande", "")
         new = request.form.get("ny", "")
