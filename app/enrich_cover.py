@@ -68,14 +68,17 @@ def normalize_image(data) -> bytes:
     return buf.getvalue()
 
 
-def store_cover(conn, book_id, data, source):
+def store_cover(conn, book_id, data, source, commit=True):
     """THE cover normalizer (T5.3 upload and T6.4 bundle write reuse THIS):
     normalize_image → covers/<book_id>.jpg, and the row's cover_path/
     cover_source are written here so file and row can never disagree. Bytes
     that are not an image are refused with nothing written. A write whose
     bytes are already on disk byte-identical touches the disk not at all
     (T6.4 leg e); the rel path is returned either way — the row IS the
-    cover's truth."""
+    cover's truth. commit=False (P3-4, MC 12451) leaves the row-update in
+    the CALLER's transaction: the /bundle POST is ONE transaction whose
+    rollback must reach every earlier line, cover included — a mid-chunk
+    commit here would make that rollback a partial import."""
     from app import db
     payload = normalize_image(data)
     rel = f"{COVER_SUBDIR}/{book_id}.jpg"
@@ -87,5 +90,6 @@ def store_cover(conn, book_id, data, source):
     from app import auth
     conn.execute("UPDATE book SET cover_path = ?, cover_source = ?, updated = ? "
                  "WHERE id = ?", (rel, source, auth.utcnow_iso(), book_id))
-    conn.commit()
+    if commit:
+        conn.commit()
     return rel

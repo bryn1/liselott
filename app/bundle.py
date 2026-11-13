@@ -32,7 +32,12 @@ budget (900 000 — the P1-1 lane cap, re-pinned from §5.11's 900 KB); a
 malformed line 400s naming its 1-based line number with the WHOLE POST
 rolled back: every line — JSON, book_key, value vocabulary, cover base64 and
 image bytes — is validated in `parse_bundle` BEFORE `upsert_bundle` writes
-anything (leg g).
+anything (leg g). What parse cannot see — a line the DB itself refuses
+(rating outside the CHECK, a new row without its title) — 400s from the
+SAME named-line path via a per-line catch in the upsert loop (P3-4,
+MC 12451), still rolling the whole POST back: the loop is ONE transaction
+(store_cover lands its row-update commit=False), so a refusal mid-file
+imports NOTHING.
 
 Both doors sit in auth.TOKENLESS_POSTS (the §6.6 machine trio's vocabulary):
 no CSRF token, but a foreign Origin still 400s (P2-r4) and no session still
@@ -41,6 +46,7 @@ every state; the plan retires the one-time door).
 """
 import base64
 import json
+import sqlite3
 import tempfile
 from pathlib import Path
 
@@ -49,6 +55,11 @@ from flask import jsonify, request
 from app import REPO_ROOT, auth, db, enrich, seed
 
 MAX_BUNDLE_CHUNK = 900_000          # §5.11 re-pinned by P1-1: refuse larger
+MAX_SEED_BODY = 1_048_576           # 1 MiB, /seed's own cap (P3-4, MC 12451):
+                                    # §5.11/P1-1's "no route accepts a bigger
+                                    # body" survived production only because
+                                    # the lane edge 413s >1 MiB — the APP owns
+                                    # its budget, /bundle's idiom, 413-named
 SEED_ALIASES = REPO_ROOT / "data-import" / "author_aliases.csv"
 SEED_OVERRIDES = REPO_ROOT / "data-import" / "import_overrides.csv"
 
@@ -78,6 +89,14 @@ def parse_bundle(raw: bytes) -> list[dict]:
                                  "(§5.11); titel matchar aldrig")
         if obj.get("status") not in (None, "read", "wishlist"):
             raise BundleError(n, f"okänd status {obj['status']!r}")
+        rating = obj.get("rating")
+        if rating is not None and (isinstance(rating, bool)
+                                   or not isinstance(rating, int)
+                                   or not 1 <= rating <= 5):
+            # P3-4 leg 4: the book.rating CHECK refused this with a 500;
+            # the value domain belongs to the vocabulary parse already owns.
+            raise BundleError(n, f"betyg {rating!r} är utanför 1–5 — ska "
+                                 "vara ett heltal 1–5 eller tomt")
         if obj.get("cover_source") not in (
                 None, "libris", "googlebooks", "openlibrary", "manual",
                 "manual-url"):
@@ -157,7 +176,8 @@ def _store_new(conn, obj, now):
         # a fresh row has no file yet — the write always lands (counted in
         # BYTES, not POSTs; leg e's zero belongs to the MERGE path below)
         enrich.store_cover(conn, book_id, obj["_cover_bytes"],
-                           obj.get("cover_source") or "openlibrary")
+                           obj.get("cover_source") or "openlibrary",
+                           commit=False)          # one transaction (P3-4)
         written = True
     return conflict, written
 
@@ -195,7 +215,8 @@ def _merge_into(conn, state_dir, row, obj):
             and (state_dir / cover_path).exists() else None
         if current != enrich.normalize_image(data):
             enrich.store_cover(conn, book_id, data,
-                               obj.get("cover_source") or "openlibrary")
+                               obj.get("cover_source") or "openlibrary",
+                               commit=False)      # one transaction (P3-4)
             obj["_cover_written"] = True
             touched = True
     obj["_touched"] = touched
@@ -203,26 +224,36 @@ def _merge_into(conn, state_dir, row, obj):
 
 
 def upsert_bundle(conn, state_dir, lines) -> dict:
-    """The §5.11 merge, ONE transaction per POST (rollback is the route's
-    job on parse refusal — parsing already guarantees nothing wrote).
+    """The §5.11 merge, ONE transaction per POST: a line the DB itself
+    refuses (P3-4, MC 12451) raises the SAME BundleError the parse phase
+    uses, named by 1-based line, and the route's rollback unwinds every
+    earlier line — store_cover lands commit=False, so no commit lands
+    before the loop has taken the whole file.
     Response keys the T6.4 DoD pins verbatim: books / covers / inserted /
     updated / conflicts."""
     report = {"covers": 0, "inserted": 0, "updated": 0, "conflicts": []}
-    for obj in lines:
-        row = conn.execute(
-            "SELECT id, isbn13, isbn10, year, cover_path, cover_source"
-            " FROM book WHERE book_key = ?", (obj["book_key"],)).fetchone()
-        if row is None:
-            conflict, written = _store_new(conn, obj, auth.utcnow_iso())
-            report["inserted"] += 1
-            report["covers"] += 1 if written else 0
-        else:
-            conflict = _merge_into(conn, state_dir, row, obj)
-            report["updated"] += 1 if obj.pop("_touched", False) else 0
-            report["covers"] += 1 if obj.pop("_cover_written", False) else 0
+    for n, obj in enumerate(lines, start=1):
+        try:
+            row = conn.execute(
+                "SELECT id, isbn13, isbn10, year, cover_path, cover_source"
+                " FROM book WHERE book_key = ?", (obj["book_key"],)).fetchone()
+            if row is None:
+                conflict, written = _store_new(conn, obj, auth.utcnow_iso())
+                report["inserted"] += 1
+                report["covers"] += 1 if written else 0
+            else:
+                conflict = _merge_into(conn, state_dir, row, obj)
+                report["updated"] += 1 if obj.pop("_touched", False) else 0
+                report["covers"] += 1 if obj.pop("_cover_written", False) else 0
+        except KeyError as missing:
+            raise BundleError(n, f"obligatoriskt fält {missing.args[0]!r} "
+                                 "saknas — raden kan inte skrivas") from missing
+        except sqlite3.IntegrityError as refused:
+            raise BundleError(n, f"raden duger inte för databasen: "
+                                 f"{refused}") from refused
         if conflict:
             report["conflicts"].append({"book_key": obj["book_key"],
-                                        "reason": "duplicate isbn"})
+                                         "reason": "duplicate isbn"})
     conn.commit()
     report["books"] = conn.execute("SELECT COUNT(*) FROM book").fetchone()[0]
     return {k: report[k] for k in
@@ -235,13 +266,32 @@ def init_bundle(app):
     def seed_door():
         """The md import over HTTP (F-1): THE core, the CLI's own CSVs, the
         CLI's own counts line. Flagged rows answer 400 naming them — the
-        import_seed exit-2 posture, never a silent shrug."""
+        import_seed exit-2 posture, never a silent shrug. P3-4 (MC 12451)
+        adds the named refusals that used to 500: oversized body (413, the
+        /bundle byte-budget idiom), broken utf-8 (400 "otillräcklig
+        kodning"), unknown ## section (400 naming it) — all BEFORE a row is
+        stored, so each 4xx leaves the DB untouched."""
         body = request.get_data()
+        if len(body) > MAX_SEED_BODY:
+            return (f"Seed-filen är {len(body)} byte — budgetet är "
+                    f"{MAX_SEED_BODY} byte (1 MiB) per anrop, samma budget "
+                    "som för /bundle (§5.11/P1-1); dela upp den"), 413
+        try:
+            body.decode("utf-8")
+        except UnicodeDecodeError:
+            return ("Seed-filen kunde inte läsas som text: otillräcklig "
+                    "kodning — skicka den som giltig UTF-8. Ingen rad är "
+                    "importerad"), 400
         with tempfile.TemporaryDirectory() as td:
             raw = Path(td) / "seed.md"
             raw.write_bytes(body)
             conn = db.get_db()
-            report = seed.load(conn, raw, SEED_ALIASES, SEED_OVERRIDES)
+            try:
+                report = seed.load(conn, raw, SEED_ALIASES, SEED_OVERRIDES)
+            except ValueError as fel:
+                conn.rollback()
+                return (f"Seed-filen duger inte: {fel}. Ingen rad är "
+                        "importerad"), 400
         if report["flagged"]:
             return ("Importeraden hittade rader den inte litar på: "
                     + ", ".join(report["flagged"])
@@ -259,8 +309,12 @@ def init_bundle(app):
         conn = db.get_db()
         try:
             lines = parse_bundle(raw)
+            result = upsert_bundle(conn, db.state_base(), lines)
         except BundleError as e:
-            conn.rollback()          # belt: parse wrote nothing by design
+            # ONE path for both refusal kinds (P3-4, MC 12451): parse threw
+            # before any write, or the upsert loop threw mid-file — the
+            # single transaction unwinds every earlier line either way.
+            conn.rollback()
             return (f"Bundle-filen är trasig på rad {e.line}: {e.reason} —"
                     " ingen rad är importerad"), 400
-        return jsonify(upsert_bundle(conn, db.state_base(), lines))
+        return jsonify(result)

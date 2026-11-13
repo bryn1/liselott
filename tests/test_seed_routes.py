@@ -426,3 +426,102 @@ def test_same_origin_and_bare_curl_pass_without_token(authed):
     assert client.post("/liselott/bundle", data=b"").status_code == 200
     assert client.post("/liselott/bundle", data=b"",
                        headers={"Origin": f"http://{host}"}).status_code == 200
+
+
+# ── P3-4 (MC 12451): named 4xx on owner input — never a 500, never silent ──
+def stored_count(tmp):
+    conn = sqlite3.connect(tmp / "liselott.db")
+    try:
+        return conn.execute("SELECT COUNT(*) FROM book").fetchone()[0]
+    finally:
+        conn.close()
+
+
+def test_seed_malformed_utf8_400_naming_the_coding(authed):
+    """P3-4 leg 1: the shipped answer was a 500 (UnicodeDecodeError escaped
+    the route). Now 400 NAMING "otillräcklig kodning", nothing stored."""
+    tmp, client = authed
+    r = client.post("/liselott/seed",
+                    data=b"## L\xe4sta b\xf6cker 2026\n- 260101 Boken"
+                         b" av Aino A\n",             # broken utf-8 bytes
+                    content_type="application/octet-stream")
+    assert r.status_code == 400
+    assert "otillräcklig kodning" in r.get_data(as_text=True)
+    assert stored_count(tmp) == 0
+
+
+def test_seed_unknown_section_400_naming_it(authed):
+    """P3-4 leg 2: an unrecognised '## ' header 500s on the shipped code
+    (ValueError escapes seed.parse_file). Now 400 naming the section,
+    nothing stored."""
+    tmp, client = authed
+    r = client.post("/liselott/seed", data=(
+        "## Snidade b\xf6cker 2026\n- 260101 Noken av Aino A\n").encode(),
+        content_type="application/octet-stream")
+    assert r.status_code == 400
+    text = r.get_data(as_text=True)
+    assert "## Snidade böcker 2026" in text          # THE section, named
+    assert stored_count(tmp) == 0
+
+
+def test_seed_over_one_mebibyte_413_naming_the_budget(authed):
+    """P3-4 leg 3: /seed accepted ANY size on the shipped code (the 900 000
+    rule was /bundle-only; only the lane edge 413s). The app now caps at
+    1 MiB itself, /bundle's idiom: 413 BEFORE any parsing, budget named."""
+    tmp, client = authed
+    r = client.post("/liselott/seed", data=b"x" * 1_048_577,
+                    content_type="application/octet-stream")
+    assert r.status_code == 413
+    text = r.get_data(as_text=True)
+    assert "1048576" in text and "1048577" in text
+    assert stored_count(tmp) == 0
+
+
+def test_bundle_rating_outside_1_5_400_naming_the_line(authed):
+    """P3-4 leg 4: rating:99 was a 500 (the book.rating CHECK refused,
+    unhandled, inside upsert). Now the §5.11-(g) posture on domain errors
+    too: 400 naming the 1-based line, nothing written."""
+    tmp, client = authed
+    r = client.post("/liselott/bundle", data=bundle_bytes(
+        line(book_key="kR", title="Betygshäftet", rating=99)),
+        content_type="application/octet-stream")
+    assert r.status_code == 400
+    assert "rad 1" in r.get_data(as_text=True)
+    assert stored_count(tmp) == 0
+
+
+def test_bundle_new_row_without_title_400_naming_the_line(authed):
+    """P3-4 leg 5: a NEW book_key line without title 500s (KeyError inside
+    _store_new). 400 naming the line now; the merge path never reads title,
+    so title stays optional for existing keys (§5.11's match key is the
+    book_key, not the title)."""
+    tmp, client = authed
+    r = client.post("/liselott/bundle",
+                    data=b'{"book_key": "keyno-title", "read_year": 2024}\n',
+                    content_type="application/octet-stream")
+    assert r.status_code == 400
+    assert "rad 1" in r.get_data(as_text=True)
+    assert stored_count(tmp) == 0
+
+
+def test_bundle_domain_error_mid_file_rolls_back_every_row(authed):
+    """The rollback proof P3-4 demands: line 1 is a FULL valid row (cover
+    bytes included — store_cover must not commit mid-chunk), line 2 is the
+    domain error, line 3 would be valid again. 400 names rad 2 and the row
+    count is UNCHANGED — not line 1, not line 3."""
+    tmp, client = authed
+    r = client.post("/liselott/bundle", data=bundle_bytes(
+        line(book_key="kA", title="Först", isbn13="9789100000021",
+             cover_b64=B64, cover_source="openlibrary"),
+        line(book_key="kB", title="Fusk", rating=99),
+        line(book_key="kC", title="Sist")),
+        content_type="application/octet-stream")
+    assert r.status_code == 400
+    assert "rad 2" in r.get_data(as_text=True)
+    assert stored_count(tmp) == 0
+    again = client.post("/liselott/bundle", data=bundle_bytes(
+        line(book_key="kA", title="Först", isbn13="9789100000021"),
+        line(book_key="kC", title="Sist")),
+        content_type="application/octet-stream")
+    assert again.status_code == 200                   # the DB took nothing
+    assert again.get_json()["inserted"] == 2

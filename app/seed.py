@@ -279,7 +279,9 @@ def parse_file(path) -> list[dict]:
             elif line.startswith(_WISHLIST_PREFIX):
                 section = ("wishlist", 0, "bok", "wishlist")
             else:
-                raise ValueError(f"seed line {lineno}: unknown section {line!r}")
+                # P3-4 (MC 12451): POST /seed answers this as a 400 NAMING
+                # the section — the message is served copy, so it is Swedish.
+                raise ValueError(f"rad {lineno}: okänd sektion {line!r}")
             continue
         if section is None or not line.startswith("- "):
             continue  # header region, ### sub-headers and blanks: parsed nowhere
