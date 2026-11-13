@@ -89,4 +89,3 @@ def store_cover(conn, book_id, data, source):
                  "WHERE id = ?", (rel, source, auth.utcnow_iso(), book_id))
     conn.commit()
     return rel
-    return rel
