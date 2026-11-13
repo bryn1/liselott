@@ -15,7 +15,11 @@ import unicodedata
 import urllib.error
 import urllib.request
 
-USER_AGENT = "liselott-bokhylla/1.0 (Liselotts bokhylla — personal book diary)"
+# ASCII ONLY: urllib encodes headers as latin-1, so one em dash here would
+# kill every real request (UnicodeEncodeError) while fixture transports, which
+# never encode a header, stay green — the live smoke caught it (guarded in
+# tests/test_enrich_ol.py).
+USER_AGENT = "liselott-bokhylla/1.0 (personal book diary)"
 
 # Lane fact (§10, P1-1): every byte transfer INTO the app is chunked below a
 # 900,000-byte budget; the same number bounds what the app itself accepts to

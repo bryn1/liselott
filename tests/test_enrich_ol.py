@@ -126,3 +126,12 @@ def test_http_get_404_is_a_definitive_answer_not_retried():
         enrich.http_get("https://example.test/x", opener=NotThere(),
                         sleep=lambda s: None)
     assert len(calls) == 1     # definitive 4xx: no retry storm
+
+
+def test_every_request_header_survives_latin1_encoding():
+    """THE bug the live smoke caught: urllib encodes headers as latin-1, so a
+    single em dash in the User-Agent makes EVERY real request die with
+    UnicodeEncodeError before a byte is sent — invisible to fixture transports
+    (they never encode a header). The opener's own headers are the contract."""
+    for name, value in enrich.build_opener().addheaders:
+        f"{name}: {value}".encode("latin-1")
