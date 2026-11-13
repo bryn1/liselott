@@ -1,0 +1,35 @@
+{
+  "_comment": "SYNTHETIC FIXTURE — the Google Books volumes API answers 429 to this host's no-key consumer (VERIFIED live, PLAN-c3 §2/§12), so a live recording is impossible from the build clone. This file reproduces the documented volumes-list response shape (volumeInfo + industryIdentifiers + imageLinks) for the Stöld pair the OL fixture uses; the client parses THIS shape. Key '_' prefixed: the parser reads 'items' and ignores this.",
+  "kind": "books#volumes",
+  "totalItems": 1,
+  "items": [
+    {
+      "kind": "books#volume",
+      "id": "synthetic-stold",
+      "etag": "0",
+      "selfLink": "https://www.googleapis.com/books/v1/volumes/synthetic-stold",
+      "volumeInfo": {
+        "title": "Stöld",
+        "subtitle": "",
+        "authors": ["Ann-Helén Laestadius"],
+        "publisher": "Bokförlaget Polaris",
+        "publishedDate": "2022-09-02",
+        "description": "SYNTHETIC fixture body (shape-documenting only).",
+        "industryIdentifiers": [
+          {"type": "ISBN_10", "identifier": "9198559699"},
+          {"type": "ISBN_13", "identifier": "9789198559699"}
+        ],
+        "pageCount": 331,
+        "printType": "BOOK",
+        "categories": ["Fiction"],
+        "language": "sv",
+        "imageLinks": {
+          "smallThumbnail": "https://books.google.com/books/content?id=synthetic-stold&printsec=frontcover&img=1&zoom=5&source=gbs_api",
+          "thumbnail": "https://books.google.com/books/content?id=synthetic-stold&printsec=frontcover&img=1&zoom=1&source=gbs_api"
+        }
+      },
+      "saleInfo": {"isEbook": false},
+      "accessInfo": {"country": "SE", "embeddingAllowed": false}
+    }
+  ]
+}
