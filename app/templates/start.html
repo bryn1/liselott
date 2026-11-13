@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{# The public root landing (§6.4 widened by the M8 staging gate, MC 12451).
+   Fixed copy only: no book row, no count, no personal data — and exactly
+   ONE door, chosen by the view from the CURRENT §6.1 state (`dorren` and
+   `etiketten` are server-side constants, never request data). The closed
+   state never renders this page: its pinned gate page answers from the
+   guard (§6.1), so the three-state story stays one mechanism per state. #}
+{% block title %}Liselotts bokhylla{% endblock %}
+{% block content %}
+<h1>Liselotts bokhylla</h1>
+<p>En lugn samling lästa böcker, betyg och rekommendationer — satt i ordning
+   av Liselott, till för henne och dem hon bjuder in.</p>
+<p><a href="{{ url_for(dorren) }}">{{ etiketten }}</a></p>
+{% endblock %}

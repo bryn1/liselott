@@ -83,8 +83,11 @@ def test_valid_setup_sets_hash_establishes_session_then_404s(env):
     assert setting(tmp_path, "password_hash").startswith("$argon2id$")
     assert setting(tmp_path, "password_set_at")
 
-    # she lands logged-in: GET / -> 200, not 302 (§6.1)
-    assert client.get("/liselott/").status_code == 200
+    # she lands logged-in: GET / -> 200, not 302 (§6.1) — and it is the
+    # shelf behind the owner nav, not the public landing (MC 12451).
+    r = client.get("/liselott/")
+    assert r.status_code == 200
+    assert "Din hylla" in r.text
 
     # configured -> the setup route is gone forever (both methods)
     assert client.get("/satt-loesenord").status_code == 404

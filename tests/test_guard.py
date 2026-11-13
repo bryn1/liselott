@@ -2,8 +2,11 @@
 states (P2-7 + P2-c): configured → every non-allow-listed route 302 /logga-in;
 unconfigured+open → 302 /satt-loesenord; unconfigured+closed → gate page
 everywhere EXCEPT /healthz, which answers 200 `ok` in every state (three
-separate healthz assertions below). Stub routes answer 501 until the real
-routes land (M4+); reaching a stub would mean the guard leaked."""
+separate healthz assertions below). The ROOT is the one public page in the
+first two states and the pinned gate page in the third (M8 staging gate,
+MC 12451): each state test below asserts GET / -> 200, never a 302. Stub
+routes answer 501 until the real routes land (M4+); reaching a stub would
+mean the guard leaked."""
 import pytest
 
 from app import create_app
@@ -75,6 +78,13 @@ def test_configured_state_sweep(tmp_path, monkeypatch):
     assert r.status_code == 404  # static is allow-listed (not redirected)
     r = client.post("/seed", data="x")
     assert r.status_code == 302  # machine routes too (§6.4)
+    # the root leg (MC 12451): the landing answers 200, never a redirect,
+    # carries the ONE legal door and none of the owner's shelf or nav.
+    r = client.get("/")
+    assert r.status_code == 200, "root must not 302 (§6.4 landing leg)"
+    assert 'href="/liselott/logga-in"' in r.text
+    assert "Välj ditt lösenord" not in r.text
+    assert "Din hylla" not in r.text
 
 
 def test_logged_in_client_reaches_the_stubs(tmp_path, monkeypatch):
@@ -111,6 +121,13 @@ def test_unconfigured_open_state_sweep(tmp_path, monkeypatch):
         assert r.status_code == 302, entry
         assert r.headers["Location"] == "/liselott/satt-loesenord", entry
     assert client.get("/healthz").data == b"ok"  # healthz assertion 2/3
+    # the root leg (MC 12451): in the open state the landing's ONE door is
+    # the setup flow — never the login door, never a 302 of its own.
+    r = client.get("/")
+    assert r.status_code == 200, "root must not 302 (§6.4 landing leg)"
+    assert 'href="/liselott/satt-loesenord"' in r.text
+    assert "Välj ditt lösenord" in r.text
+    assert "Logga in" not in r.text
 
 
 def test_closed_window_gate_except_healthz(tmp_path, monkeypatch):
@@ -124,5 +141,11 @@ def test_closed_window_gate_except_healthz(tmp_path, monkeypatch):
         r = client.get(entry)
         assert "Inställningsfönstret är stängt." in r.text, entry
         assert b"stub" not in r.data, entry
+    # the root leg (MC 12451): in the closed state the §6.1-pinned gate
+    # page answers the root too — 200, zero app data, no landing doors.
+    r = client.get("/")
+    assert r.status_code == 200, "root must not 302 (§6.4 landing leg)"
+    assert "Inställningsfönstret är stängt." in r.text
+    assert "Välj ditt lösenord" not in r.text
     r = client.get("/healthz")
     assert r.status_code == 200 and r.data == b"ok"  # healthz assertion 3/3

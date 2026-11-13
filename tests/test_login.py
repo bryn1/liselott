@@ -82,7 +82,9 @@ def test_cookie_contract_production_default(env):
     assert "SameSite=Lax" in cookie
     assert "Path=/liselott" in cookie
     assert "Secure" in cookie
-    assert client.get("/liselott/").status_code == 200  # session established
+    r = client.get("/liselott/")
+    assert r.status_code == 200 and "Din hylla" in r.text  # the shelf, not
+    # the public landing: only an established session reaches the owner nav
 
 
 def test_cookie_no_secure_only_in_dev(tmp_path, monkeypatch):
@@ -105,8 +107,16 @@ def test_cookie_no_secure_only_in_dev(tmp_path, monkeypatch):
 
 def test_logout_clears_session(env):
     _, client = env
-    assert client.get("/liselott/").status_code == 200
+    assert "Din hylla" in client.get("/liselott/").text  # authed: the shelf
     r = client.get("/liselott/logga-ut")
     assert r.status_code == 302  # back to login
-    assert client.get("/liselott/").status_code == 302
-    assert client.get("/liselott/").headers["Location"] == "/liselott/logga-in"
+    # a dead session is back behind the guard on every data route (§6.4)…
+    r = client.get("/liselott/bibliotek")
+    assert r.status_code == 302
+    assert r.headers["Location"] == "/liselott/logga-in"
+    # …while the root answers its public landing again, never the shelf
+    # (the landing leg MC 12451 — a 302 here is exactly what the vm106
+    # staging gate refused, so the root must stay 200 and data-free).
+    r = client.get("/liselott/")
+    assert r.status_code == 200
+    assert "Din hylla" not in r.text

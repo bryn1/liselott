@@ -30,10 +30,18 @@ ATTEMPT_WINDOW_S = 15 * 60
 ATTEMPT_RETENTION_S = 60 * 60
 TOO_MANY_COPY = "För många försök — försök igen om en kvart."
 
-# §6.4 exhaustive unauthenticated allow-list (P2-7); nothing else answers an
-# anonymous request, and /satt-loesenord within it is further gated by state.
+# §6.4 exhaustive unauthenticated allow-list (P2-7), widened by EXACTLY one
+# leg (M8 staging gate, MC 12451): the product path GET /liselott/ must
+# answer 200 with a public landing like the three live service apps
+# (measured 2026-11-13: fest40 200/1815 B, matapp 200/12388 B, klartx
+# 200/4056 B) — a login-gated app's root is a landing, not a redirect. The
+# root joins as a READS-ONLY leg (_is_public_root below); its page is fixed
+# copy with zero app data (app/templates/start.html), every data route keeps
+# its guard, and /satt-loesenord within the list is further gated by state.
 UNAUTHENTICATED_ALLOW = ("/healthz", "/logga-in", "/satt-loesenord", "/robots.txt")
 STATIC_PREFIX = "/static/"
+PUBLIC_ROOT = "/"
+READ_METHODS = ("GET", "HEAD")
 
 # §6.6 + P2-r4 (DA-verdict-c3 Part 3): state-change methods carry the CSRF
 # rule. TOKENLESS_POSTS are checked by ORIGIN ONLY — the machine trio per
@@ -158,6 +166,12 @@ def rotate_secret(app):
     app.secret_key = path.read_text(encoding="utf-8")
 
 
+def _is_public_root() -> bool:
+    """The §6.4 landing leg: the ROOT itself, reads only — every other
+    method on / keeps facing the guard's old answer (MC 12451)."""
+    return request.path == PUBLIC_ROOT and request.method in READ_METHODS
+
+
 def _closed_gate():
     """Closed-window state (§6.1): zero app data answered; POST setup -> 403."""
     if request.path == "/healthz":
@@ -208,12 +222,14 @@ def init_auth(app):
             if request.path == "/logga-in":
                 return redirect_prefixed("/satt-loesenord")  # §6.1 open state
             if (request.path in ("/healthz", "/satt-loesenord", "/robots.txt")
+                    or _is_public_root()
                     or request.path.startswith(STATIC_PREFIX)):
                 return _csrf_gate()
             return redirect_prefixed("/satt-loesenord")
         if request.path == "/satt-loesenord":
             abort(404)  # configured -> gone forever (§6.1)
-        if request.path in UNAUTHENTICATED_ALLOW or request.path.startswith(STATIC_PREFIX):
+        if (request.path in UNAUTHENTICATED_ALLOW or _is_public_root()
+                or request.path.startswith(STATIC_PREFIX)):
             return _csrf_gate()
         if session.get(SESSION_FLAG):
             return _csrf_gate()

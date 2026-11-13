@@ -1,7 +1,9 @@
-"""Logged-in page routes (§6.7 password lifecycle; M4 adds browse/search; T5.1
-adds grading). Guard + CSRF already ran before any view here — request is
-owner-authenticated and (for state changes) token- and origin-checked
-(T2.3/T2.5)."""
+"""Page routes (§6.7 password lifecycle; M4 adds browse/search; T5.1
+adds grading). Guard + CSRF already ran before any view here — the request
+is owner-authenticated and (for state changes) token- and origin-checked
+(T2.3/T2.5), with the ONE public exception: the anonymous landing on the
+root, fixed copy and zero app data (§6.4 as widened by the M8 staging gate,
+MC 12451 — see rot() and templates/start.html)."""
 import re
 import shutil
 import tempfile
@@ -61,12 +63,24 @@ def init_routes(app):
 
     @app.get("/")
     def rot():
-        """The home page IS the shelf. Two ENDPOINTS on one render (not two
-        rules on one endpoint): with one endpoint url_for would collapse onto
-        the shorter rule and the nav would emit /liselott without a path.
-        §6.1's "after setup GET / -> 200" is answered here, not by a redirect.
-        """
-        return _hylla()
+        """The home page IS the shelf for the owner, and the public landing
+        for everyone else (the root leg §6.4 got from the M8 staging gate,
+        MC 12451): an anonymous GET answers 200 with the fixed data-free
+        page and the ONE door legal in the current §6.1 state — window-open
+        → /satt-loesenord "Välj ditt lösenord", configured → /logga-in
+        "Logga in". The closed state never reaches this view; the guard's
+        pinned gate page answers it. Two ENDPOINTS on one render (not two
+        rules on one endpoint): with one endpoint url_for would collapse
+        onto the shorter rule and the nav would emit /liselott without a
+        path. §6.1's "after setup GET / -> 200" is answered here, not by a
+        redirect."""
+        if session.get(auth.SESSION_FLAG):
+            return _hylla()
+        if auth.is_configured(db.get_db()):
+            return render_template("start.html", dorren="logga_in",
+                                   etiketten="Logga in")
+        return render_template("start.html", dorren="satt_losenord",
+                               etiketten="Välj ditt lösenord")
 
     @app.get("/bibliotek")
     def bibliotek():
