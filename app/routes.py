@@ -20,7 +20,12 @@ def init_routes(app):
                            (book_id,)).fetchone()
         if row is None:
             abort(404)
-        if row[0]:
+        # The path comes from a DB column, so its SHAPE is checked before it
+        # touches the filesystem: store_cover only ever writes
+        # "covers/<that very book's id>.jpg", and anything else — a hand-edited
+        # or corrupted value — is treated as "no cover" rather than as a file to
+        # read. A file-read route must not be a path interpreter.
+        if row[0] == f"covers/{book_id}.jpg":
             stored = db.state_base() / row[0]
             if stored.is_file():
                 return send_file(stored, mimetype="image/jpeg")
