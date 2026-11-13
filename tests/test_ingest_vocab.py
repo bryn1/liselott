@@ -1,27 +1,40 @@
-"""F-A2 (DA-verdict-c2, MC 12451) — the VALUE VOCABULARY at the ingest doors.
+"""F-A2 + F-D2/F-G2/F-E2 (DA-verdict-c2, MC 12451) — the VALUE VOCABULARY and
+the honest answer at the ingest doors.
 
 A /bundle line with a non-integer read_year used to be ACCEPTED with 200 and
 stored as TEXT (the INTEGER column has affinity, not constraint); the shelf
 then sorted mixed int/str keys and raised TypeError — the owner's home page,
-500 on every GET, until someone repaired the DB by hand. Two defence lines,
-both the wave's own idiom:
+500 on every GET, until someone repaired the DB by hand. Three defence lines,
+all the wave's own idiom:
 
 (a) THE WRITE door refuses with the named-line 400 the parse vocabulary
-    already owns for rating/status/cover_source: read_year must be an int
-    (never bool), the 0 sentinel, a 4-digit year, or absent — nothing
-    stored on refusal;
+    already owns for rating/status/cover_source: EVERY scalar the line can
+    carry is typed at the door (F-D2's three 500s and F-G2's silent garbage
+    share this root — one vocabulary pass, not one patch per family), so a
+    list book_key, a dict date_read, a string-in-authors or a 400-megapixel
+    bomb cover all 400 naming the line instead of raising through the door;
 (b) THE READ MODEL survives anyway — books.py:group_for_shelf, tested in
     tests/test_shelf_grouping.py: one guarded int conversion so sorted()
     never sees a non-int key;
 (c) THE SEED PATH regression leg: the section regex's \\d{4} group is the
     reason no seed body can ever yield a TEXT year — pinned here so a
     loosened regex is a RED test, not a shelf brick.
+
+And F-E2: a POST the WSGI layer hands over WITHOUT Content-Length (the
+chunked shape) reads as an EMPTY body — caps compared against zero and the
+door 200'd "inserted: 0" for bytes it never saw. Both doors now answer 411
+Length Required instead of guessing.
 """
+import base64
+import io
 import sqlite3
+import struct
+import zlib
 
 import pytest
 
-from tests.test_seed_routes import authed, bundle_bytes, line, stored_count
+from tests.test_seed_routes import (B64, authed, bundle_bytes, line,
+                                    stored_count)
 
 
 @pytest.mark.parametrize("value",
@@ -76,3 +89,111 @@ def test_seed_path_cannot_produce_a_text_year(authed):
     assert r.status_code == 400
     assert "okänd sektion" in r.get_data(as_text=True)
     assert stored_count(tmp) == 0
+
+
+# ── F-D2/F-G2 (b): every scalar typed at the door — never a 500, never silent
+@pytest.mark.parametrize("bad", [["a", "b"], {"k": 1}],
+                         ids=["list", "dict"])
+def test_bundle_refuses_a_non_string_book_key_naming_the_line(authed, bad):
+    """F-D2 leg 1 (shipped: 500 TypeError — an unhashable list reached the
+    `in seen` duplicate-check INSIDE parse, outside every handler). The
+    book_key is text or the line 400s naming the 1-based line, like every
+    other refusal; nothing stores."""
+    tmp, client = authed
+    r = client.post("/liselott/bundle", data=bundle_bytes(
+        line(book_key=bad, title="Listnyckel")),
+        content_type="application/octet-stream")
+    assert r.status_code == 400, r.get_data(as_text=True)
+    assert "rad 1" in r.get_data(as_text=True)
+    assert stored_count(tmp) == 0
+
+
+@pytest.mark.parametrize("field", ["date_read", "year", "isbn13", "title"])
+@pytest.mark.parametrize("bad", [{"y": 2022}, ["2022"]], ids=["dict", "list"])
+def test_bundle_refuses_container_values_in_scalar_fields_naming_them(
+        authed, field, bad):
+    """F-D2 leg 2 + F-G2 (shipped: 500 sqlite3.InterfaceError at the INSERT —
+    the per-line catch only knew IntegrityError; and a plain string in
+    authors/genres used to STORE silently as single characters). Every
+    scalar field is text-or-number-or-none by the door's own vocabulary:
+    containers die in the named-line 400, nothing stores."""
+    tmp, client = authed
+    r = client.post("/liselott/bundle", data=bundle_bytes(
+        line(**{"book_key": "kF", "title": "Fältfel", **{field: bad}})),
+        content_type="application/octet-stream")
+    assert r.status_code == 400, r.get_data(as_text=True)
+    assert "rad 1" in r.get_data(as_text=True)
+    assert stored_count(tmp) == 0
+
+
+@pytest.mark.parametrize("field", ["authors", "genres"])
+def test_bundle_refuses_a_bare_string_where_a_list_belong(authed, field):
+    """F-G2's named garbage: "genres":"skönlitteratur" stored ELEVEN
+    single-char genres (the code iterates the string); an authors string
+    corrupts the same way. A list of texts or nothing — 400 naming the
+    line, nothing stores."""
+    tmp, client = authed
+    r = client.post("/liselott/bundle", data=bundle_bytes(
+        line(book_key="kG", title="Listfusk", **{field: "skönlitteratur"})),
+        content_type="application/octet-stream")
+    assert r.status_code == 400, r.get_data(as_text=True)
+    assert "rad 1" in r.get_data(as_text=True)
+    assert stored_count(tmp) == 0
+
+
+def bomb_png() -> bytes:
+    """A REAL PNG carrying a real bomb: valid signature + IHDR announcing
+    20 000×20 000 px — 400 M px, over twice Pillow's guard limit — plus a
+    stub IDAT. PIL's own DecompressionBombError fires while READING THE
+    HEADER; the decode never starts (that is the guard's whole point), so
+    the test is real and instant."""
+    def chunk(tag, data):
+        body = tag + data
+        return (struct.pack(">I", len(data)) + body
+                + struct.pack(">I", zlib.crc32(body)))
+    ihdr = struct.pack(">IIBBBBB", 20_000, 20_000, 8, 0, 0, 0, 0)
+    return (b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", ihdr)
+            + chunk(b"IDAT", zlib.compress(b"\x00" * 100))
+            + chunk(b"IEND", b""))
+
+
+def test_bundle_decompression_bomb_cover_refused_naming_the_image(authed):
+    """F-D2 leg 3 (shipped: 500 — DecompressionBombError is a plain
+    Exception and the image refusal only caught
+    UnidentifiedImageError/OSError/ValueError; the byte cap is no defence
+    against pixel counts, 438 KB was enough). Now the bomb joins THE cover
+    refusal (CoverRejected): Swedish copy, named line, 400, nothing
+    stored, no file written."""
+    tmp, client = authed
+    r = client.post("/liselott/bundle", data=bundle_bytes(
+        line(book_key="kBomb", title="Bombboken",
+             cover_b64=base64.b64encode(bomb_png()).decode(),
+             cover_source="openlibrary")),
+        content_type="application/octet-stream")
+    assert r.status_code == 400, r.get_data(as_text=True)
+    text = r.get_data(as_text=True)
+    assert "rad 1" in text and "omslag" in text.lower()
+    assert stored_count(tmp) == 0
+    assert not (tmp / "covers").is_dir() or list((tmp / "covers").glob("*")) == []
+
+
+# ── F-E2: no Content-Length, no deal — the doors refuse to GUESS the body ───
+def test_doors_refuse_a_body_they_cannot_measure_with_411(authed):
+    """F-E2 (shipped: a POST whose envelope carries NO Content-Length —
+    the chunked shape — reached the door with the app unable to bound
+    what the transport never delimited: caps compared against nothing,
+    and the door answered 200 about bytes it had not honestly seen).
+    Both machine doors now answer 411 Length Required (named, Swedish
+    copy) and import NOTHING — whatever the stream itself happens to
+    carry. A normal client POST always carries Content-Length; this leg
+    overrides wsgi.input WITHOUT it, exactly the F-E2 shape."""
+    tmp, client = authed
+    chunk = bundle_bytes(line(book_key="kChunk", title="Chunkbok"))
+    for path in ("/liselott/bundle", "/liselott/seed"):
+        r = client.post(path,
+                        environ_overrides={"wsgi.input": io.BytesIO(chunk)},
+                        headers={"Transfer-Encoding": "chunked"},
+                        content_type="application/octet-stream")
+        assert r.status_code == 411, (path, r.get_data(as_text=True))
+        assert "Content-Length" in r.get_data(as_text=True), path
+        assert stored_count(tmp) == 0, path

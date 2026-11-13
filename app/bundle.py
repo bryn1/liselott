@@ -60,6 +60,10 @@ MAX_SEED_BODY = 1_048_576           # 1 MiB, /seed's own cap (P3-4, MC 12451):
                                     # body" survived production only because
                                     # the lane edge 413s >1 MiB — the APP owns
                                     # its budget, /bundle's idiom, 413-named
+LENGTH_REQUIRED = (
+    "Innehållets längd (Content-Length) saknas — dörren vägrar gissa sig "
+    "till vad transporten skickade: skicka chunken igen med längden i "
+    "höljet. Ingen rad är importerad")   # F-E2 (MC 12451), see the doors
 SEED_ALIASES = REPO_ROOT / "data-import" / "author_aliases.csv"
 SEED_OVERRIDES = REPO_ROOT / "data-import" / "import_overrides.csv"
 
@@ -110,6 +114,37 @@ def parse_bundle(raw: bytes) -> list[dict]:
             raise BundleError(n, f"read_year {read_year!r} är inget giltigt "
                                  "år — ett heltal med fyra siffror, 0 eller "
                                  "tomt")
+        # F-A2(a)+F-D2+F-G2 (MC 12451): ONE vocabulary pass for every scalar
+        # the line carries, beside the year refusal it grew out of. The
+        # INTEGER columns have affinity, not constraint; the dup-check
+        # HASHES book_key (an unhashable list raised TypeError right here —
+        # F-D2 leg 1, outside every handler); the INSERT binds die on
+        # containers (InterfaceError — F-D2 leg 2); and set_authors/
+        # _fill_genres iterate a bare string into single-character garbage
+        # (F-G2). One loop refuses all of it THERE with the named-line 400
+        # the door already answers for rating/status/cover_source — "fix
+        # once, not per family" (DA-verdict-c2 F-D2). Formats stay with
+        # their owners: status/cover_source/rating keep their own checks.
+        for field in ("book_key", "title", "date_read", "isbn13", "isbn10"):
+            value = obj.get(field)
+            if value is not None and not isinstance(value, str):
+                raise BundleError(n, f"fältet {field} ska vara text eller "
+                                     f"tomt, inte {type(value).__name__}")
+        for field in ("year",):
+            value = obj.get(field)
+            if value is not None and (isinstance(value, bool)
+                                      or not isinstance(value, int)
+                                      or not 1000 <= value <= 9999):
+                raise BundleError(n, f"year {value!r} är inget giltigt "
+                                     "utgivningsår — ett heltal med fyra "
+                                     "siffror eller tomt")
+        for field in ("authors", "genres"):
+            value = obj.get(field)
+            if value is not None and (
+                    not isinstance(value, list)
+                    or not all(isinstance(v, str) for v in value)):
+                raise BundleError(n, f"fältet {field} ska vara en lista av "
+                                     f"texter, inte {value!r}")
         if obj.get("cover_source") not in (
                 None, "libris", "googlebooks", "openlibrary", "manual",
                 "manual-url"):
@@ -277,7 +312,12 @@ def upsert_bundle(conn, state_dir, lines) -> dict:
                 # the parse phase cannot see, answered like every other.
                 raise BundleError(n, f"omslaget kunde inte skrivas: "
                                      f"{refused}") from refused
-            except sqlite3.IntegrityError as refused:
+            except sqlite3.Error as refused:
+                # F-D2 leg 2 (MC 12451): the catch used to know only
+                # IntegrityError — a bind this file's vocabulary cannot
+                # see (InterfaceError and the rest of the family) escaped
+                # as a 500. THE family belongs to this path, not one
+                # subclass at a time.
                 raise BundleError(n, f"raden duger inte för databasen: "
                                      f"{refused}") from refused
             if conflict:
@@ -304,7 +344,13 @@ def init_bundle(app):
         adds the named refusals that used to 500: oversized body (413, the
         /bundle byte-budget idiom), broken utf-8 (400 "otillräcklig
         kodning"), unknown ## section (400 naming it) — all BEFORE a row is
-        stored, so each 4xx leaves the DB untouched."""
+        stored, so each 4xx leaves the DB untouched. F-C2 (MC 12451) makes
+        the flagged path ATOMIC: nothing commits if any row is flagged.
+        F-E2 (MC 12451): no Content-Length, no read — a body the transport
+        never delimited would compare against zero caps and 200 about
+        bytes the app never saw; the door answers 411 Length Required."""
+        if request.headers.get("Content-Length") is None:
+            return LENGTH_REQUIRED, 411
         body = request.get_data()
         if len(body) > MAX_SEED_BODY:
             return (f"Seed-filen är {len(body)} byte — budgetet är "
@@ -344,6 +390,10 @@ def init_bundle(app):
 
     @app.post("/bundle")
     def bundle_door():
+        # F-E2 (MC 12451): same posture as /seed — an undelimited body is
+        # refused, never read as empty and answered 200.
+        if request.headers.get("Content-Length") is None:
+            return LENGTH_REQUIRED, 411
         raw = request.get_data()
         if len(raw) > MAX_BUNDLE_CHUNK:
             return (f"Bundle-delen är {len(raw)} byte — budgetet är "

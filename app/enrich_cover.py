@@ -43,6 +43,14 @@ def validate_cover_bytes(data):
     try:
         img = Image.open(io.BytesIO(data))
         img.load()
+    except Image.DecompressionBombError as e:
+        # F-D2 leg 3 (MC 12451): a plain Exception, invisible to the tuple
+        # below — 438 KB carrying 400 M px was a 500 at the door (and at
+        # /redigera's upload). The byte cap can NEVER guard pixel counts;
+        # PIL's own bomb guard does, and its refusal joins THE cover
+        # refusal: Swedish copy here, the named-line 400 via parse.
+        raise CoverRejected(
+            f"bilden är för stor för att vara ett omslag ({e})") from e
     except (UnidentifiedImageError, OSError, ValueError) as e:
         raise CoverRejected(f"inte en bild: {e}") from e
     if img.width < MIN_COVER_PX or img.height < MIN_COVER_PX:

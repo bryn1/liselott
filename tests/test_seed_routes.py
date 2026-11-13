@@ -420,11 +420,14 @@ def test_foreign_origin_still_400s_without_a_token(authed):
 
 def test_same_origin_and_bare_curl_pass_without_token(authed):
     """The T8.5/T8.6 runbook shape survives: bare curl (no Origin, no token)
-    and same-origin both reach the route TOKENLESS."""
+    and same-origin both reach the route TOKENLESS. (F-E2, MC 12451: the
+    empty chunk now travels as a body of ONE newline with its honest
+    Content-Length — a POST whose envelope carries NO length is a 411 at
+    the door, so the old no-length shape is deliberately retired here.)"""
     _, client = authed
     host = "localhost"
-    assert client.post("/liselott/bundle", data=b"").status_code == 200
-    assert client.post("/liselott/bundle", data=b"",
+    assert client.post("/liselott/bundle", data=b"\n").status_code == 200
+    assert client.post("/liselott/bundle", data=b"\n",
                        headers={"Origin": f"http://{host}"}).status_code == 200
 
 
