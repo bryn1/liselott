@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% from "_stjarnor.html" import stjarnor with context %}
+{% block title %}{{ bok.title }} — Liselotts bokhylla{% endblock %}
+{% block content %}
+<article class="bok-sida">
+  <h1>{{ bok.title }}</h1>
+  <p class="forfattare">{{ authors_text(bok) }}</p>
+  {% if bok.rating %}<p>{{ stjarnor(bok.rating) }}</p>{% endif %}
+  <figure class="omslagsfig">
+    <img class="omslag" src="{{ url_for('cover', book_id=bok.id) }}"
+         alt="Omslag till {{ bok.title }}" width="340" height="510">
+    {% if not bok.has_cover %}
+    {# §9: the fix-me hint lives HERE (the bok page) and never on /cover/<id>,
+       which serves an image and has nowhere to put a link. The route is
+       /redigera/<id> — it lands in T5.2, so url_for would raise BuildError;
+       mount_url emits the same §6.5 SCRIPT_NAME-prefixed shape. #}
+    <figcaption><a href="{{ mount_url('/redigera/' ~ bok.id) }}">Omslag saknas — fixa</a></figcaption>
+    {% endif %}
+  </figure>
+  <dl class="uppgifter">
+    <dt>Format</dt><dd>{{ format_word(bok) }}</dd>
+    <dt>Utgivningsår</dt><dd>{{ year_text(bok) }}</dd>
+    <dt>Läst</dt><dd>{{ sw_date(bok.date_read) }}</dd>
+    {% if bok.genres %}
+    <dt>Genrer</dt><dd>{{ bok.genres | join(', ') }}</dd>
+    {% endif %}
+    {% if bok.isbn13 %}
+    <dt>ISBN</dt><dd class="muted">{{ bok.isbn13 }}</dd>
+    {% endif %}
+  </dl>
+  {% if bok.notes %}
+  <p class="anteckningar">{{ bok.notes }}</p>
+  {% endif %}
+</article>
+{% endblock %}

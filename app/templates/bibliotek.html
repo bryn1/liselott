@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% from "_bokkort.html" import bokkort with context %}
+{% block title %}Din hylla — Liselotts bokhylla{% endblock %}
+{% block content %}
+{# §9 copy: "Din hylla"; the read years newest first, "Att läsa" last. An
+   empty group never renders (a heading over nothing is a lie about the data). #}
+<h1>Din hylla</h1>
+{% if not grupper %}
+<p class="tom-state">Hyllan är tom. Böcker kommer in när du lägger till dem.</p>
+{% endif %}
+{% for ar, bocker in grupper %}
+<section class="grupp" aria-labelledby="ar-{{ ar if ar else 'onska' }}">
+  <h2 id="ar-{{ ar if ar else 'onska' }}">{% if ar %}{{ ar }}{% else %}Att läsa{% endif %}</h2>
+  <ul class="hylla">
+    {% for b in bocker %}{{ bokkort(b) }}{% endfor %}
+  </ul>
+</section>
+{% endfor %}
+{% endblock %}

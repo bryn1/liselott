@@ -20,15 +20,30 @@ PROTECTED = (
 )
 
 
+def unimplemented(app):
+    """The PROTECTED paths with no GET-bearing rule of their own — i.e. where
+    T2.3's 501 stub is still the thing a GET reaches. M4 adaptation: as
+    milestones land real GET routes (`/bibliotek`, `/sok` …), `make_app` must
+    NOT shadow them with a stub — Werkzeug resolves an identical rule by
+    registration order, and a test stub registered after create_app would
+    otherwise answer instead of the page under test. The guard claims are
+    unchanged either way: a stubbed path still has to answer 501 to the owner,
+    an implemented path has to answer with the real page, and neither may ever
+    see a guard redirect or the gate page. (The stub endpoints are excluded so
+    this stays correct after the stubs are registered; a POST-only path like
+    /byter-losenord has no GET rule, so its stub stays in place.)"""
+    get_paths = {rule.rule for rule in app.url_map.iter_rules()
+                 if "GET" in rule.methods and not rule.endpoint.startswith("stub")}
+    return {e.split("?")[0] for e in PROTECTED if e.split("?")[0] not in get_paths}
+
+
 def make_app(tmp_path, monkeypatch):
     monkeypatch.setenv("LISELOTT_DATA_DIR", str(tmp_path))
     monkeypatch.delenv("LISELOTT_PREFIX", raising=False)
     monkeypatch.delenv("LISELOTT_ENV", raising=False)
     app = create_app()
     app.testing = True
-    for entry in PROTECTED:
-        path = entry.split("?")[0]
-
+    for path in sorted(unimplemented(app)):
         def _stub(_path=path):
             return _path, 501
 
@@ -64,8 +79,11 @@ def test_configured_state_sweep(tmp_path, monkeypatch):
 
 def test_logged_in_client_reaches_the_stubs(tmp_path, monkeypatch):
     """Guard is not a wall: with the owner session the SAME paths reach the
-    views (501 stubs now, real pages later)."""
+    views (501 stubs where a route has not landed yet, the real page where it
+    has — T4.2 landed /bibliotek). What may NEVER happen is the guard answering
+    an owner-authenticated request with a redirect or the gate page."""
     app = make_app(tmp_path, monkeypatch)
+    still_stubbed = unimplemented(app)
     client = app.test_client()
     client.post("/liselott/satt-loesenord",
                 data={"loesenord": PASSWORD, "bekrafta": PASSWORD})
@@ -74,7 +92,11 @@ def test_logged_in_client_reaches_the_stubs(tmp_path, monkeypatch):
         # Prefixed shape: the browser's real request URL (nginx strips the
         # prefix in production, but the cookie travels with the FULL URL).
         r = client.get("/liselott" + entry)
-        assert (r.status_code, r.data) == (501, path.encode()), entry
+        if path in still_stubbed:
+            assert (r.status_code, r.data) == (501, path.encode()), entry
+        else:
+            assert r.status_code == 200, entry
+            assert "Inställningsfönstret är stängt." not in r.text, entry
 
 
 def test_unconfigured_open_state_sweep(tmp_path, monkeypatch):

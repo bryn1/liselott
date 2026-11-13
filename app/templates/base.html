@@ -1,4 +1,9 @@
 <!doctype html>
+{# §9: lang="sv", one h1 per page, calm sparsmakad markup — every URL below
+   goes through url_for (F-3): no template in this app carries a root-absolute
+   literal, so the mount prefix can never be split across pages. The header is
+   rendered ONLY for the owner session: the login/setup/gate pages stay clean
+   and never show a door into the diary. #}
 <html lang="sv">
 <head>
   <meta charset="utf-8">
@@ -6,6 +11,16 @@
   <title>{% block title %}Liselotts bokhylla{% endblock %}</title>
 </head>
 <body>
-  {% block content %}{% endblock %}
+  {% if inloggad() %}
+  <header class="topp">
+    <nav class="meny" aria-label="Huvudmeny">
+      <a href="{{ url_for('bibliotek') }}"{% if current == 'hylla' %} aria-current="page"{% endif %}>Din hylla</a>
+      <a href="{{ url_for('logga_ut') }}">Logga ut</a>
+    </nav>
+  </header>
+  {% endif %}
+  <main class="sida">
+    {% block content %}{% endblock %}
+  </main>
 </body>
 </html>
