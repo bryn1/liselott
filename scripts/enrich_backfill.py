@@ -75,7 +75,12 @@ def run_pass(conn, ids, transports, fetch, pace, persist=True):
     # the diary GAINED), matched counts provider hits that passed the policy —
     # conflating them made a re-run report "54 resolved" while writing nothing.
     report = {"scanned": 0, "processed": 0, "matched": 0, "isbn_resolved": 0,
-              "covers_stored": 0, "genres_set": 0, "failures": 0, "writes": 0}
+              "covers_stored": 0, "genres_set": 0, "failures": 0, "writes": 0,
+              # per-lane attribution (owner ruling 2026-11-13): a missed floor
+              # must name which provider missed it
+              "by_source": {lane: {"matched": 0, "isbn": 0, "covers": 0,
+                                   "genres": 0}
+                            for lane in ("libris", "openlibrary", "googlebooks")}}
     for book_id in ids:
         report["scanned"] += 1
         outcome = enrich.resolve_book(conn, book_id, transports=transports,
@@ -85,12 +90,19 @@ def run_pass(conn, ids, transports, fetch, pace, persist=True):
             report["failures"] += 1
             continue
         report["matched"] += 1
+        lane = report["by_source"].setdefault(
+            outcome.get("source") or "unknown",
+            {"matched": 0, "isbn": 0, "covers": 0, "genres": 0})
+        lane["matched"] += 1
         if outcome.get("isbn_written"):
             report["isbn_resolved"] += 1
+            lane["isbn"] += 1
         if outcome.get("cover"):
             report["covers_stored"] += 1
+            lane["covers"] += 1
         if outcome.get("genres_written"):
             report["genres_set"] += 1
+            lane["genres"] += 1
         if persist:
             report["writes"] += 1
     return report
@@ -153,7 +165,8 @@ def main(argv=None, transports=None, fetch=None, pace=None):
         if args.dry_run:
             report.update({"scanned": 0, "processed": 0, "matched": 0,
                            "isbn_resolved": 0, "covers_stored": 0, "genres_set": 0,
-                           "failures": 0, "writes": 0, "planned": ids})
+                           "failures": 0, "writes": 0, "by_source": {},
+                           "planned": ids})
         else:
             if transports is not None:
                 wired = transports
@@ -169,7 +182,8 @@ def main(argv=None, transports=None, fetch=None, pace=None):
 
         print(" ".join(f"{k}={report[k]}" for k in
                        ("total", "scanned", "processed", "matched", "isbn_resolved",
-                        "covers_stored", "genres_set", "failures", "writes")))
+                        "covers_stored", "genres_set", "failures", "writes",
+                        "by_source")))
         report_path.parent.mkdir(parents=True, exist_ok=True)
         report_path.write_text(json.dumps(report, ensure_ascii=False, indent=1),
                                encoding="utf-8")

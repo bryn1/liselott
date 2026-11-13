@@ -207,3 +207,18 @@ def test_isbn_resolved_counts_written_isbns_not_matches(build_db):
     third = json.loads((tmp / "p3.json").read_text(encoding="utf-8"))
     assert third["matched"] == 1 and third["isbn_resolved"] == 0
     assert conn.execute("SELECT isbn13 FROM book WHERE id = 1").fetchone()[0] is None
+
+
+def test_the_report_attributes_every_gain_to_the_provider_that_gave_it(build_db):
+    """The floors are judged per lane (owner ruling 2026-11-13): a miss must say
+    WHICH provider missed, or the number teaches nothing. The fixture set gives
+    isbn+genres via OpenLibrary and covers via OpenLibrary too, so attribution
+    must be able to separate a lane that resolved from a lane that stored."""
+    conn, tmp = build_db
+    main(["--report", str(tmp / "r.json")], transports=fixture_transports(),
+         fetch=cover_fetch, pace=NO_PACE)
+    report = json.loads((tmp / "r.json").read_text(encoding="utf-8"))
+    by = report["by_source"]
+    assert by["openlibrary"]["matched"] == 3 and by["openlibrary"]["isbn"] == 3
+    assert by["openlibrary"]["covers"] == 3
+    assert by["libris"]["matched"] == 0 and by["libris"]["isbn"] == 0
