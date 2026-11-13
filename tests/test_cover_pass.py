@@ -217,7 +217,7 @@ def test_a_429_host_is_blocked_and_never_retried_within_the_pass(state):
 
 def test_downscale_keeps_a_valid_image_under_the_budget():
     small = cp.downscale_for_vision(img_bytes(3000, 4000))
-    assert len(small) < enrich.MAX_BODY
+    assert len(small) < enrich.MAX_FETCH
     assert Image.open(io.BytesIO(small)).size == (960, 1280)
 
 

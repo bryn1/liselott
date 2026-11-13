@@ -6,7 +6,8 @@ budget), POST /omslag/<id>/ladda-up (manual upload). All three ride existing
 mechanisms and add none: form validation is redigera.form_to_fields (the same
 field vocabulary and messages as the edit door — two doors, one validator),
 the key/author write is seed.set_authors + seed.book_key, the byte budget is
-enrich.MAX_BODY, the image normalizer is enrich.store_cover (its 1×1 stub
+MAX_UPLOAD (the app's own fetch cap, enrich.MAX_FETCH, is the same number),
+the image normalizer is enrich.store_cover (its 1×1 stub
 gate guards this door too — no fake covers, ever), and pacing is
 app.enrich_loop.with_budget.
 
@@ -27,7 +28,7 @@ from flask import abort, render_template, request
 from app import auth, books, db, enrich, enrich_loop, redigera, seed
 
 BUDGET_S = 6.0                     # runbook: /omslag/<id> is synchronous ≤6 s
-MAX_UPLOAD = enrich.MAX_BODY       # 900 000 — the ONE byte budget (P1-1)
+MAX_UPLOAD = enrich.MAX_FETCH      # 900 000 — the ONE byte budget (P1-1)
 OVER_CAP_COPY = "Bilden är för stor — ladda upp en mindre fil"
 
 live_transports = enrich.live_transports     # bound: the test seam (omslag pattern)

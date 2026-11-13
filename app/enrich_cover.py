@@ -6,7 +6,7 @@ pass (§9 seam of .audits/20261112-phase2); app.enrich re-exports every name
 below, so no import site changed."""
 import io
 
-from app.enrich_http import MAX_BODY, BodyTooLarge, http_get
+from app.enrich_http import MAX_FETCH, BodyTooLarge, http_get
 
 MAX_COVER_EDGE = (340, 510)          # §5.11: normalized covers are ≤340×510
 COVER_QUALITY = 82
@@ -21,7 +21,7 @@ class CoverRejected(Exception):
     http(s) image — refuse, never write a broken cover file."""
 
 
-def fetch_cover(url, *, fetch=None, max_bytes=MAX_BODY):
+def fetch_cover(url, *, fetch=None, max_bytes=MAX_FETCH):
     """Download a candidate cover. Scheme-checked BEFORE any fetch (a provider
     field is data, never a command: file:// and friends are refused outright),
     then size-capped."""

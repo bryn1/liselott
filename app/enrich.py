@@ -19,7 +19,7 @@ from app.enrich_cover import (COVER_QUALITY, COVER_SUBDIR, MAX_COVER_EDGE,
                               MIN_COVER_PX, CoverRejected, fetch_cover,
                               normalize_image, store_cover,
                               validate_cover_bytes)
-from app.enrich_http import (MAX_BODY, USER_AGENT, BodyTooLarge,
+from app.enrich_http import (MAX_FETCH, USER_AGENT, BodyTooLarge,
                              ProviderUnavailable, RateLimited, build_opener,
                              http_get, http_get_json)
 from app.enrich_match import (GENRE_OTHER, GENRE_RULES, HIT_TYPE_BY_FORMAT,

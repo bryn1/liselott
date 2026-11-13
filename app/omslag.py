@@ -11,7 +11,7 @@ The bounds are the ruling's, and each one is tested in
 tests/test_omslag_hitta.py: http/https only, refused BEFORE a single byte is
 requested (measured: `enrich.http_get("file:///etc/hostname")` really returns
 that file, so this refusal is load-bearing, not ceremony); response bodies
-capped at MAX_BODY (900 000 B); the image allowed only if its magic bytes say
+capped at MAX_FETCH (900 000 B); the image allowed only if its magic bytes say
 it is one; a 3 s timeout via the ONE http mechanism; and a redirect into
 file://, gopher:// or any other scheme is never followed (urllib's redirect
 handler declines non-http targets — proven with a real loopback 302).
@@ -21,7 +21,7 @@ from urllib.parse import urljoin, urlsplit
 
 from app import enrich
 
-MAX_BODY = enrich.MAX_BODY          # the one byte budget (§10), same as everywhere
+MAX_FETCH = enrich.MAX_FETCH        # the one byte budget (§10), same as everywhere
 http_get = enrich.http_get        # the ONE http mechanism, bound here so a test
                                   # can substitute the transport and nothing else
 # The image types the app will write as a cover — recognized by MAGIC BYTES
@@ -117,8 +117,8 @@ def hamta_omslag(conn, book_id, page_url, *, get=None):
         page = get(page_url)
     except enrich.ProviderUnavailable:
         return {"ok": False, "fel": "Sidan kunde inte hämtas — försök igen."}
-    if len(page) > MAX_BODY:
-        return {"ok": False, "fel": f"Sidan är större än {MAX_BODY} byte — nekas."}
+    if len(page) > MAX_FETCH:
+        return {"ok": False, "fel": f"Sidan är större än {MAX_FETCH} byte — nekas."}
 
     found = extract_cover_url(page.decode("utf-8", "replace"), page_url)
     if not found:
@@ -127,8 +127,8 @@ def hamta_omslag(conn, book_id, page_url, *, get=None):
         image = get(found)
     except enrich.ProviderUnavailable:
         return {"ok": False, "fel": "Bilden kunde inte hämtas — försök igen."}
-    if len(image) > MAX_BODY:
-        return {"ok": False, "fel": f"Bilden är större än {MAX_BODY} byte — nekas."}
+    if len(image) > MAX_FETCH:
+        return {"ok": False, "fel": f"Bilden är större än {MAX_FETCH} byte — nekas."}
     if image_kind(image) is None:
         return {"ok": False, "fel": "Det som hittades är ingen bild."}
     try:

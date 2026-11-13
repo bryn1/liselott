@@ -2,7 +2,7 @@
  *
  * Why this exists: the vm106 lane refuses request bodies over ≈1 MiB at the
  * nginx edge (measured: 1,000,000 B passes, 1,200,000 B → 413 before any app),
- * and the APP holds its own line lower — enrich.MAX_BODY, 900000 bytes — so a
+ * and the APP holds its own line lower — tillagg.MAX_UPLOAD, 900000 bytes — so a
  * phone-camera PNG must never reach either wall. The browser downscales on a
  * canvas to ≤680×1020 (the normalized cover is ≤340×510; this leaves 2× for
  * crisp hidpi and nothing more) and re-encodes as JPEG walking the quality
@@ -15,7 +15,7 @@
 
   var OMSLAG_MAX_W = 680;
   var OMSLAG_MAX_H = 1020;
-  var OMSLAG_MAX_BYTES = 900000;            // enrich.MAX_BODY — the ONE budget
+  var OMSLAG_MAX_BYTES = 900000;            // tillagg.MAX_UPLOAD — the ONE budget
   var OMSLAG_QUALITY_LADDER = [0.85, 0.75, 0.6];
 
   function show(node, msg) {
