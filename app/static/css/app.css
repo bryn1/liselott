@@ -147,6 +147,10 @@ input[type="search"], input[type="password"], input[type="text"], textarea {
   border: 1px solid var(--line);
   border-radius: var(--radius);
 }
+/* the file picker's INTRINSIC size overflowed 375 by 11px (found by the
+   T7.4 width pass, redigera-375: scroll_width 386) — it joins the rest of
+   the fields at the page width. */
+input[type="file"] { width: 100%; max-width: 100%; font-size: .8125rem; }
 button {
   margin-top: var(--s4);
   padding: var(--s2) var(--s5);
@@ -177,11 +181,94 @@ a, button, input, .omslag {
   form, .sok-form { max-width: none; }
 }
 
-/* ── T5.1 grading: five radio stars, labels beside the glyphs' absence ──
-   (M7's pass owns the full visual language; this only keeps the form from
-   rendering as five stacked block labels.) */
-.betyg-form .betyg-fraga { margin-bottom: var(--s1); }
-.betyg-form .betyg-val { display: inline-flex; align-items: center; gap: var(--s1);
-  margin: 0 var(--s4) 0 0; color: var(--ink); font-size: 1rem; }
+/* ── grading: §9's stars input — five radios, an aria-hidden glyph carries
+   the visual, the accessible name is Swedish ("Betyg N av 5", in the markup).
+   The radios stay focusable; the row is the only painting. ── */
+.betyg-form .betyg-fraga { margin-bottom: var(--s2); }
+.betyg-radar { display: inline-flex; gap: var(--s2); }
+.betyg-val { cursor: pointer; }
+.betyg-val input {
+  position: absolute;
+  width: 1px; height: 1px;
+  opacity: 0; margin: 0;
+}
+.stjarn-glyph {
+  display: inline-block;
+  font-size: 1.625rem;            /* the §9 scale step, not a bespoke size */
+  line-height: 1.2;
+  color: var(--line);
+}
+/* the grade paints as a row 1..N: the checked glyph fills via the plain
+   adjacent rule (works everywhere), the run up to it via :has; a browser
+   without :has still shows the clicked star — degradation, never a lie. */
+.betyg-val input:checked + .stjarn-glyph { color: var(--star); }
+.betyg-val:has(~ .betyg-val input:checked) .stjarn-glyph { color: var(--star); }
+.betyg-val input:focus-visible + .stjarn-glyph {
+  outline: 2px solid var(--link);
+  outline-offset: 2px;
+  border-radius: var(--radius);
+}
 .betyg-form button.linkad { background: none; border: none; color: var(--link);
   text-decoration: underline; padding: 0; margin-left: var(--s4); }
+
+/* ── the bok page at reading width (M7/T7.4): cover left, facts right —
+   real covers as the visual life of the page (§1); below 720px the calm
+   single column of the 375 design stays exactly as built. ── */
+@media (min-width: 720px) {
+  .bok-sida {
+    display: grid;
+    grid-template-columns: 220px minmax(0, 1fr);
+    column-gap: var(--s6);
+    align-items: start;
+  }
+  .bok-sida h1 { grid-column: 1 / -1; }
+  .bok-sida > :not(h1) { grid-column: 2; }
+  .bok-sida .omslagsfig { grid-column: 1; grid-row: 2 / span 8; margin: var(--s2) 0 0; }
+}
+
+/* ── the quiet doors: dismissing and removing are calm acts, not loud green
+   buttons (§9 "calm, sparsmakad") — card faces, hairline borders, muted type. ── */
+.overopande {
+  background: var(--card);
+  color: var(--muted);
+  border: 1px solid var(--line);
+  font-size: .8125rem;
+  padding: var(--s1) var(--s3);
+  margin-top: var(--s2);
+}
+.overopande:hover { color: var(--ink); }
+.radera { margin-top: var(--s7); border-top: 1px solid var(--line); padding-top: var(--s4); }
+.radera button {
+  background: var(--card);
+  color: var(--danger);
+  border: 1px solid var(--danger);
+}
+
+/* ── the rows that ride the shelf grid (M7/T7.4): recommendation and wishlist
+   cards get the same quiet card rhythm as the shelf's own. ── */
+.rek-kort, .onska-rad { margin: 0; }
+.motivering { color: var(--muted); font-size: .8125rem; margin: var(--s2) 0 0; max-width: var(--measure); }
+.antal { color: var(--muted); font-size: .8125rem; margin: 0 0 var(--s4); }
+.onska-rad form { margin-top: var(--s2); }
+
+/* ── the cover worklist (§9 a11y at 375 too): hairline rows and quiet
+   headers at reading width; below 700px the two columns STACK — a table
+   with a form column has no business at 375 side-by-side. ── */
+.rapport { width: 100%; border-collapse: collapse; }
+.rapport th { text-align: left; color: var(--muted); font-weight: 400;
+  font-size: .8125rem; border-bottom: 1px solid var(--line);
+  padding: 0 var(--s4) var(--s2) 0; }
+.rapport td { border-bottom: 1px solid var(--line); vertical-align: top;
+  padding: var(--s3) var(--s4) var(--s3) 0; }
+.rapport td:last-child { padding-right: 0; }
+@media (max-width: 700px) {
+  .rapport, .rapport tbody, .rapport tr, .rapport td { display: block; width: auto; }
+  .rapport th { display: none; }
+  .rapport td { border-bottom: none; padding: var(--s2) 0; }
+  .rapport tr { border-bottom: 1px solid var(--line); padding-bottom: var(--s4); }
+}
+
+/* the edit door's sections: one hairline rhythm (§9's sparsmakad page) */
+.omslagsfix { margin-top: var(--s7); border-top: 1px solid var(--line);
+  padding-top: var(--s4); }
+.uppladdning { margin-top: var(--s4); }

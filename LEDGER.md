@@ -33,3 +33,16 @@ postdating a line make that line STALE — de-stale before quoting it.
   - T6.4 POST /seed + POST /bundle HTTP ingest — DONE (this commit; the
     upsert core + both doors in `app/bundle.py`, named deviation from the
     plan's File line per the file-hygiene law, as `app/backfill.py` in M5).
+- **M7 calm design pass** — DONE (stage s7, T7.1–T7.4):
+  - T7.1 `DESIGN.md` (§9 table + FORBIDDEN verbatim) + tokens test both
+    directions — DONE (commit 1d0904b).
+  - T7.2 `scripts/contrast_check.py` over DESIGN.md, WCAG AA, planted-red
+    proven (#9A948C → 2.79:1 exit 1; clean tree exit 0) — DONE (commit
+    2eebc11).
+  - T7.3 self-hosted Lora 400/700 woff2 + served OFL, `@font-face` with
+    `font-display: swap`, relative src rides the one mount mechanism — DONE
+    (commit 98a27bd).
+  - T7.4 1280+375 screenshots × 7 pages, 14 describe-image notes (no
+    overlap/garble), one real 375px defect found+fixed (`input[type=file]`
+    11px overflow on redigera) — DONE (this commit). Evidence
+    `.audits/20261112-M7-design/` + `s7-evidence.md` in the phase2 `.tmp/`.
