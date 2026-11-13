@@ -15,6 +15,7 @@
   <header class="topp">
     <nav class="meny" aria-label="Huvudmeny">
       <a href="{{ url_for('bibliotek') }}"{% if current == 'hylla' %} aria-current="page"{% endif %}>Din hylla</a>
+      <a href="{{ url_for('sok') }}"{% if current == 'sok' %} aria-current="page"{% endif %}>Sök</a>
       <a href="{{ url_for('logga_ut') }}">Logga ut</a>
     </nav>
   </header>
