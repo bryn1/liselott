@@ -1,0 +1,42 @@
+{
+ "xsearch": {
+  "from": 1,
+  "to": 3,
+  "records": 3,
+  "list": [
+   {
+    "identifier": "http://libris.kb.se/bib/f2h4jd67cwq45831",
+    "title": "God jul, Agnes",
+    "creator": "Emilsson, Kristin",
+    "isbn": "9789181052237",
+    "type": "sound recording",
+    "publisher": "Printz publishing",
+    "date": "2026",
+    "language": "swe"
+   },
+   {
+    "identifier": "http://libris.kb.se/bib/wjzl0vnftcfsrj8b",
+    "title": "God jul, Agnes",
+    "creator": "Emilsson, Kristin",
+    "isbn": "9789181052220",
+    "type": "text",
+    "publisher": "Printz publishing",
+    "date": "2026",
+    "language": "swe"
+   },
+   {
+    "identifier": "http://libris.kb.se/bib/8wblcb3h6t8h748d",
+    "title": "God jul, Agnes",
+    "creator": "Emilsson, Kristin, 1973-",
+    "isbn": "9789181052206",
+    "type": "book",
+    "publisher": [
+     "Stockholm : Printz publishing",
+     "Falun : Scandbook AB"
+    ],
+    "date": "2026",
+    "language": "swe"
+   }
+  ]
+ }
+}

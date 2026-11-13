@@ -119,6 +119,9 @@ MAX_COVER_EDGE = (340, 510)          # §5.11: normalized covers are ≤340×510
 COVER_QUALITY = 82
 COVER_SUBDIR = "covers"
 MANUAL_COVER_SOURCES = ("manual", "manual-url")
+# The row's own format -> the provider hit types that fit it (§7 enum 'bok' /
+# 'ljudbok'). Libris answers one title as several editions; see prefer_format.
+HIT_TYPE_BY_FORMAT = {"bok": ("book", "text"), "ljudbok": ("sound recording",)}
 PROVIDER_ORDER = ("libris", "ol", "gb")
 
 # cycle-1 §5 (binding): substring match on lower-cased subject strings, max 3
@@ -234,12 +237,35 @@ def book_authors(conn, book_id):
         "WHERE ba.book_id = ?", (book_id,))]
 
 
+def prefer_format(candidates, book_format):
+    """Among the hits that PASSED the match policy, the row's own format picks
+    the edition. Measured on the recorded Libris page for Stöld: one title
+    answers as an analysis booklet, an article, a ljudbok and the book, the
+    ljudbok listed first — and taking it for a print row writes an audiobook
+    ISBN into the diary. Candidates from a provider that names no type
+    (OpenLibrary, Google Books) keep the plan's first-hit order untouched."""
+    wanted = HIT_TYPE_BY_FORMAT.get(book_format, ())
+    for hit in candidates:
+        if str(hit.get("type") or "").lower() in wanted:
+            return hit
+    for hit in candidates:
+        if not hit.get("type"):
+            return hit                     # ol/gb answers: order wins as pinned
+    return candidates[0]
+
+
 def resolve_book(conn, book_id, *, transports=None, fetch=None, now=time.time):
     """Enrich ONE row: libris→ol→gb, the first provider whose hit passes the
     match policy (difflib ≥0.80 + the author gate) wins; writes
     isbn13/isbn10/year (holes only), genres (holes only, §5 mapping), the
     cover (never over an admin's own cover, 'manual' or 'manual-url')
     and the F-2 evidence columns.
+
+    Match policy (pinned): similarity >= MAX_TITLE_SIMILARITY_MIN on folded
+    titles plus the author gate, applied to EVERY hit of the first provider
+    that answers; among its passing hits the row's `format` picks the edition
+    (prefer_format). The provider ORDER still wins: a later provider is never
+    asked once one has matched.
 
     Transport contract: a transport returns a LIST (answered), None (not
     consulted — cooldown/down, NOT recorded in tried_providers) or raises
@@ -249,8 +275,8 @@ def resolve_book(conn, book_id, *, transports=None, fetch=None, now=time.time):
     makes a row VERIFIED-unobtainable rather than merely un-tried.
     Nothing here raises: a failing row is a written row."""
     from app import auth
-    row = conn.execute("SELECT id, title, isbn13, year, cover_path, cover_source "
-                       "FROM book WHERE id = ?", (book_id,)).fetchone()
+    row = conn.execute("SELECT id, title, isbn13, year, cover_path, cover_source, "
+                       "format FROM book WHERE id = ?", (book_id,)).fetchone()
     if row is None:
         return {"resolved": False, "reason": "no such book"}
     title = row[1]
@@ -270,14 +296,11 @@ def resolve_book(conn, book_id, *, transports=None, fetch=None, now=time.time):
         if hits is None:
             continue                       # not consulted (cooldown) — no log
         tried.append(name)
-        for hit in hits:
-            if title_similarity(title, hit.get("title")) < MAX_TITLE_SIMILARITY_MIN:
-                continue
-            if not authors_overlap(authors, hit.get("authors")):
-                continue
-            chosen = hit
-            break
-        if chosen is not None:
+        candidates = [hit for hit in hits
+                      if title_similarity(title, hit.get("title")) >= MAX_TITLE_SIMILARITY_MIN
+                      and authors_overlap(authors, hit.get("authors"))]
+        if candidates:
+            chosen = prefer_format(candidates, row[6])
             break                          # order wins: never ask the next one
 
     ts = auth.utcnow_iso()

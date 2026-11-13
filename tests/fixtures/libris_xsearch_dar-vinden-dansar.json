@@ -1,0 +1,88 @@
+{
+ "xsearch": {
+  "from": 1,
+  "to": 6,
+  "records": 6,
+  "list": [
+   {
+    "identifier": "http://libris.kb.se/bib/bxsrj8cz811cb7c3",
+    "title": "Där vinden dansar",
+    "creator": "Strömberg, Louise",
+    "isbn": "9789180068918",
+    "type": "sound recording",
+    "publisher": "Bazar Förlag",
+    "date": "2026",
+    "language": "swe"
+   },
+   {
+    "identifier": "http://libris.kb.se/bib/j5xd64skgqx1l0ct",
+    "title": "Där vinden dansar",
+    "creator": "Strömberg, Louise, 1991-",
+    "isbn": "9789130181582",
+    "type": "software, multimedia",
+    "publisher": [
+     "[Malmö] : Inläst för Myndigheten för tillgängliga medier, MTM",
+     ""
+    ],
+    "date": [
+     "2026",
+     "[2026-08-14]"
+    ],
+    "language": "swe"
+   },
+   {
+    "identifier": "http://libris.kb.se/bib/9xxgsfjf721k853l",
+    "title": "Där vinden dansar",
+    "creator": "Strömberg, Louise, 1991-",
+    "type": "text",
+    "publisher": "[Malmö] : Inläst för Myndigheten för tillgängliga medier, MTM",
+    "date": "2026",
+    "language": "swe"
+   },
+   {
+    "identifier": "http://libris.kb.se/bib/1n220kp0zrnnqv7z",
+    "title": "Där vinden dansar",
+    "creator": "Strömberg, Louise, 1991-",
+    "isbn": "9789180068901",
+    "type": "text",
+    "publisher": "Bazar Förlag",
+    "date": "2026",
+    "language": "swe"
+   },
+   {
+    "identifier": "http://libris.kb.se/bib/qb65xnr1n9nks8cw",
+    "title": "Där vinden dansar",
+    "creator": "Strömberg, Louise, 1991-",
+    "isbn": "9789180068895",
+    "type": "book",
+    "publisher": [
+     "Stockholm : Bazar",
+     ""
+    ],
+    "date": [
+     "[2026]",
+     "2026",
+     "2026"
+    ],
+    "language": "swe"
+   },
+   {
+    "identifier": "http://libris.kb.se/bib/bzl8xdsk8cjn1zlt",
+    "title": "När kroppen säger stopp - Louise Strömberg",
+    "type": "sound recording",
+    "publisher": [
+     "",
+     "Lejon Media Gruppen AB"
+    ],
+    "date": [
+     "2026",
+     "2026-05-14T14:35:10+02:00"
+    ],
+    "language": "und",
+    "free": [
+     "https://sphinx.acast.com/p/acast/s/prestationspodden-2/e/6a03869ccaa0b0ea31e85d52/media.mp3"
+    ]
+   }
+  ]
+ }
+}

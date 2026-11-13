@@ -1,0 +1,157 @@
+{
+ "xsearch": {
+  "from": 1,
+  "to": 10,
+  "records": 81,
+  "list": [
+   {
+    "identifier": "http://libris.kb.se/bib/q9tmf3nwnj98xfd1",
+    "title": "16. Ann-Helén Laestadius: Stöld",
+    "type": "sound recording",
+    "publisher": [
+     "",
+     "Bauer Media AB"
+    ],
+    "date": [
+     "2021",
+     "2021-12-04T01:00:00+01:00"
+    ],
+    "language": "und",
+    "free": [
+     "https://bauernordic-pods.sharp-stream.com/1490/sob_ep_016_adb18e00_normal.mp3?aw_0_1st.episodeid=100677&aw_0_1st.collectionid=1490&aw_0_1st.bauer_context_ag=e&aw_0_1st.bauer_context_g=b"
+    ]
+   },
+   {
+    "identifier": "http://libris.kb.se/bib/dwgphr9vbd8q0vp4",
+    "title": "Sámi feminism and activism in Ann-Helén Laestadius’ novel \"Stöld\"",
+    "creator": "Brovold, Madelen",
+    "type": "article",
+    "publisher": "",
+    "date": "2023",
+    "language": "eng"
+   },
+   {
+    "identifier": "http://libris.kb.se/bib/0km5tst4xlp1t19w",
+    "title": "Stöld",
+    "creator": "Laestadius, Ann-Helén",
+    "isbn": "9789189051577",
+    "type": "sound recording",
+    "publisher": "Romanus & Selling",
+    "date": "2021",
+    "language": "swe"
+   },
+   {
+    "identifier": "http://libris.kb.se/bib/3knnvgm216838rrj",
+    "title": "Stöld",
+    "creator": "Laestadius, Ann-Helén, 1971-",
+    "isbn": "9789130056996",
+    "type": "software, multimedia",
+    "publisher": [
+     "[Malmö] : Inläst för Myndigheten för tillgängliga medier, MTM",
+     ""
+    ],
+    "date": [
+     "2023",
+     "[2023-02-15]"
+    ],
+    "language": "swe"
+   },
+   {
+    "identifier": "http://libris.kb.se/bib/jx8mx20ng18j2q9x",
+    "title": "Stöld",
+    "creator": "Laestadius, Ann-Helén, 1971-",
+    "isbn": "9789198559699",
+    "type": "book",
+    "publisher": [
+     "[Stockholm] : Romanus & Selling",
+     ""
+    ],
+    "date": [
+     "[2022]",
+     "2022",
+     "2022"
+    ],
+    "language": "swe"
+   },
+   {
+    "identifier": "http://libris.kb.se/bib/q9j5330tnbws6f4p",
+    "title": "Stöld · Del 1",
+    "creator": "Laestadius, Ann-Helén, 1971-",
+    "isbn": "9789180811224",
+    "type": "book",
+    "publisher": [
+     "[Lund] : Btj förlag",
+     ""
+    ],
+    "date": [
+     "[2025]",
+     "2025",
+     "2025"
+    ],
+    "language": "swe"
+   },
+   {
+    "identifier": "http://libris.kb.se/bib/tdmbpt0grxfdnnm1",
+    "title": "Stöld · Del 2",
+    "creator": "Laestadius, Ann-Helén, 1971-",
+    "isbn": "9789180811231",
+    "type": "book",
+    "publisher": [
+     "[Lund] : Btj förlag",
+     ""
+    ],
+    "date": [
+     "[2025]",
+     "2025",
+     "2025"
+    ],
+    "language": "swe"
+   },
+   {
+    "identifier": "http://libris.kb.se/bib/8n7r94bd6hlkm76g",
+    "title": "Stöld : roman",
+    "creator": "Laestadius, Ann-Helén, 1971-",
+    "type": "",
+    "publisher": [
+     "Malmö : MTM",
+     ""
+    ],
+    "date": [
+     "2021",
+     "[2021-04-27]"
+    ],
+    "language": "swe"
+   },
+   {
+    "identifier": "http://libris.kb.se/bib/j177xfg5gh4kr8t5",
+    "title": "Stöld",
+    "creator": "Laestadius, Ann-Helén, 1971-",
+    "isbn": "9789179497576",
+    "type": "book",
+    "publisher": [
+     "Lund : Vilja förlag",
+     ""
+    ],
+    "date": [
+     "[2023]",
+     "2023",
+     "2023"
+    ],
+    "language": "swe"
+   },
+   {
+    "identifier": "http://libris.kb.se/bib/3ggnhlkw1n9036pz",
+    "title": "Stöld",
+    "creator": "Laestadius, Ann-Helén, 1971-",
+    "isbn": "9789189051355",
+    "type": "E-book",
+    "publisher": [
+     "",
+     "Romanus & Selling"
+    ],
+    "date": "nnnn",
+    "language": "swe"
+   }
+  ]
+ }
+}

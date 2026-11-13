@@ -6,7 +6,7 @@ columns T5.5's `unobtainable` list reads) + `/cover/<id>` answering the
 placeholder SVG for a coverless row.
 
 Transports and the cover fetcher are parameters, so this file never touches
-the network: the OL fixture, the SYNTHETIC Libris fixtures and a SYNTHETIC
+the network: the OL fixture, the RECORDED Libris responses and a SYNTHETIC
 generated JPEG (tests/fixtures/cover_sample.jpg — 600×900, so the ≤340×510
 downscale is actually exercised) drive every leg."""
 import io
@@ -20,7 +20,6 @@ from app import create_app, db, enrich, enrich_ol
 
 ROOT = Path(__file__).resolve().parent.parent
 OL_FIXTURE = ROOT / "tests" / "fixtures" / "ol_stold.json"
-LIBRIS_FIND = ROOT / "tests" / "fixtures" / "libris_find.json"
 COVER_FIXTURE = ROOT / "tests" / "fixtures" / "cover_sample.jpg"
 
 STOLD = dict(title="Stöld", authors=["Ann-Helén Laestadius"])
@@ -36,25 +35,24 @@ def conn(tmp_path, monkeypatch):
     c.close()
 
 
-def insert_book(c, key="stold-1", **over):
+def insert_book(c, key="stold-1", authors=None, **over):
+    """The old shape put an `authors` key into the book INSERT (a column that
+    does not exist) and, on the default path, used a plain INSERT INTO author —
+    so a second row by the same author died on the UNIQUE index. Both fixed:
+    authors is a parameter, and the author row is upserted."""
     row = dict(title=STOLD["title"], book_key=key, format="bok", read_year=2022,
                status="read", created="2026-01-01T00:00:00Z",
                updated="2026-01-01T00:00:00Z")
     row.update(over)
     cols, marks = ", ".join(row), ", ".join("?" for _ in row)
     cur = c.execute(f"INSERT INTO book ({cols}) VALUES ({marks})", tuple(row.values()))
-    if over.get("authors") is not None:
-        for name in row.pop("authors", None) or STOLD["authors"]:
-            aid = c.execute("INSERT INTO author (name) VALUES (?) "
-                            "ON CONFLICT(name) DO UPDATE SET name=name",
-                            (name,)).lastrowid
-            c.execute("INSERT OR IGNORE INTO book_author (book_id, author_id) "
-                      "VALUES (?, ?)", (cur.lastrowid, aid))
-    else:
-        aid = c.execute("INSERT INTO author (name) VALUES (?)",
-                        (STOLD["authors"][0],)).lastrowid
-        c.execute("INSERT INTO book_author (book_id, author_id) VALUES (?, ?)",
-                  (cur.lastrowid, aid))
+    for name in (authors or STOLD["authors"]):
+        aid = c.execute("INSERT INTO author (name) VALUES (?) "
+                        "ON CONFLICT(name) DO UPDATE SET name=name",
+                        (name,)).lastrowid or c.execute(
+            "SELECT id FROM author WHERE name = ?", (name,)).fetchone()[0]
+        c.execute("INSERT OR IGNORE INTO book_author (book_id, author_id) "
+                  "VALUES (?, ?)", (cur.lastrowid, aid))
     c.commit()
     return cur.lastrowid
 
@@ -353,3 +351,49 @@ def test_an_admins_manual_url_cover_is_never_overwritten(conn):
         fetch=cover_fetch())
     assert conn.execute("SELECT cover_path, cover_source FROM book WHERE id = ?",
                         (book_id,)).fetchone() == before
+
+
+def libris_page_hits(path):
+    """The RECORDED Libris page, mapped by the real client — the noise below is
+    what the national library actually returns for this title, not invented."""
+    from app import enrich_libris
+    payload = json.loads((ROOT / "tests" / "fixtures" / path).read_text(encoding="utf-8"))
+    return enrich_libris.Libris.map_find(payload)
+
+
+def test_a_print_row_never_gets_the_audiobooks_isbn(conn):
+    """The recorded Stöld page answers one title with an analysis booklet, an
+    article, a ljudbok (9789189051577) and the book (9789198559699) — and the
+    ljudbok is listed FIRST. Taking the first passing hit would write an
+    audiobook ISBN into the admin's paperback row: wrong data, silently. The
+    row's own `format` says which edition was read, so it decides."""
+    book_id = insert_book(conn, key="tie-bok")        # format='bok'
+    enrich.resolve_book(conn, book_id, transports={
+        "libris": libris_transport(libris_page_hits("libris_xsearch_stold.json")),
+        "ol": libris_transport([]), "gb": libris_transport([])}, fetch=cover_fetch())
+    row = conn.execute("SELECT isbn13 FROM book WHERE id = ?", (book_id,)).fetchone()
+    assert row[0] == "9789198559699", "the first listed hit won over the right format"
+
+
+def test_a_ljudbok_row_gets_the_audiobooks_isbn_instead(conn):
+    book_id = insert_book(conn, key="tie-ljud", format="ljudbok")
+    enrich.resolve_book(conn, book_id, transports={
+        "libris": libris_transport(libris_page_hits("libris_xsearch_stold.json")),
+        "ol": libris_transport([]), "gb": libris_transport([])}, fetch=cover_fetch())
+    row = conn.execute("SELECT isbn13 FROM book WHERE id = ?", (book_id,)).fetchone()
+    assert row[0] == "9789189051577"
+
+
+def test_a_provider_that_does_not_say_the_type_keeps_first_hit_order(conn):
+    """OpenLibrary/Google Books answers carry no `type`; for them the plan's
+    first-hit-wins rule must be untouched, or this 'improvement' would have
+    quietly rewritten the pinned policy."""
+    book_id = insert_book(conn, key="tie-notype")
+    hit = {"source": "openlibrary", "title": "Stöld", "authors": ["Ann-Helén Laestadius"],
+           "isbn13": "9789198559699", "isbn10": None, "year": 2022,
+           "cover_id": None, "cover_url": None, "subjects": []}
+    enrich.resolve_book(conn, book_id, transports={
+        "libris": libris_transport([]), "ol": libris_transport([hit]),
+        "gb": libris_transport([])}, fetch=cover_fetch())
+    assert conn.execute("SELECT isbn13 FROM book WHERE id = ?",
+                        (book_id,)).fetchone()[0] == "9789198559699"

@@ -1,0 +1,119 @@
+{
+ "xsearch": {
+  "from": 1,
+  "to": 8,
+  "records": 8,
+  "list": [
+   {
+    "identifier": "http://libris.kb.se/bib/19257852",
+    "title": "Den sårade pianisten",
+    "creator": "Ernestam, Maria",
+    "type": "sound recording",
+    "publisher": [
+     "Johanneshov : MTM",
+     ""
+    ],
+    "date": [
+     "2016",
+     "[2016-02-11]"
+    ],
+    "language": "swe"
+   },
+   {
+    "identifier": "http://libris.kb.se/bib/f01ntzjqcskkwsqg",
+    "title": "Den sårade pianisten",
+    "creator": "Ernestam, Maria",
+    "isbn": "9789176511794",
+    "type": "sound recording",
+    "publisher": "Bonnier Audio",
+    "date": "2025",
+    "language": "swe"
+   },
+   {
+    "identifier": "http://libris.kb.se/bib/18546365",
+    "title": "Den sårade pianisten",
+    "creator": "Ernestam, Maria, 1959-",
+    "isbn": "9789176470589",
+    "type": "sound recording",
+    "publisher": "Stockholm : Bonnier Audio",
+    "date": [
+     "p 2016",
+     "2016"
+    ],
+    "language": "swe"
+   },
+   {
+    "identifier": "http://libris.kb.se/bib/19738367",
+    "title": "Den sårade pianisten",
+    "creator": "Ernestam, Maria, 1959-",
+    "isbn": "9789175036267",
+    "type": "book",
+    "publisher": [
+     "Stockholm : Månpocket",
+     "[Stockholm] : Månpocket",
+     "Litauen",
+     ""
+    ],
+    "date": [
+     "2017",
+     "[2017]",
+     "2017"
+    ],
+    "language": "swe"
+   },
+   {
+    "identifier": "http://libris.kb.se/bib/18708764",
+    "title": "Den sårade pianisten",
+    "creator": "Ernestam, Maria, 1959-",
+    "isbn": "9789137142388",
+    "type": "E-book",
+    "publisher": "Bokförlaget Forum",
+    "date": "2016",
+    "language": "swe"
+   },
+   {
+    "identifier": "http://libris.kb.se/bib/18542169",
+    "title": "Den sårade pianisten",
+    "creator": "Ernestam, Maria, 1959-",
+    "isbn": "9789137142371",
+    "type": "book",
+    "publisher": [
+     "Stockholm : Forum",
+     "Falun : Scandbook"
+    ],
+    "date": [
+     "cop. 2016",
+     "2016",
+     "2015)"
+    ],
+    "language": "swe"
+   },
+   {
+    "identifier": "http://libris.kb.se/bib/0b8xx2j3xr50rq1p",
+    "title": "Zraniony pianista",
+    "creator": "Ernestam, Maria, 1959-",
+    "isbn": "9788365740038",
+    "type": "book",
+    "publisher": "Białystok : Wydawnictwo Kobiece Łukasz Kierus",
+    "date": "2018",
+    "language": "pol"
+   },
+   {
+    "identifier": "http://libris.kb.se/bib/22420989",
+    "title": "Le pianiste blessé : roman",
+    "creator": "Ernestam, Maria, 1959-",
+    "isbn": "9782847207934",
+    "type": "text",
+    "publisher": [
+     "Montfort-en-Chalosse : Gaïa éditions",
+     "61-Alençon : Normandie roto impr."
+    ],
+    "date": [
+     "DL 2017",
+     "2017"
+    ],
+    "language": "fre"
+   }
+  ]
+ }
+}
