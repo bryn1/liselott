@@ -96,8 +96,13 @@ def test_sitemap_absent_robots_present(seeded):
 
 
 def test_closed_window_over_seeded_db(seeded, monkeypatch):
-    """F-5's hard leg: pw unset + aged window on a SEEDED database — the gate
-    page answers every route except /healthz and leaks zero seed bytes."""
+    """F-5's hard leg: pw unset + aged window on a SEEDED database — zero
+    seed bytes leak ANYWHERE, in every answer shape. The shape itself is
+    the F-E/F-F contract (MC 12451): the quarantined file-shaped names 404
+    in the closed state too (a probe reads a 200 there as "reachable"),
+    while everything shapeless keeps answering the §6.1-pinned gate page.
+    The leak claim — the one this file exists for — is unchanged: it holds
+    over 404.html copy exactly as over the gate page."""
     import time
 
     import app.auth as auth
@@ -108,7 +113,10 @@ def test_closed_window_over_seeded_db(seeded, monkeypatch):
     for entry in ROUTES:
         r = client.get(entry)
         assert_no_seed_bytes(r)
-        assert "Inställningsfönstret är stängt." in r.text, entry
+        if "." in entry.rsplit("/", 1)[-1]:       # file-shaped quarantine
+            assert r.status_code == 404, entry
+        else:
+            assert "Inställningsfönstret är stängt." in r.text, entry
     assert client.get("/healthz").data == b"ok"
 
 
