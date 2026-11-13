@@ -1,271 +1,45 @@
-"""Provider plumbing for enrichment (§10, F-1: enrichment runs where the plan
-says it runs — the VM350 build passes AND the app's own clients inside its
-jail). ONE http mechanism for every provider AND for the admin hitta-omslag
-fetcher: stdlib urllib, 3 s timeout, retries with exponential backoff on
-429/5xx, a byte cap on every body it reads. A 429 that survives the retries
-surfaces as RateLimited so a caller can act on it (the gb cooldown, T3.2)
-without a second http path. Bodies are capped, never streamed into memory
-blind: an over-budget body raises BodyTooLarge naming the budget."""
-import difflib
-import io
-import json
-import re
+"""Provider plumbing for enrichment — the ORCHESTRATION half (§10, F-1:
+enrichment runs where the plan says it runs — the VM350 build passes AND the
+app's own clients inside its jail): resolve_book walks the provider order
+libris→ol→gb under the match policy, and live_transports wraps the three real
+clients to the transport contract. The two halves it delegates to split out
+of this file in the M4 clean-code pass (§9 seam of
+.audits/20261112-phase2): app.enrich_http (the ONE http mechanism) and
+app.enrich_match / app.enrich_cover (match policy, genre mapping, the cover
+normalizer). This module re-exports every name that moved, so `from app
+import enrich` keeps the exact import surface the providers, omslag, the
+backfill CLI and the 195-test suite were built against — the split moved
+code, not seams."""
 import time
-import unicodedata
-import urllib.error
-import urllib.request
-from urllib.parse import urlsplit
 
-# ASCII ONLY: urllib encodes headers as latin-1, so one em dash here would
-# kill every real request (UnicodeEncodeError) while fixture transports, which
-# never encode a header, stay green — the live smoke caught it (guarded in
-# tests/test_enrich_ol.py).
-USER_AGENT = "liselott-bokhylla/1.0 (personal book diary)"
+# Re-export surface — the names every existing importer reaches through
+# app.enrich (omslag, enrich_ol, enrich_libris, enrich_gb,
+# scripts/enrich_backfill, tests). Bound here once, from their new homes.
+from app.enrich_cover import (COVER_QUALITY, COVER_SUBDIR, MAX_COVER_EDGE,
+                              MIN_COVER_PX, CoverRejected, fetch_cover,
+                              store_cover)
+from app.enrich_http import (MAX_BODY, USER_AGENT, BodyTooLarge,
+                             ProviderUnavailable, RateLimited, build_opener,
+                             http_get, http_get_json)
+from app.enrich_match import (GENRE_OTHER, GENRE_RULES, HIT_TYPE_BY_FORMAT,
+                              MAX_TITLE_SIMILARITY_MIN, authors_overlap,
+                              map_genres, normalize_title, prefer_format,
+                              title_similarity)
 
-# Lane fact (§10, P1-1): every byte transfer INTO the app is chunked below a
-# 900,000-byte budget; the same number bounds what the app itself accepts to
-# read back from any single response.
-MAX_BODY = 900_000
-
-
-class ProviderUnavailable(Exception):
-    """The provider could not be consulted (DNS/timeout/refused/definitive 4xx).
-    Callers record the attempt in tried_providers; nothing here crashes a row."""
-
-
-class RateLimited(ProviderUnavailable):
-    """429 after the retries — a provider-side cooldown signal, not a failure
-    of the row."""
-
-
-class BodyTooLarge(ProviderUnavailable):
-    """Response body exceeded max_bytes — refuse, never half-read."""
-
-
-def http_get(url, *, timeout=3.0, attempts=3, backoff=2.0,
-             max_bytes=MAX_BODY, opener=None, sleep=time.sleep):
-    """GET url -> bytes. Retries URLError/429/5xx with exponential backoff
-    (backoff * 2**n, VERIFIED red-capable in tests/test_enrich_ol.py); a
-    definitive 4xx (not 429) is not retried. Raises RateLimited on a final 429,
-    ProviderUnavailable otherwise."""
-    # Scheme rule in the MECHANISM, not in each caller: urllib's default opener
-    # ships FileHandler/FTPHandler, so an unchecked url turns this function into
-    # a local file reader (measured: file:///etc/hostname returned its bytes).
-    parts = urlsplit(str(url))
-    if parts.scheme not in ("http", "https") or not parts.netloc:
-        raise ProviderUnavailable(f"endast http/https hämtas — nekar {url!r}")
-    op = opener or _default_opener()
-    last = None
-    for attempt in range(attempts):
-        try:
-            resp = op.open(url, timeout=timeout)
-            try:
-                body = resp.read(max_bytes + 1)
-            finally:
-                resp.close()
-            if len(body) > max_bytes:
-                raise BodyTooLarge(
-                    f"svaret är större än {max_bytes} byte — nekas")
-            return body
-        except urllib.error.HTTPError as e:
-            last = e
-            if e.code == 429:
-                if attempt == attempts - 1:
-                    raise RateLimited(f"429 from {url}") from e
-            elif e.code >= 500:
-                if attempt == attempts - 1:
-                    raise ProviderUnavailable(f"{e.code} from {url}") from e
-            else:
-                raise ProviderUnavailable(f"{e.code} from {url}") from e
-        except (urllib.error.URLError, OSError) as e:   # DNS, timeout, reset
-            last = e
-            if attempt == attempts - 1:
-                raise ProviderUnavailable(f"transport failed for {url}") from e
-        sleep(backoff * (2 ** attempt))
-    raise ProviderUnavailable(f"transport failed for {url}: {last}")
-
-
-def http_get_json(url, **kw):
-    """http_get + json.loads; a body that is not JSON is a ProviderUnavailable
-    (a WAF page or an HTML error screen must never parse as a hit)."""
-    body = http_get(url, **kw)
-    try:
-        return json.loads(body.decode("utf-8"))
-    except (ValueError, UnicodeDecodeError) as e:
-        raise ProviderUnavailable(f"non-JSON body from {url}") from e
-
-
-def build_opener():
-    op = urllib.request.build_opener()
-    op.addheaders = [("User-Agent", USER_AGENT),
-                     ("Accept", "application/json, image/*;q=0.8, */*;q=0.5")]
-    return op
-
-
-def _default_opener():
-    # Built per call on purpose: a module-level opener would keep connection
-    # state across tests that inject their own (the opener= parameter is the
-    # single seam every test uses — fixture transport, never the network).
-    return build_opener()
-
-
-# --------------------------------------------------------------------------
-# The match policy + provider order + the ONE cover normalizer (T3.4).
-# Genre vocabulary and its mapping rules are cycle-1 §5 verbatim, kept here as
-# the plan pins them in this file.
-
-MAX_TITLE_SIMILARITY_MIN = 0.80      # difflib ratio floor for a provider hit
-MAX_COVER_EDGE = (340, 510)          # §5.11: normalized covers are ≤340×510
-COVER_QUALITY = 82
-COVER_SUBDIR = "covers"
-# OpenLibrary's "no cover" answer is a 200 with a 1×1 GIF, and an arbitrary page
-# url can hand over anything; anything this small is a placeholder, never art.
-MIN_COVER_PX = 60
+# An admin's own cover — uploaded ('manual') or found via hitta-omslag
+# ('manual-url', the OQ-2 ruling) — is never painted over by a provider.
 MANUAL_COVER_SOURCES = ("manual", "manual-url")
-# The row's own format -> the provider hit types that fit it (§7 enum 'bok' /
-# 'ljudbok'). Libris answers one title as several editions; see prefer_format.
-HIT_TYPE_BY_FORMAT = {"bok": ("book", "text"), "ljudbok": ("sound recording",)}
 # Owner ruling 2026-11-13, the rule named in full because it is the exception
 # that proves the rule beside it: identity is the first matcher's, always.
 COVER_COMPLETION = ("cover completion: providers after the identity matcher may "
                     "supply ONLY a cover, never identity fields")
 PROVIDER_ORDER = ("libris", "ol", "gb")
 
-# cycle-1 §5 (binding): substring match on lower-cased subject strings, max 3
-# labels per book, anything unmatched or no subjects at all → Övrigt.
-GENRE_RULES = (
-    ("Romantik", ("romanc", "love story", "kärlek")),
-    ("Familjesaga", ("family", "släkt", "saga", "generation")),
-    ("Kriminalitet", ("crime", "detective", "mord", "polis", "thriller")),
-    ("Historisk roman", ("histor", "krig", "world war", "historisk")),
-    ("Självbiografiskt", ("biograph", "memoir", "självbiograf")),
-    ("Reseskildring", ("travel", "rese", "reportage")),
-    ("Natur och vardag", ("nature", "garden", "natur", "trädgård", "mat", "food")),
-    ("Samhälle och aktualitet", ("societ", "samhälle", "current affairs")),
-)
-GENRE_OTHER = "Övrigt"
-
-
-class CoverRejected(Exception):
-    """Bytes that are not a storable image, or a cover URL that is not an
-    http(s) image — refuse, never write a broken cover file."""
-
-
-def normalize_title(text):
-    folded = unicodedata.normalize("NFKD", str(text or "").casefold())
-    return re.sub(r"[^a-z0-9åäöéèé]+", "", folded)
-
-
-def title_similarity(a, b):
-    return difflib.SequenceMatcher(None, normalize_title(a),
-                                   normalize_title(b)).ratio()
-
-
-def authors_overlap(book_authors, hit_authors):
-    """The §T3.4 gate applies only when BOTH sides name an author; then any
-    near-equal pair (equal, containment, or ratio ≥ 0.85) opens it."""
-    if not book_authors or not hit_authors:
-        return True
-    for mine in book_authors:
-        m = normalize_title(mine)
-        for theirs in hit_authors:
-            t = normalize_title(theirs)
-            if not m or not t:
-                continue
-            if m == t or m in t or t in m:
-                return True
-            if difflib.SequenceMatcher(None, m, t).ratio() >= 0.85:
-                return True
-    return False
-
-
-def map_genres(subjects):
-    """§5 mapping: max 3 labels, else Övrigt (also when there are no
-    subjects at all — the plan's own wording, verified Swedish subjects such
-    as 'Skönlitteratur' match no rule and therefore land on Övrigt)."""
-    found = []
-    for label, needles in GENRE_RULES:
-        if label in found:
-            continue
-        for subject in subjects or []:
-            low = str(subject).casefold()
-            if any(needle in low for needle in needles):
-                found.append(label)
-                break
-    return found[:3] if found else [GENRE_OTHER]
-
-
-def fetch_cover(url, *, fetch=None, max_bytes=MAX_BODY):
-    """Download a candidate cover. Scheme-checked BEFORE any fetch (a provider
-    field is data, never a command: file:// and friends are refused outright),
-    then size-capped."""
-    fetch = fetch or http_get
-    if not isinstance(url, str) or not url.lower().startswith(("http://", "https://")):
-        raise CoverRejected(f"inte en http(b)-bild: {url!r}")
-    data = fetch(url, max_bytes=max_bytes)
-    if len(data) > max_bytes:
-        raise BodyTooLarge(f"bilden är större än {max_bytes} byte — nekas")
-    return data
-
-
-def store_cover(conn, book_id, data, source):
-    """THE cover normalizer (T5.3 upload and T6.4 bundle write reuse THIS):
-    Pillow → RGB → thumbnail ≤340×510 → JPEG q82 → <state_base()>/covers/
-    <book_id>.jpg, and the row's cover_path/cover_source are written here so
-    file and row can never disagree. Bytes that are not an image are refused
-    with nothing written."""
-    from PIL import Image, UnidentifiedImageError
-
-    from app import db
-    try:
-        img = Image.open(io.BytesIO(data))
-        img.load()
-    except (UnidentifiedImageError, OSError, ValueError) as e:
-        raise CoverRejected(f"inte en bild: {e}") from e
-    if img.width < MIN_COVER_PX or img.height < MIN_COVER_PX:
-        # A 1×1 GIF is not a cover. covers.openlibrary.org answers 200 with
-        # exactly that when it has none (RECORDED in tests/fixtures/
-        # ol_no_cover_stub.gif), so accepting it would write a blank square as
-        # the book's cover and let the F-2 loop converge on garbage.
-        raise CoverRejected(
-            f"bilden är {img.width}×{img.height} px — för liten för att vara ett omslag")
-    img = img.convert("RGB")
-    img.thumbnail(MAX_COVER_EDGE)
-    rel = f"{COVER_SUBDIR}/{book_id}.jpg"
-    target = db.state_base() / COVER_SUBDIR / f"{book_id}.jpg"
-    target.parent.mkdir(parents=True, exist_ok=True)
-    buf = io.BytesIO()
-    img.save(buf, "JPEG", quality=COVER_QUALITY)
-    target.write_bytes(buf.getvalue())
-
-    from app import auth
-    conn.execute("UPDATE book SET cover_path = ?, cover_source = ?, updated = ? "
-                 "WHERE id = ?", (rel, source, auth.utcnow_iso(), book_id))
-    conn.commit()
-    return rel
-
 
 def book_authors(conn, book_id):
     return [r[0] for r in conn.execute(
         "SELECT a.name FROM author a JOIN book_author ba ON ba.author_id = a.id "
         "WHERE ba.book_id = ?", (book_id,))]
-
-
-def prefer_format(candidates, book_format):
-    """Among the hits that PASSED the match policy, the row's own format picks
-    the edition. Measured on the recorded Libris page for Stöld: one title
-    answers as an analysis booklet, an article, a ljudbok and the book, the
-    ljudbok listed first — and taking it for a print row writes an audiobook
-    ISBN into the diary. Candidates from a provider that names no type
-    (OpenLibrary, Google Books) keep the plan's first-hit order untouched."""
-    wanted = HIT_TYPE_BY_FORMAT.get(book_format, ())
-    for hit in candidates:
-        if str(hit.get("type") or "").lower() in wanted:
-            return hit
-    for hit in candidates:
-        if not hit.get("type"):
-            return hit                     # ol/gb answers: order wins as pinned
-    return candidates[0]
 
 
 def resolve_book(conn, book_id, *, transports=None, fetch=None, now=time.time):
