@@ -1,11 +1,13 @@
-"""Logged-in page routes (§6.7 password lifecycle; M4 adds browse/search).
-Guard + CSRF already ran before any view here — request is owner-authenticated
-and (for state changes) token- and origin-checked (T2.3/T2.5)."""
+"""Logged-in page routes (§6.7 password lifecycle; M4 adds browse/search; T5.1
+adds grading). Guard + CSRF already ran before any view here — request is
+owner-authenticated and (for state changes) token- and origin-checked
+(T2.3/T2.5)."""
+import re
 from pathlib import Path
 
 from flask import abort, jsonify, render_template, request, send_file, session
 
-from app import auth, books, db, omslag, search
+from app import auth, books, db, omslag, search, seed
 
 
 def init_routes(app):
@@ -68,6 +70,37 @@ def init_routes(app):
         traffar = search.search(db.get_db(), q) if q.strip() else None
         return render_template("sok.html", q=q, traffar=traffar,
                                current="sok")
+
+    GRADE_RE = re.compile(r"[1-5]")          # §1: integers 1–5, ASCII digits only
+    GRADE_CLEAR = "clear"                    # the Rensa button's own value
+
+    @app.post("/betyg/<int:book_id>")
+    def betyg(book_id):
+        """T5.1 — grade one book. The plan's contract: 4 shown, 6 → 400,
+        "clear" → NULL; and per §5.11 grading SETS 'read' (the helper owns the
+        read_year sentinel) while never inventing a date_read. getlist, not
+        get: a browser posts the checked radio AND the clicked clear button
+        under the same name, and the clear click is the intent — .get() would
+        return the radio and silently ignore her."""
+        conn = db.get_db()
+        if conn.execute("SELECT 1 FROM book WHERE id = ?",
+                        (book_id,)).fetchone() is None:
+            abort(404)                       # the 404 page echoes nothing
+        values = request.form.getlist("betyg")
+        if GRADE_CLEAR in values:
+            rating = None
+        elif len(values) == 1 and GRADE_RE.fullmatch(values[0]):
+            rating = int(values[0])
+        else:
+            return render_template(
+                "csrf-fel.html",
+                fel="Betyget är ett heltal 1–5 — eller Rensa betiget."), 400
+        conn.execute("UPDATE book SET rating = ?, updated = ? WHERE id = ?",
+                     (rating, auth.utcnow_iso(), book_id))
+        if rating is not None:
+            seed.mark_read(conn, book_id)
+        conn.commit()
+        return auth.redirect_prefixed(f"/bok/{book_id}")
 
     @app.errorhandler(404)
     def inte_hittad(error):

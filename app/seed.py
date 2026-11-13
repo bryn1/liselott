@@ -76,21 +76,31 @@ def parse_row(row: str) -> dict:
 
     authors = []
     if tail:
-        for part in _AUTHOR_SPLIT_RE.split(tail):
-            part = part.strip()
-            if not part:
-                continue
-            pieces = _DASH_RE.split(part)
-            authors.append(pieces[0])
-            for nxt in pieces[1:]:
-                nxt = nxt.strip()
-                if nxt and nxt[0].isupper():
-                    authors.append(nxt)
-                elif authors:
-                    authors[-1] = f"{authors[-1]} – {nxt}"
+        authors = split_authors(tail)
 
     return {"date_read": date_read, "title": title, "authors": authors,
             "rating": rating, "bad_author_tail": flagged}
+
+
+def split_authors(tail: str) -> list[str]:
+    """The §5.4 author-name splitting, extracted verbatim from parse_row when
+    the edit form (T5.2) became its second caller — a pasted
+    "A, B och C" must split on edit exactly as it did on import, and two
+    splitters would drift on the first rule change."""
+    authors: list[str] = []
+    for part in _AUTHOR_SPLIT_RE.split(tail):
+        part = part.strip()
+        if not part:
+            continue
+        pieces = _DASH_RE.split(part)
+        authors.append(pieces[0])
+        for nxt in pieces[1:]:
+            nxt = nxt.strip()
+            if nxt and nxt[0].isupper():
+                authors.append(nxt)
+            elif authors:
+                authors[-1] = f"{authors[-1]} – {nxt}"
+    return authors
 
 
 def load_aliases(path) -> dict:
@@ -277,3 +287,55 @@ def parse_file(path) -> list[dict]:
                         "format": section[2], "status": section[3],
                         "raw": line[2:]})
     return entries
+
+
+# ── the shared write primitives (§5.11 / §5.3) ───────────────────────────────
+# The app writes book rows from three doors now: the seed import (CLI + the M6
+# HTTP routes), add-book (T5.3) and edit/wishlist (T5.2/T5.4). Key computation,
+# author registration and the wishlist→read flip live HERE so all three doors
+# obey one contract — the plan's own P1-3 rule ("one shared function, no
+# re-derivation drift") applied to the write side, not just the match key.
+
+ALIASES_CSV = Path(__file__).resolve().parent.parent / "data-import" / "author_aliases.csv"
+
+
+def app_aliases() -> dict:
+    """The repo's own alias table (git-tracked data, read-only at runtime);
+    loaded once per process — add/edit cannot invent new spellings anyway."""
+    global _APP_ALIASES
+    if _APP_ALIASES is None:
+        _APP_ALIASES = load_aliases(ALIASES_CSV) if ALIASES_CSV.is_file() else {}
+    return _APP_ALIASES
+
+
+_APP_ALIASES: dict | None = None
+
+
+def set_authors(conn, book_id: int, names: list[str]) -> list[str]:
+    """Replace a row's author links with `names` (alias-resolved to canonical
+    via register_author) and return the canonical names — the caller feeds
+    those to book_key so the stored row and its key cannot disagree."""
+    aliases = app_aliases()
+    conn.execute("DELETE FROM book_author WHERE book_id = ?", (book_id,))
+    canonical = []
+    for name in names:
+        author_id = register_author(conn, name, aliases)
+        conn.execute("INSERT OR IGNORE INTO book_author (book_id, author_id)"
+                     " VALUES (?,?)", (book_id, author_id))
+        canonical.append(aliases.get(name, name))
+    return canonical
+
+
+def mark_read(conn, book_id: int) -> None:
+    """§5.11: the ONLY wishlist→read flip mechanism — grading (T5.1) and
+    /onska/<id>/las (T5.4) are the only callers allowed to ask for it, and
+    both go through here. The read_year 0 sentinel becomes this year (the
+    shelf groups by it; a flipped row must not land in a group called "0");
+    date_read is deliberately NOT touched — only /las names a date."""
+    row = conn.execute("SELECT status, read_year FROM book WHERE id = ?",
+                       (book_id,)).fetchone()
+    if row is None or (row[0] == "read" and row[1]):
+        return
+    year = row[1] if row[1] else datetime.now(timezone.utc).year
+    conn.execute("UPDATE book SET status = 'read', read_year = ? WHERE id = ?",
+                 (year, book_id))
