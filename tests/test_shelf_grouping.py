@@ -5,7 +5,9 @@ with ~90 % NULL date_read (the real corpus: 661 of 706 read rows) that block
 runs in title order and every year change opened a NEW section — 583 <h2>
 over 12 real years on the seeded shelf, newest-first violated at 260/582
 pairs, and the gate's plants M5/M9 (one section per book — the exact
-measured shape) left the full 422-test suite GREEN. The blind spot dies
+measured shape) left the full suite GREEN — 422 tests, the count on THAT
+wave's tree (see LEDGER's c2 row; a suite count in prose is a measurement of
+its own commit, never of this one). The blind spot dies
 here: ~300 read rows across 2015–2026 INTERLEAVED, 90 % NULL date_read, 3
 read rows on the 0-year sentinel, + 2 wishes. Asserted through THE REAL
 bibliotek.html on the app test client: ONE <section class="grupp"> and ONE

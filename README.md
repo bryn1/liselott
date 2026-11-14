@@ -18,7 +18,7 @@ is `PLAN-c3` (the pinned plan); this README states what the tree actually is.
   publish took — staging-gate landing, static in the closed state,
   quarantine 404s, the live-500 cachebust fix, the setup-window reopens —
   is LEDGER rows, not this snapshot's fine print.
-- The full offline test suite passes: **436 passed, exit 0**
+- The full offline test suite passes: **494 passed, exit 0**
   (`.venv/bin/pytest -q`, VM350 build clone, this commit).
 - The build database holds **724 books** (706 read + 18 wishlist), **671** with
   an ISBN, **6** rated, **52** ljudbok, and a recommendation candidate pool of
@@ -95,7 +95,7 @@ Debian box with `python3.10-venv` installed, `python3 -m venv` works too.
 Then `http://127.0.0.1:8166/liselott/` — first boot within 20 min shows the
 set-password page; both request shapes (bare `/…` and `/liselott/…`) route.
 Tests: `cd /home/claudecode/liselott && .venv/bin/pytest -q` (offline, no
-provider network; 436 tests green at this commit).
+provider network; 494 tests green at this commit).
 
 ### Suite-location rule (PLAN-c3 §13, verbatim in force)
 
@@ -151,7 +151,11 @@ LEADING `YYMMDD` token, 45 rows). Trust the plan's §5 rules, never the header.
 ### Machine routes (all behind the owner session)
 
 - `POST /seed` — the raw markdown in, `parsed=725 stored=724 duplicates=1` out
-  (asserted by the suite). Idempotent.
+  (asserted by the suite). Idempotent. `stored=` is the rows **that POST**
+  stored, so a re-POST of the same file answers `stored=0` (nothing new landed —
+  that is the idempotence proof, not a failure); the CLI's counts line keeps
+  §5.9's audited meaning, the WHOLE table (724 on a fresh import, 724 again on
+  a re-run, and it names which is which on stderr when the two differ).
 - `POST /bundle` — newline-JSON lines ≤ 400 KB, request bodies ≤ 900 000 bytes
   (the one byte budget for every transfer into the app, ≈14 % margin under the
   lane's measured ≈1 MiB edge). Matches rows by `book_key` (the shared hash in

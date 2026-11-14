@@ -2,7 +2,8 @@
 import_seed.py) and the later HTTP routes. Section parsing per §5.1; the
 file's header prose (lines 1-7) is parsed nowhere — it carries stale claims
 (P2-8), this module's rules are canonical."""
-# FILE-SIZE (MC 12451 c4): this file is the SHARED write side — key
+# FILE-SIZE REASON (MC 12451 c4): past the ~250 target and at the ceiling, and
+# it is the SHARED write side — key
 # computation, author registration, the read/wishlist flip, the row validator
 # and the ingest text vocabulary all live here precisely so the three doors
 # (CLI, /seed, add/edit) obey one contract instead of three near-copies; that

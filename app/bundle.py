@@ -1,5 +1,8 @@
 """T6.4 — POST /seed and POST /bundle: the HTTP ingest doors (F-1/F-7).
 
+FILE-SIZE REASON: this file is past the 400-line ceiling and stays whole; the
+full reason is the note below the docstring, at the imports.
+
 Two routes, one rule set (§5.11 + the T6.4 (a)-(h) matrix). The plan's File
 line names app/seed.py + app/routes.py; the brief's file-hygiene law (seed.py
 was already 341 lines when M6 opened) moves the mechanism HERE — the named-

@@ -177,3 +177,58 @@ postdating a line make that line STALE — de-stale before quoting it.
   ~310 after this wave, test files `test_seed_routes.py` ~530,
   `test_enrich_resolve.py` 536 — none past the 400/600 gates, all still
   split candidates per the clean-code doctrine.
+- **Gate fix wave c3 (MC 12451)** — DONE (commits 07c2551..9d9d847, seven):
+  both final gates came back GREEN on the c3 tree — TEST-verdict-c3 **PASS**
+  (CONFIDENCE 0.88, suite 466 passed ×2) and DA-verdict-c3 **SHIP** (0.9),
+  both pinning tree `# JUDGED: 6e7d5796e05395d5bf0adea4768f3a66e7d80f99a9ec6
+  270cc101d65b451679a`. Six fixes + one hygiene note: F-A2 (P1) a non-int
+  `read_year` 400s named at the door instead of killing the shelf on every
+  read; F-B2 (P2) the /bundle rollback reaches the BYTES (a mid-loop cover
+  write that fails now unlinks what it wrote); F-C2 (P2) `POST /seed` is
+  atomic — one flagged row commits NOTHING; F-D2/F-G2 (P3) ONE value
+  vocabulary pass, so no container reaches a bind and a bare string never
+  becomes single-character garbage again; F-F2 (P3) `/VERSION` 404s
+  anonymously like every other quarantined name; F-H2 (P3) the real-server UI
+  leg stops flaking (per-run free port). The mutation pass scored **6/7
+  killed** and named its survivor out loud: no test could reach the /bundle
+  DB catch arm — which is exactly the finding c4 below was dispatched for.
+- **Final fix wave c4 (MC 12451)** — DONE (this commit, four commits, one per
+  fix, each test-first with its FAIL→PASS in
+  `.audits/20261112-phase2/.tmp/c4-fix-evidence.md`): **FIX 1** F-L2 (P3) —
+  the json-LEGAL lone surrogate. `"\ud800"` parsed, reached the strict-UTF-8
+  TEXT bind and died there with a UnicodeEncodeError that is NOT a
+  `sqlite3.Error`, so the door answered 500 past its own rollback AND past
+  the cover unlink (verifier left `covers/1.jpg` on disk with zero rows). It
+  was the M7 plant's live twin: the arm existed, nothing could reach it. Now
+  refused in the vocabulary pass that already owns every other value shape,
+  and the arm is `(sqlite3.Error, UnicodeEncodeError)` with three mid-loop
+  plants (Integrity/Operational/UnicodeEncode) proving it unwinds to the
+  named 400, the rolled-back count and the ZERO cover files. **FIX 2**
+  F-L3/F-M (P3) — NUL and the C0/C1 bytes were STORED at both doors and rode
+  into the markup of five served pages; one shared rule (`seed.unstoreable`)
+  refuses them at /bundle's field pass and at /seed's row validator, naming
+  line/field and printing the CODE POINT (a refusal that echoed the byte
+  would serve what it refuses). §5.4's tab-form row is untouched — the flag
+  path still routes it to `import_overrides.csv`. **FIX 3** F-L4 (P4) — the
+  two numbers that lied: the header reason line said `FILE-SIZE 413` on a
+  417-line file (number dropped, reason kept — a counted note stales the
+  commit it is written in), and `POST /seed` answered the SHELF's row count
+  as if it were the POST's (`parsed=1 stored=3`), now the rows that POST
+  stored while the CLI keeps §5.9's audited whole-table meaning and says so
+  on the run where they differ. **FIX 4** (this commit, the docs duty) — the
+  README's two `436 passed` claims are true again, these two rows land, and
+  every count in the older rows is read as what it is: a measurement of ITS
+  OWN tree, never the current suite. Full suite on this tree: **494 passed,
+  exit 0** (`466` at the c3 base + 28 legs this wave). File sizes this wave:
+  `app/bundle.py` 449, `app/seed.py` 406 — both past the ceiling, both now
+  carrying a numberless reason line that names the mechanism owning them, the
+  split still the queued clean-code follow-up both dispatches named out of
+  scope; `tests/test_seed_routes.py` 579, inside the 600 test gate. The
+  reason lines sit in the gate's FIRST FIVE LINES (dod_hygiene rule (h1) reads
+  `lines[:5]`, and the c3 note — line 47 of a 452-line file — was true prose
+  but invisible to the instrument: `app/bundle.py` 452 and `app/seed.py` 407
+  now open with the reason and point to the long note below. OUT of
+  this wave, named: P2-3's golden corpus rows in the public tree still await
+  an OWNER ruling, and the c3 verdict's F-L1 doc staleness is the class of
+  finding this wave keeps having to sweep — a count in prose is a claim
+  without an instrument behind it.
