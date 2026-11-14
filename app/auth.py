@@ -257,16 +257,34 @@ def _closed_gate():
     return render_template("stangd.html")
 
 
+def _origin_refused():
+    """§6.6's same-origin rule, the half every CSRF-checked method gets: a
+    MISSING Origin (curl) passes, a foreign one 400s."""
+    origin = request.headers.get("Origin")
+    if origin and urlsplit(origin).netloc.lower() != request.host.lower():
+        return render_template("csrf-fel.html", fel=FOREIGN_ORIGIN_COPY), 400
+    return None
+
+
 def _csrf_gate():
     """§6.6 — runs for every ALLOWED state-change request (the guard's login
     check happens first; unauth POSTs 302 before ever reaching here).
     Missing Origin (curl) passes, foreign Origin 400s; token required on every
-    state change except the TOKENLESS_POSTS routes above."""
+    state change except the TOKENLESS_POSTS routes above.
+    F-1 (SEC-verdict-12497): HEAD used to skip this gate entirely — it no
+    longer does. HEAD gets the ORIGIN rule, the same one POST has always
+    had (the verdict's cross-site browser-HEAD scenario is dead on it: a
+    browser attaches Origin to every cross-origin fetch). The TOKEN rule
+    stays a CSRF_METHODS rule on purpose: HEAD is READ_METHODS to the guard,
+    processes nothing since the POST-only views, and token-checking a HEAD
+    would 400 the anonymous public reads MC 12497 just made public."""
+    if request.method == "HEAD":
+        return _origin_refused()
     if request.method not in CSRF_METHODS:
         return None
-    origin = request.headers.get("Origin")
-    if origin and urlsplit(origin).netloc.lower() != request.host.lower():
-        return render_template("csrf-fel.html", fel=FOREIGN_ORIGIN_COPY), 400
+    refused = _origin_refused()
+    if refused is not None:
+        return refused
     if request.path in TOKENLESS_POSTS:
         return None
     sent = request.form.get("csrf") or request.headers.get("X-CSRF-Token", "")
@@ -333,7 +351,14 @@ def init_auth(app):
         # session is required. The token exemption for this POST (P2-r4: the
         # runbook T8.5 curl login carries no session, no token) is built in
         # T2.5 as the same-origin-only machine rule.
-        if request.method == "GET":
+        # F-1 (SEC-verdict-12497): POST is the ONLY processing method. The
+        # old split rendered on GET and processed "everything else", so a
+        # HEAD executed this state change with no token and no Origin check:
+        # five wrong-password HEADs drained the §6.2 bucket and locked the
+        # owner out of her NEXT real login (the limit precedes verification),
+        # and a HEAD+body could log in. Every other method gets the read the
+        # route advertises; PUT/PATCH/DELETE never reach the view (routing).
+        if request.method != "POST":
             return render_template("logga-in.html", fel=None)
         conn = db.get_db()
         ip = client_ip(request)
@@ -357,7 +382,10 @@ def init_auth(app):
     @app.route("/satt-loesenord", methods=["GET", "POST"])
     def satt_losenord():
         # The guard lets this through ONLY unconfigured+window-open.
-        if request.method == "GET":
+        # F-1 (SEC-verdict-12497): POST-only processing, as in logga_in —
+        # a HEAD+body in the setup window used to SET THE PASSWORD here,
+        # anonymous, no CSRF machinery anywhere in sight.
+        if request.method != "POST":
             return render_template("satt-losenord.html", fel=None)
         conn = db.get_db()
         ip = client_ip(request)

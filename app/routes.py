@@ -250,7 +250,12 @@ def init_routes(app):
         # below validates, csrf token riding the render (the logga-in GET/POST
         # idiom on one rule). Before this commit the template was reachable
         # only as the POST's 401/400 error body: no GET, no nav link, no door.
-        if request.method == "GET":
+        # F-1 (SEC-verdict-12497): POST is the ONLY processing method — the
+        # verdict's scenario (b), a HEAD+body under the owner's cookie with
+        # BOTH CSRF defences bypassed, used to MOVE THE PASSWORD on this
+        # branch-else. Reads render the form; the token rule (§6.6) still
+        # guards the POST.
+        if request.method != "POST":
             return render_template("byter-losenord.html", fel=None,
                                    current="byter-losenord")
         conn = db.get_db()
