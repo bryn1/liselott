@@ -1,4 +1,7 @@
 """Auth core (§6) — setup window, guard allow-list, mount-aware redirects.
+reason: the §6 auth core is ONE concern (state matrix, guard, CSRF, password
+lifecycle) — the MC 12497 sec-wave grew this file past 400; the split is
+scheduled beside the LEDGER row, not smuggled into a security fix. Original:
 The §6.1 three-state matrix is pinned here (P2-c): /healthz answers 200 `ok`
 in EVERY state; /satt-loesenord exists only while the password is unset AND
 within SETUP_WINDOW_S of process start (F-5: no public land-grab — fest40
@@ -67,6 +70,13 @@ PUBLIC_READ_PREFIXES = ("/bok/", "/cover/")
 # the rule: a bare name, not a route or asset spelling, keeps landing,
 # /static and every allow-listed path exactly as they were.
 QUARANTINED_DOTTED_LESS = ("VERSION",)
+
+# F-5 (SEC-verdict-12497): the repo dir is a NAMESPACE, not a file name:
+# the bare /.git already 404s through the dot rule, but the extension-less
+# children (/HEAD, /.git/config) answered the guard's uniform 302 — in the
+# closed state, the gate page. Nothing under .git is ever routeable, so the
+# namespace answers the SAME 404 as its bare name, in every state.
+QUARANTINED_NAMESPACES = (".git",)
 
 # §6.6 + P2-r4 (DA-verdict-c3 Part 3): state-change methods carry the CSRF
 # rule. TOKENLESS_POSTS are checked by ORIGIN ONLY — the machine trio per
@@ -244,9 +254,15 @@ def _file_shaped() -> bool:
     plain Swedish copy, zero app data, no hint of why), so anonymous and
     logged-in 404s are indistinguishable and leak nothing. Extension-less
     unknown paths keep the §6.4 uniform 302 (the T2.6 contract — not
-    churned)."""
+    churned).
+    F-5 (SEC-verdict-12497): a QUARANTINED_NAMESPACES segment anywhere in the
+    path counts too — /.git/HEAD and /.git/config are the same repo dir as
+    /.git, and answer its 404, not the guard's 302."""
     last = request.path.rsplit("/", 1)[-1]
-    return "." in last or last in QUARANTINED_DOTTED_LESS
+    if "." in last or last in QUARANTINED_DOTTED_LESS:
+        return True
+    return any(seg in QUARANTINED_NAMESPACES
+               for seg in request.path.split("/"))
 
 
 def _closed_gate():
