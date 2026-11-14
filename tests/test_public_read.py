@@ -178,6 +178,19 @@ def test_fresh_state_wraps_the_whole_site(fresh):
     root = anon.get("/liselott/")                # the landing leg as pinned
     assert root.status_code == 200
     assert "Välj ditt lösenord" in root.text
+    r = anon.get("/liselott/robots.txt")         # crawlers told away too:
+    assert r.status_code == 200                  # the site is wrapped here
+    assert "Disallow: /" in r.text
+
+
+def test_robots_allows_the_public_configured_site(configured):
+    """robots.txt follows the state truthfully: ALLOW the public site once
+    the password stands; the closed-window 404 posture is test_guard's."""
+    _, _ = configured
+    anon = _app().test_client()
+    r = anon.get("/liselott/robots.txt")
+    assert r.status_code == 200
+    assert "Allow: /" in r.text and "Disallow" not in r.text
 
 
 # ── the owner still reads AND writes end-to-end ─────────────────────────────
