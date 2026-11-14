@@ -3,7 +3,10 @@
 A Swedish-language, login-gated personal book diary for exactly one reader
 (Liselott): she adds the books she reads, grades them 1–5, searches her own
 library, and gets recommendations derived only from her own books and grades —
-with a real cover on every shelf card. It is built to be served at
+a real cover on a shelf card wherever one has been found, a calm fix-me
+placeholder wherever it has not, with the cover waves still running (the
+measured share lives in the Status snapshot and Known limits below, never in
+this line). It is built to be served at
 `https://sibbamala.com/liselott` on the fleet's auto lane. The build contract
 is `PLAN-c3` (the pinned plan); this README states what the tree actually is.
 
@@ -220,20 +223,28 @@ LEADING `YYMMDD` token, 45 rows). Trust the plan's §5 rules, never the header.
   that is the idempotence proof, not a failure); the CLI's counts line keeps
   §5.9's audited meaning, the WHOLE table (724 on a fresh import, 724 again on
   a re-run, and it names which is which on stderr when the two differ).
-- `POST /bundle` — newline-JSON lines ≤ 400 KB, request bodies ≤ 900 000 bytes
-  (`MAX_BUNDLE_CHUNK`, ≈14 % margin under the lane's measured ≈1 MiB edge);
+- `POST /bundle` — request body ≤ 900 000 bytes (`MAX_BUNDLE_CHUNK`, ≈14 %
+  margin under the lane's measured ≈1 MiB edge), answered with a named 400;
   `POST /seed` owns a SEPARATE budget, `MAX_SEED_BODY` = 1 048 576 B (1 MiB),
-  answered with a named 413 (`app/bundle.py`). Two budgets ship, one per door
-  — not one for every transfer. Matches rows by `book_key` (the shared hash in
+  answered with a named 413 (`app/bundle.py`). Two budgets ship, one per door —
+  not one for every transfer. Both doors count the BODY's bytes, not the shape
+  inside them: the `/bundle` door has no per-line limit — a single
+  800 080-byte newline-JSON line POSTs and INSERTs (re-measured in-process
+  2026-11-14; DA-verdict-c2 F-6a got 800 249 B through the same door). The
+  ≤ 400 KB figure is the SHIPPERS' line budget, not a door rule; the two
+  scripts below own it. Matches rows by `book_key` (the shared hash in
   `app/seed.py`), fills ONLY empty ISBN/year/genre holes and absent covers,
   never changes status/dates/notes, never overwrites a manual or URL-chosen
   cover. Re-POST is a no-op. The chunk set is regenerated, never quoted:
   `scripts/export_bundle.py` + `scripts/chunk_bundle.py --max-bytes 900000`
   split the export at line boundaries (byte-concat equals the bundle exactly
-  and the sha256 is printed), and §5.9's runbook re-exports + re-chunks
-  immediately before publishing so every cover won since the last export
-  travels. Dated snapshot 2026-11-14: a 724-line export of 2 765 194 B in
-  4 chunks — 856 873 / 889 325 / 879 626 / 139 370 B, each ≤ 900 000.
+  and the sha256 is printed); both carry `LINE_BUDGET = 400_000` and write
+  NOTHING when a row exceeds it, and `tests/test_bundle.py` pins every line of
+  the exported bundle under it — that is who keeps lines ≤ 400 KB, never the
+  door. §5.9's runbook re-exports + re-chunks immediately before publishing so
+  every cover won since the last export travels. Dated snapshot 2026-11-14: a
+  724-line export of 2 765 194 B in 4 chunks — 856 873 / 889 325 / 879 626 /
+  139 370 B, each ≤ 900 000.
 - `POST /backfill?n=5&after=<id>[&mode=candidates]` — the cover/ISBN retry and
   candidate-pool builder, resumable by `last_id` (cursor advances past
   permanent failures; wrap = fresh pass). Shares one pipeline with
