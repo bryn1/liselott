@@ -21,9 +21,15 @@ import pytest
 from app import create_app
 from tests.test_browse import PASSWORD, seed_shelf
 
-PUBLIC_SLASHES = ("/liselott/bibliotek/", "/liselott/sok/",
-                  "/liselott/rekommendationer/", "/liselott/bok/2/",
+PUBLIC_SLASHES = ("/liselott/bibliotek/", "/liselott/bok/2/",
                   "/liselott/cover/2/")
+
+# MC 12501: the surfaces the narrowing sent back behind the password, plus
+# a private fixture id — the slash spelling meets the SAME uniform 302 as
+# the bare one (guard for /sok and /rekommendationer, the views' refuse for
+# the private id), never the page.
+PRIVATE_SLASHES = ("/liselott/sok/", "/liselott/rekommendationer/",
+                   "/liselott/bok/3/", "/liselott/cover/3/")
 
 
 def _app():
@@ -67,8 +73,30 @@ def test_public_pages_read_with_the_trailing_slash(configured, path):
 def test_slash_reads_set_no_session_cookie(configured):
     _, _ = configured
     anon = _app().test_client()
-    for path in PUBLIC_SLASHES:
+    for path in PUBLIC_SLASHES + PRIVATE_SLASHES:
         assert "Set-Cookie" not in anon.get(path).headers, path
+
+
+@pytest.mark.parametrize("path", PRIVATE_SLASHES)
+def test_private_slash_spelling_is_the_uniform_wall(configured, path):
+    """MC 12501: /sok, the rec surface and a PRIVATE id under /bok or
+    /cover answer the guard's 302 in the slash spelling too — the same
+    refuse the bare spelling gives, no page, no bytes."""
+    _, _ = configured
+    anon = _app().test_client()
+    r = anon.get(path)
+    assert r.status_code == 302, path
+    assert r.headers["Location"] == "/liselott/logga-in", path
+
+
+def test_owner_slash_spelling_still_answers_every_page(configured):
+    """The slash rules were registered for the public reads (F-3) and they
+    keep serving the OWNER's spelling of the now-private pages too — she
+    reads everything in every spelling, unchanged."""
+    _, client = configured
+    for path in ("/liselott/sok/", "/liselott/rekommendationer/",
+                 "/liselott/bok/3/"):
+        assert client.get(path).status_code == 200, path
 
 
 def test_write_on_the_slash_spelling_keeps_the_guard_refuse(configured):

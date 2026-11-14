@@ -39,10 +39,12 @@ SWEEP = ("/", "/bibliotek", "/bok/1", "/bok/2", "/bok/9999", "/sok?q=a",
          # ride the mount like every other emitted URL.
          "/byter-losenord") + NOT_YET_LANDED
 # everything else must 302 an anonymous visitor; the allow-listed four may
-# not. MC 12497 moved the READ set out of this list — an anonymous visitor
-# now READS those pages 200 (their prefixed-URL sweep got its own leg below
-# precisely because they are what a stranger's browser renders).
-ANON_PROTECTED = ("/logga-ut", "/byter-losenord", "/redigera/1")
+# not. MC 12497 moved the whole READ set out of this list; MC 12501 moved
+# most of it BACK in — only the landing, the shelf and public-set ids stay
+# outside (their prefixed-URL sweep got its own leg below precisely because
+# they are what a stranger's browser renders).
+ANON_PROTECTED = ("/logga-ut", "/byter-losenord", "/redigera/1", "/sok",
+                  "/rekommendationer")
 _ATTR_RE = re.compile(r'\b(src|href|action)\s*=\s*"([^"]*)"', re.I)
 _OK_NON_URL = ("#", "mailto:")
 
@@ -143,16 +145,17 @@ def test_redirect_locations_are_prefix_absolute(authed):
 
 
 def test_anonymous_public_pages_emit_prefixed_urls(authed):
-    """MC 12497 moved these pages in front of strangers — the F-3 claim now
-    belongs to them too: every URL the anonymous shelf, bok page, search
-    and rec page emits must ride the mount (a bare `src="/cover/1"` here
-    paints a broken cover for the whole public)."""
+    """MC 12501 narrowed it, MC 12497 put it in front of strangers: the
+    anonymous reader of the public set still rides the mount on every URL
+    (a bare `src="/cover/1"` here paints a broken cover for the whole
+    public). Only the public-set pages answer now — /sok and the rec
+    surface belong to the owner sweep above."""
     app, _, _ = authed
     anon = app.test_client()
     checked = 0
-    for path in ("/bibliotek", "/bok/1", "/sok?q=a", "/rekommendationer"):
+    for path in ("/bibliotek", "/bok/1", "/bok/2", "/cover/2"):
         r = anon.get("/liselott" + path)
-        assert r.status_code == 200, path      # anonymous: reads answer
+        assert r.status_code == 200, path      # anonymous: public ids answer
         checked += assert_prefixed(anon, "/liselott" + path)
     assert checked >= 10, checked              # anti-vacuity: cards are there
 
