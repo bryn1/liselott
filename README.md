@@ -182,15 +182,19 @@ LEADING `YYMMDD` token, 45 rows). Trust the plan's §5 rules, never the header.
   §5.9's audited meaning, the WHOLE table (724 on a fresh import, 724 again on
   a re-run, and it names which is which on stderr when the two differ).
 - `POST /bundle` — newline-JSON lines ≤ 400 KB, request bodies ≤ 900 000 bytes
-  (the one byte budget for every transfer into the app, ≈14 % margin under the
-  lane's measured ≈1 MiB edge). Matches rows by `book_key` (the shared hash in
+  (`MAX_BUNDLE_CHUNK`, ≈14 % margin under the lane's measured ≈1 MiB edge);
+  `POST /seed` owns a SEPARATE budget, `MAX_SEED_BODY` = 1 048 576 B (1 MiB),
+  answered with a named 413 (`app/bundle.py`). Two budgets ship, one per door
+  — not one for every transfer. Matches rows by `book_key` (the shared hash in
   `app/seed.py`), fills ONLY empty ISBN/year/genre holes and absent covers,
   never changes status/dates/notes, never overwrites a manual or URL-chosen
-  cover. Re-POST is a no-op. `scripts/export_bundle.py` +
-  `scripts/chunk_bundle.py --max-bytes 900000` make the chunks; the chunks on
-  disk today are the T3.6 export (724 lines, 45 carrying a cover, 2 chunks,
-  893 310 B and 211 050 B) — re-export right before publishing so the bundle
-  carries every cover won since.
+  cover. Re-POST is a no-op. The chunk set is regenerated, never quoted:
+  `scripts/export_bundle.py` + `scripts/chunk_bundle.py --max-bytes 900000`
+  split the export at line boundaries (byte-concat equals the bundle exactly
+  and the sha256 is printed), and §5.9's runbook re-exports + re-chunks
+  immediately before publishing so every cover won since the last export
+  travels. Dated snapshot 2026-11-14: a 724-line export of 2 765 194 B in
+  4 chunks — 856 873 / 889 325 / 879 626 / 139 370 B, each ≤ 900 000.
 - `POST /backfill?n=5&after=<id>[&mode=candidates]` — the cover/ISBN retry and
   candidate-pool builder, resumable by `last_id` (cursor advances past
   permanent failures; wrap = fresh pass). Shares one pipeline with
