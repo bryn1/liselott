@@ -1,12 +1,15 @@
 """T2.3 — guard sweep over the §6.4 allow-list in ALL THREE §6.1 states
-(P2-7 + P2-c), RE-CUT by MC 12497 (owner ruling 2026-11-14): on a
-CONFIGURED site the READ set (shelf, bok page, search, recs, covers)
-answers an anonymous GET with the real page — never the guard's redirect
-and never the gate page — while every OWNER surface (work pages and the
-state-change doors) still 302s to /logga-in. The unconfigured+open state
-keeps the §6.1 sweep whole: the setup-state exception wraps EVERY data
-route in the choose-password redirect — public-read is a property of the
-configured site only. The closed state keeps the gate page everywhere
+(P2-7 + P2-c), re-cut by MC 12497 (2026-11-14) and NARROWED the same day by
+MC 12501 (owner ruling verbatim: "Rated books and their ratings as well as
+whishlist shall be public. The rest behind password"): on a CONFIGURED site
+the PUBLIC SET carries the anonymous read — the shelf (filtered at the data
+layer) and the public-set ids under /bok and /cover — while search, the rec
+surface and every OWNER surface (work pages and the state-change doors)
+302 to /logga-in, and a private or nonexistent id answers that same refuse
+(the per-id assertions are tests/test_public_read). The unconfigured+open
+state keeps the §6.1 sweep whole: the setup-state exception wraps EVERY
+data route in the choose-password redirect — public-scope is a property of
+the configured site only. The closed state keeps the gate page everywhere
 EXCEPT /healthz, which answers 200 `ok` in every state (three separate
 healthz assertions below) and /static/, which answers as an asset in
 every state (M8-hotfix-3, MC 12451: the closed gate page served under a
@@ -23,12 +26,17 @@ from app import create_app
 
 PASSWORD = "_test_losenord_"
 
-# MC 12497: the READ set — answered anonymously on a configured site. On
-# this EMPTY sweep DB some paths legitimately 404 (no row), which is still
-# the real route answering; what they may never answer is a redirect or
-# the gate page. The with-data assertions live in tests/test_public_read.
-PUBLIC_READS = ("/bibliotek", "/bok/1", "/sok?q=x", "/rekommendationer",
-                "/cover/1")
+# MC 12501: the READ set the GUARD answers on its own — the shelf (its
+# public-set FILTER is the views' data-layer job, books.PUBLIC_SET_SQL). On
+# this EMPTY sweep DB the shelf legitimately renders its empty state, which
+# is still the real page; what it may never answer is a redirect or the
+# gate page. The with-data assertions live in tests/test_public_read.
+PUBLIC_READS = ("/bibliotek",)
+
+# MC 12501: reads the guard no longer opens. On this EMPTY sweep DB every
+# one of them answers the uniform 302 to /logga-in — the SAME refuse a
+# private /bok/<id> gives, which is the enumeration-safety shape itself.
+PRIVATE_READS = ("/sok?q=x", "/rekommendationer", "/bok/1", "/cover/1")
 
 # The owner surfaces: work pages and state-change doors, every one of them
 # behind the guard on a configured site (writing is private). Paths without
@@ -42,7 +50,7 @@ OWNER_ONLY = (
 
 # Both lists wrap behind /satt-loesenord while no password is set — the
 # setup-state exception IS this sweep in the fresh states.
-ALL_DATA = PUBLIC_READS + OWNER_ONLY
+ALL_DATA = PUBLIC_READS + PRIVATE_READS + OWNER_ONLY
 
 # M8-hotfix-2 (MC 12451): mirror-DROPPED root names the lane staging gate
 # (vm106-staging-gate.sh §6) probes — a quarantined name passes only on
@@ -119,12 +127,15 @@ def configured_client(tmp_path, monkeypatch):
 
 
 def test_configured_state_sweep(tmp_path, monkeypatch):
-    """§6.4 as re-cut by MC 12497, password set: OWNER surfaces 302 to the
-    login page and a stub is NEVER reached; the PUBLIC READS answer the
-    real route to an anonymous GET — 200 with data or the route's own 404
-    when no row stands behind it, never a redirect, never the gate page.
-    The method rule pins the refuse an anonymous WRITE aimed at a read
-    path gets: the guard's 302, exactly as for any other write."""
+    """§6.4 as narrowed by MC 12501, password set: OWNER surfaces 302 to
+    the login page and a stub is NEVER reached; the shelf answers the real
+    (filtered) route to an anonymous GET — never a redirect, never the gate
+    page; the read paths the ruling sent BEHIND the password (/sok, recs —
+    and on this empty DB every /bok, /cover id, since no public row stands)
+    take the SAME uniform 302 the owner surfaces get, which is exactly the
+    enumeration-safety answer shape. The method rule pins the refuse an
+    anonymous WRITE aimed at a read path gets: the guard's 302, exactly as
+    for any other write."""
     _, client = configured_client(tmp_path, monkeypatch)
     for entry in OWNER_ONLY:
         r = client.get(entry)
@@ -136,6 +147,10 @@ def test_configured_state_sweep(tmp_path, monkeypatch):
         assert r.status_code in (200, 404), entry   # the route itself answers
         assert "Location" not in r.headers, entry
         assert "Inställningsfönstret" not in r.text, entry
+    for entry in PRIVATE_READS:
+        r = client.get(entry)
+        assert r.status_code == 302, entry            # the uniform refuse
+        assert r.headers["Location"] == "/liselott/logga-in", entry
     for path in ("/bibliotek", "/bok/1", "/sok", "/rekommendationer"):
         r = client.post(path, data="x")             # writes stay refused
         assert r.status_code == 302, path

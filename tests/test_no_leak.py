@@ -1,20 +1,25 @@
-"""T2.6 — the leak matrix, re-cut for the public-read contract (MC 12497,
-owner ruling 2026-11-14: "The website sibbamala.com/liselott should be
-public. All rate books should be public. Rating and whishing is blocked
-behind liselotts password"), run over a SEEDED database.
+"""T2.6 — the leak matrix, re-cut for the public-SCOPE contract (MC 12501,
+owner ruling 2026-11-14, verbatim: "Rated books and their ratings as well
+as whishlist shall be public. The rest behind password" — narrowing MC
+12497's same-day broader read claim), run over a SEEDED database.
 
-The claim moved, the instrument did not: the READ set MAY now carry seed
-bytes — a public shelf that rendered nothing would be the bug — while every
-OWNER surface, every quarantined name and every refused anonymous write
-still carries ZERO seed bytes. The closed-window state keeps the whole old
-T2.6 claim over the same route list (the setup-state exception: while no
-password is set, nothing is public). /robots.txt is served to anonymous
-visitors in both open states (the robots legs state WHICH answer belongs
-to which state); /sitemap.xml exists not. Corpus leg (path F, MC 12451 c5):
-the seed needs the personal export, so the `corpus` fixture skips these
-with a loud reason where it is unresolvable and seeds the pinned one where
-it exists.
+The claim narrowed, the instrument did not: the public READ set (the shelf
+filtered to the public set, public-set /bok and /cover) MAY carry seed
+bytes — a public shelf that rendered nothing would be the bug — while
+EVERY PRIVATE row must carry NONE of them: all 700 unrated corpus titles
+and ids are grepped out of the anonymous shelf BY NAME (a corpus-scale
+absence proof the synthetic shelf cannot fake), the search and rec
+surfaces are back on the refused-and-silent list, and every quarantined
+name and refused anonymous write still carries ZERO seed bytes. The
+closed-window state keeps the whole old T2.6 claim over the same route
+list (the setup-state exception: while no password is set, nothing is
+public). /robots.txt is served to anonymous visitors in both open states
+(the robots legs state WHICH answer belongs to which state);
+/sitemap.xml exists not. Corpus leg (path F, MC 12451 c5): the seed needs
+the personal export, so the `corpus` fixture skips these with a loud
+reason where it is unresolvable and seeds the pinned one where it exists.
 """
+import sqlite3
 import subprocess
 import sys
 from pathlib import Path
@@ -29,15 +34,19 @@ PASSWORD = "_test_losenord_"
 # Titles VERIFIED present in the audited corpus (T1.x golden rows).
 SEEDED_TITLES = ("Stöld", "Ellens val", "Falska toner", "Näktergalen")
 
-# The MC 12497 read set. "/" is deliberately NOT here for the leak claim:
-# its landing is still fixed copy with zero app data (M8 staging gate).
-PUBLIC_ROUTES = ("/bibliotek", "/sok?q=Stöld", "/bok/1", "/cover/1",
-                 "/rekommendationer")
+# The MC 12501 read set, WITHOUT the id-dependent legs (public ids resolve
+# from the seeded DB at run time — see _public_ids): the shelf is the one
+# route whose public answer never depends on picking an id here. "/" is
+# deliberately NOT here for the leak claim: its landing is still fixed copy
+# with zero app data (M8 staging gate).
+PUBLIC_ROUTES = ("/bibliotek",)
 
-# Owner surfaces: behind the session on a configured site (writing is
-# private) — these must stay byte-silent to an anonymous visitor.
+# Owner + read-private surfaces: behind the session on a configured site
+# (MC 12501: search and the rec surface joined these again) — these must
+# stay byte-silent to an anonymous visitor.
 OWNER_ROUTES = ("/onska", "/lagg-till", "/redigera/1", "/rapa/omslag",
-                "/byter-losenord", "/backup", "/logga-ut", "/x")
+                "/byter-losenord", "/backup", "/logga-ut", "/x",
+                "/sok?q=Stöld", "/rekommendationer")
 
 # M8-hotfix-2 (MC 12451): mirror-DROPPED root names — the guard's own 404,
 # unchanged in every state, asserted over the seeded DB so a leak of a
@@ -86,23 +95,35 @@ def assert_no_seed_bytes(response):
         assert title not in response.text, (title, response.request.path)
 
 
+def _rows(seeded, sql):
+    conn = sqlite3.connect(seeded / "liselott.db")
+    rows = conn.execute(sql).fetchall()
+    conn.close()
+    return rows
+
+
 def test_public_reads_answer_and_owner_surfaces_stay_silent(seeded):
-    """Configured state (MC 12497): the read set answers the anonymous
-    visitor with the real route (200 — and the shelf leg proves the
-    instrument is not vacuous by demanding a seeded title ON the page);
-    the landing keeps its fixed-copy contract: 200, >256 B, zero seed
-    bytes; owner surfaces 302, quarantined names 404, all byte-silent."""
+    """Configured state (MC 12501): the public route answers the anonymous
+    visitor with the real (FILTERED) page — 200 — and public-set /bok and
+    /cover ids answer 200 with their data; the non-vacuity leg demands a
+    RATED seeded title on the shelf (not just any seed byte); the landing
+    keeps its fixed-copy contract: 200, >256 B, zero seed bytes; owner and
+    read-private surfaces 302, quarantined names 404, all byte-silent."""
     _, client = configured_client(seeded)
     r = client.get("/")
     assert r.status_code == 200                # the landing leg, not a 302
     assert len(r.data) > 256                   # the staging gate's floor
     assert_no_seed_bytes(r)                    # the landing is still ZERO data
-    for entry in PUBLIC_ROUTES:
+    rated_id, rated_title, wishlist_id = _public_ids(seeded)
+    for entry in PUBLIC_ROUTES + (f"/bok/{rated_id}", f"/bok/{wishlist_id}",
+                                  f"/cover/{rated_id}"):
         r = client.get(entry)
         assert r.status_code == 200, entry     # the real page, not a refuse
         assert "Location" not in r.headers, entry
-    assert "Stöld" in client.get("/bibliotek").text   # non-vacuity: data reads
-    assert "Stöld" in client.get("/sok?q=Stöld").text
+    assert rated_title in client.get("/bibliotek").text   # non-vacuity: a
+    # rated row reads public, and every golden-row title here is UNRATED —
+    # the same instrument that let MC 12497 demand "Stöld" now demands its
+    # ABSENCE (see test_private_corpus_rows_are_absent_from_the_anon_shelf).
     for entry in OWNER_ROUTES:
         r = client.get(entry)
         assert r.status_code in (302, 404), entry
@@ -111,6 +132,45 @@ def test_public_reads_answer_and_owner_surfaces_stay_silent(seeded):
         r = client.get(entry)
         assert r.status_code == 404, entry
         assert_no_seed_bytes(r)
+
+
+def _public_ids(seeded):
+    """(rated id, rated title, wishlist id) straight off the seeded DB —
+    the public legs resolve their ids from the data, never from a guess."""
+    rated = _rows(seeded, "SELECT id, title FROM book WHERE rating IS NOT"
+                          " NULL ORDER BY id LIMIT 1")[0]
+    wish = _rows(seeded, "SELECT id FROM book WHERE status <> 'read'"
+                        " ORDER BY id LIMIT 1")[0][0]
+    return rated[0], rated[1], wish
+
+
+def test_private_corpus_rows_are_absent_from_the_anon_shelf(seeded):
+    """THE absence proof at corpus scale — the deliverable of the
+    narrowing: EVERY unrated corpus book (700 rows) is gone from the
+    anonymous shelf by NAME — its title a raw substring check (VERIFIED
+    this suite's development: zero private title is a substring of any
+    public title, so no collision can excuse a hit) — and its id is linked
+    NOWHERE. The private /bok and /cover ids answer the uniform login
+    refuse, byte-identical in shape to a nonexistent id's answer."""
+    _, client = configured_client(seeded)
+    body = client.get("/bibliotek").text
+    private = _rows(seeded, "SELECT id, title FROM book WHERE rating IS"
+                            " NULL AND status = 'read' ORDER BY id")
+    assert len(private) >= 100, len(private)   # anti-vacuity: the sweep is real
+    for pid, title in private:
+        assert title not in body, (pid, title)
+        assert f'href="/liselott/bok/{pid}"' not in body, pid
+    gone = max(pid for pid, _ in private) + 10 ** 6
+    for pid, _title in private[:25]:           # a sample of the equal-answer
+        r = client.get(f"/bok/{pid}")          # legs across the id space
+        assert r.status_code == 302, pid
+        assert_no_seed_bytes(r)
+    r_gone = client.get(f"/bok/{gone}")
+    assert r_gone.status_code == 302
+    assert r_gone.headers["Location"] == \
+        client.get(f"/bok/{private[0][0]}").headers["Location"]
+    assert client.get(f"/cover/{private[0][0]}").status_code == 302
+    assert client.get(f"/cover/{gone}").status_code == 302
 
 
 def test_anonymous_writes_are_refused_and_silent(seeded):
@@ -130,8 +190,8 @@ def test_sitemap_absent_robots_present(seeded):
     Unauthenticated /sitemap.xml is the guard's own 404 too — the dot makes
     it file-shaped (M8-hotfix-2); an extension-less unknown stays the T2.6
     302. Neither shape serves bytes. /robots.txt answers 200 and ALLOWS the
-    configured site (MC 12497 — the site is public to read; the fresh-state
-    Disallow leg lives in tests/test_public_read)."""
+    configured site (MC 12501 — the site publishes its public set; the
+    fresh-state Disallow leg lives in tests/test_public_read)."""
     _, client = configured_client(seeded)
     r = client.get("/liselott/sitemap.xml")
     assert r.status_code == 404  # authed: the route exists not

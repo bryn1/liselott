@@ -55,10 +55,10 @@ def test_owner_login_redirect_carries_no_store(configured):
 def test_anonymous_public_html_is_not_pinned(configured):
     assert configured.get("/liselott/bibliotek").status_code == 200
     anon = create_app().test_client()
-    for path in ("/liselott/", "/liselott/bibliotek", "/liselott/sok"):
-        r = anon.get(path)
-        assert r.status_code == 200, path
-        assert "Cache-Control" not in r.headers, path
+    for path in ("/liselott/", "/liselott/bibliotek"):   # MC 12501: the
+        r = anon.get(path)                              # public surface is
+        assert r.status_code == 200, path               # this, and only
+        assert "Cache-Control" not in r.headers, path   # this
 
 
 def test_static_pin_holds_in_both_postures(configured):

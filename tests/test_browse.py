@@ -183,18 +183,23 @@ def test_unknown_id_is_404_and_echoes_nothing(shelf):
         assert title not in r.text          # no diary bytes on an error page
 
 
-def test_anonymous_reader_reads_the_shelf(shelf):
-    """MC 12497 (owner ruling 2026-11-14): on a CONFIGURED site the shelf
-    and the bok page READ public — a fresh client (no session) gets the
-    real page, titles and authors on the body. What the guard still keeps
-    off this page is the owner's UI: no grading widget, no edit door (the
-    legs live in tests/test_public_read)."""
+def test_anonymous_reader_reads_the_public_shelf(shelf):
+    """MC 12501 (owner ruling 2026-11-14, verbatim): "Rated books and their
+    ratings as well as whishlist shall be public. The rest behind password"
+    — on a CONFIGURED site the public set reads public: the rated fixtures
+    here, titles and authors on the body, while the shelf's unrated row is
+    ABSENT by name and its page meets the login refuse (the full absence
+    and equal-answer matrix lives in tests/test_public_read). What the
+    guard keeps off this page is the owner's UI: no grading widget, no
+    edit door (those legs live in tests/test_public_read too)."""
     app = create_app()
     app.testing = True
     anon = app.test_client()
     r = anon.get("/liselott/bibliotek")
     assert r.status_code == 200
     assert "Stöld" in r.text and "God jul Agnes" in r.text
+    assert "Vår i Fågelkärr" not in r.text       # the unrated row: nowhere
     r = anon.get("/liselott/bok/1")
     assert r.status_code == 200
     assert "God jul Agnes" in r.text
+    assert anon.get("/liselott/bok/3").status_code == 302   # private -> wall

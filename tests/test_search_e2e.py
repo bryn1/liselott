@@ -165,10 +165,12 @@ def test_results_are_cards_with_prefixed_urls(client):
     assert 'name="q"' in r.text
 
 
-def test_search_public_read_and_wrapped_until_setup(tmp_path, monkeypatch):
-    """MC 12497: on a configured site an anonymous /sok answers the corpus —
-    the §6.4 refuse survives ONLY as the setup-state exception: while no
-    password is set the choose-password gate still wraps search."""
+def test_search_is_behind_the_password_in_every_state(tmp_path, monkeypatch):
+    """MC 12501 (owner ruling 2026-11-14, superseding MC 12497 the same
+    day): search is NOT part of the public set — "The rest behind
+    password". Configured: the guard's uniform 302 to the login page, the
+    query never answered with data; fresh: the setup gate; owner: the real
+    search, unchanged."""
     monkeypatch.setenv("LISELOTT_DATA_DIR", str(tmp_path))
     monkeypatch.delenv("LISELOTT_PREFIX", raising=False)
     monkeypatch.delenv("LISELOTT_ENV", raising=False)
@@ -183,5 +185,9 @@ def test_search_public_read_and_wrapped_until_setup(tmp_path, monkeypatch):
     assert owner.post("/liselott/satt-loesenord", data={
         "loesenord": PASSWORD, "bekrafta": PASSWORD}).status_code == 302
     r = app.test_client().get("/liselott/sok", query_string={"q": "Stöld"})
-    assert r.status_code == 200                       # configured: public
+    assert r.status_code == 302                       # configured: the wall
+    assert r.headers["Location"] == "/liselott/logga-in"
+    assert "Stöld" not in r.text                      # refused, not answered
+    r = owner.get("/liselott/sok", query_string={"q": "Stöld"})
+    assert r.status_code == 200                       # owner: the real search
     assert 'href="/liselott/bok/2"' in r.text         # a real hit, not an echo
