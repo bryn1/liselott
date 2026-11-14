@@ -1,15 +1,21 @@
-"""F-1 (SEC-verdict-12497) — the exact-bytes leg: HEAD+body on the REAL stack.
+"""F-1 + F-4 (SEC-verdict-12497) — the exact-bytes legs on the REAL stack.
 
-The gate ran its F-1 repro with a raw-socket HTTP client (exact bytes, no
+The gate ran its repros with a raw-socket HTTP client (exact bytes, no
 client-side normalization) on uvicorn + WSGIMiddleware, and a test_client
 is its own EnvironBuilder — it cannot stand in for what a relay or a non-
-browser tooler actually writes on the wire. This is the suite's copy of
-that instrument: the running_server harness from tests/test_change_pw_ui
+browser tooler actually writes on the wire, and it cannot reach what the
+FORWARDING layer does before the app wakes up. This is the suite's copy
+of that instrument: the running_server harness from tests/test_change_pw_ui
 (own scratch LISELOTT_DATA_DIR, own free port, /healthz readiness poll),
-socket writes for the HEAD+body requests, sqlite reads for the §6.2
-bucket. On the pre-fix tree these legs are RED exactly as the verdict
-measured them: five wrong HEADs = five recorded attempts = her real login
-429; a correct HEAD+body = 302 + session cookie.
+socket writes for the off-spec requests, sqlite reads for the §6.2 bucket.
+
+On the pre-fix tree these legs are RED exactly as the verdict measured
+them: five wrong HEADs = five recorded attempts = her real login 429; a
+correct HEAD+body = 302 + session cookie; and one spoofed
+X-Forwarded-For hopped the bucket PAST the exhausted one into a 302 —
+because uvicorn's DEFAULT proxy_headers rewrote REMOTE_ADDR below the
+app (F-4's full fix is client_ip AND server.py's proxy_headers=False;
+only this stack can pin the second half).
 """
 import socket
 import sqlite3
@@ -70,3 +76,30 @@ def test_raw_head_with_body_never_logs_in_or_counts(tmp_path):
         status, set_cookie = raw_head(port, "/liselott/logga-in",
                                       form(loesenord=TEMP))
         assert status == 200 and not set_cookie
+
+
+def test_raw_xff_spoof_never_hops_the_bucket(tmp_path):
+    """F-4 at the only layer that can prove it — the real uvicorn entry.
+    test_client never passes through the forwarding middleware, so the
+    app-side client_ip change alone stayed GREEN while the live stack
+    still handed the spoofer a fresh bucket (uvicorn's proxy_headers
+    default rewrote REMOTE_ADDR from the request's own XFF). Exhaust the
+    peer's bucket at raw level, then present the correct password behind
+    a spoofed hop: it must still meet the §6.2 429, never a 302."""
+    with running_server(tmp_path) as (_, base):
+        owner = jar_opener()
+        status, _, _ = open_no_redirect(
+            owner, base, "POST", "/liselott/satt-loesenord",
+            data=form(loesenord=TEMP, bekrafta=TEMP))
+        assert status == 302
+        spoofer = jar_opener()
+        for _ in range(5):
+            status, _, _ = open_no_redirect(
+                spoofer, base, "POST", "/liselott/logga-in",
+                data=form(loesenord="_fel_losenord_"))
+            assert status == 401
+        status, _, _ = open_no_redirect(
+            spoofer, base, "POST", "/liselott/logga-in",
+            data=form(loesenord=TEMP),
+            headers={"X-Forwarded-For": "203.0.113.201"})
+        assert status == 429

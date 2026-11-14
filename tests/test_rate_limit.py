@@ -1,8 +1,12 @@
-"""T2.4 — login rate limit (5 fails / 15 min -> 429, §6.2, P2-1): the bucket
-key is CF-Connecting-IP when present, else the LAST X-Forwarded-For hop (the
-renderer appends the real peer — the FIRST hop is client-supplied garbage),
-else REMOTE_ADDR. Rows older than 1 h are pruned on every check. /satt-loesenord
-POST shares the same bucket (§6.1)."""
+"""T2.4 — login rate limit (5 fails / 15 min -> 429, §6.2, P2-1), the bucket
+key RE-TRUSTED by F-4 (SEC-verdict-12497): CF-Connecting-IP when present —
+the Cloudflare edge overwrites client-supplied spellings on a proxied zone,
+so on the internet path that header IS the edge's own value — else the
+SOCKET PEER (REMOTE_ADDR). X-Forwarded-For is NOT consulted at all: at this
+origin anyone who can reach the port can write that header, and one header
+per request made the 5/15-min rule decorative (the verdict measured a
+spoofed-XFF login past an exhausted bucket). Rows older than 1 h are pruned
+on every check. /satt-loesenord POST shares the same bucket (§6.1)."""
 import sqlite3
 
 from datetime import datetime, timedelta, timezone
@@ -78,16 +82,31 @@ def test_cf_connecting_ip_is_the_bucket(env):
     assert r.status_code == 429
 
 
-def test_last_xff_hop_is_bucket_without_cf(env):
-    """No CF-Connecting-IP (not behind Cloudflare): the LAST XFF hop — the one
-    the trusted nginx appends — is the bucket key."""
+def test_xff_rotation_never_opens_a_new_bucket(env):
+    """F-4 (SEC-verdict-12497), the old leg RE-PINNED: X-Forwarded-For is
+    client-supplied at this origin, so it never keys the bucket — rotating
+    its last hop per request changes nothing (the pre-fix code answered
+    [401]*6 here: every rotation a fresh bucket, the rule decorative).
+    Without CF-Connecting-IP the bucket is the socket peer, full stop."""
     _, client, _ = env
     codes = [client.post("/liselott/logga-in", data=WRONG, headers={
-        "X-Forwarded-For": f"203.0.113.{i}, 198.51.100.7",
+        "X-Forwarded-For": f"203.0.113.{i}",
     }).status_code for i in range(5)]
     assert codes == [401] * 5
     r = client.post("/liselott/logga-in", data=WRONG, headers={
-        "X-Forwarded-For": "203.0.113.99, 198.51.100.7"})
+        "X-Forwarded-For": "203.0.113.201, 198.51.100.7"})
+    assert r.status_code == 429
+
+
+def test_xff_spoof_never_reaches_the_password(env):
+    """The verdict's exact scenario (at the origin, one header per request):
+    bucket exhausted, then the CORRECT password behind a spoofed XFF hop.
+    Pre-fix it logged in (302); now the request still sits in the peer's
+    exhausted bucket and never reaches password verification."""
+    _, client, _ = env
+    fail_times(client, 5)
+    r = client.post("/liselott/logga-in", data={"loesenord": PASSWORD},
+                    headers={"X-Forwarded-For": "203.0.113.201"})
     assert r.status_code == 429
 
 
