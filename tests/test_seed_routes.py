@@ -89,7 +89,13 @@ def rows(tmp):
 def test_seed_answers_the_counts_line_and_is_idempotent(authed):
     """T8.5's literal shape — parsed/stored/duplicates, correct counts for
     the body POSTed (here a synthetic 4-row corpus: 3 read + 1 wish), and a
-    re-POST answers again without churn (idempotent, §6.6)."""
+    re-POST answers again without churn (idempotent, §6.6).
+
+    F-L4b (MC 12451 c4) moved what `stored=` MEANS: it is the rows THIS POST
+    stored, not the shelf's row count. The first POST onto an empty state is
+    the run where the two readings coincide (4 = 4 = T8.5's 725/724), so this
+    leg's literal is unchanged; the re-POST is where they part, and it now
+    answers stored=0 with the shelf still holding all four."""
     tmp, client = authed
     r = client.post("/liselott/seed", data=RAW_SEED.encode("utf-8"),
                     content_type="application/octet-stream")
@@ -100,10 +106,32 @@ def test_seed_answers_the_counts_line_and_is_idempotent(authed):
     again = client.post("/liselott/seed", data=RAW_SEED.encode("utf-8"),
                         content_type="application/octet-stream")
     assert again.status_code == 200                       # idempotent (§6.6)
+    assert re.fullmatch(r"parsed=4 stored=0 duplicates=0\n?",
+                        again.get_data(as_text=True)), again.get_data(as_text=True)
     conn = sqlite3.connect(tmp / "liselott.db")
     stored = conn.execute("SELECT COUNT(*) FROM book").fetchone()[0]
     conn.close()
     assert stored == 4                                    # 3 read + 1 wish
+
+
+def test_seed_counts_line_reports_the_post_not_the_shelf(authed):
+    """F-L4b's measured shape (verifier c3: a one-row body onto a shelf of
+    seven answered "parsed=1 stored=8"). The line answers what the POST did;
+    the shelf's own size stays visible in the DB, not smuggled into the
+    delta."""
+    tmp, client = authed
+    client.post("/liselott/seed", data=(
+        "## Lästa böcker 2023\n- 230101 Först av Aino A\n"
+        "- 230102 Annan av Bigga B\n").encode("utf-8"),
+        content_type="application/octet-stream")
+    r = client.post("/liselott/seed", data=(
+        "## Lästa böcker 2024\n- 240101 Ny av Cilla C\n").encode("utf-8"),
+        content_type="application/octet-stream")
+    assert r.status_code == 200
+    assert r.get_data(as_text=True) == "parsed=1 stored=1 duplicates=0"
+    conn = sqlite3.connect(tmp / "liselott.db")
+    assert conn.execute("SELECT COUNT(*) FROM book").fetchone()[0] == 3
+    conn.close()
 
 
 # ── POST /bundle — the upsert matrix ─────────────────────────────────────────
