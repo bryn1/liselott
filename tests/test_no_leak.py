@@ -1,6 +1,7 @@
 """T2.6 — the leak matrix: the no-data-reachable-unauthenticated guarantee,
-run over a SEEDED database (VM350 corpus leg, §13: the raw file must be
-present — missing = this test FAILS loudly, never skips). Unauthenticated
+run over a SEEDED database. Corpus leg (path F, MC 12451 c5): the seed needs
+the personal export, so the `corpus` fixture skips these with a loud reason
+where it is unresolvable and seeds the pinned one where it exists. Unauthenticated
 bodies carry zero seed bytes in the configured state AND in the closed-window
 state over the same route list; /robots.txt is the only content served to
 anonymous visitors; /sitemap.xml exists not."""
@@ -28,18 +29,18 @@ ROUTES = ("/", "/bibliotek", "/sok?q=Stöld", "/bok/1", "/cover/1",
           "/data-import/import_overrides.csv", "/server.py")
 
 
-def seed_dir(tmp_path):
+def seed_dir(tmp_path, raw):
     """Seal the corpus into the tmp state dir through the REAL CLI (T1.6)."""
     r = subprocess.run(
         [sys.executable, str(ROOT / "data-import/import_seed.py"),
-         "--db", str(tmp_path / "liselott.db")],
+         "--db", str(tmp_path / "liselott.db"), "--raw", str(raw)],
         capture_output=True, text=True, cwd=str(ROOT))
     assert r.returncode == 0, f"seed CLI failed: {r.stdout}{r.stderr}"
 
 
 @pytest.fixture()
-def seeded(tmp_path, monkeypatch):
-    seed_dir(tmp_path)
+def seeded(corpus, tmp_path, monkeypatch):
+    seed_dir(tmp_path, corpus)
     monkeypatch.setenv("LISELOTT_DATA_DIR", str(tmp_path))
     monkeypatch.delenv("LISELOTT_PREFIX", raising=False)
     monkeypatch.delenv("LISELOTT_ENV", raising=False)

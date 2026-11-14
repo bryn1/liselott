@@ -1,7 +1,9 @@
 """T4.3 — the search page over the SEEDED corpus: all five §7 keys end to end.
 
-VM350 corpus leg (§13: the raw file must be present — missing means this test
-FAILS loudly, never skips; nothing here reads the build DB). The corpus is
+Corpus leg (path F, MC 12451 c5): seeding needs the personal export, so the
+`corpus` fixture skips these with a loud reason where it is unresolvable and
+runs them on the pinned export where it exists; nothing here reads the build
+DB. The corpus is
 sealed into a tmp state dir through the REAL seed CLI (T1.6), then the two
 columns enrichment/bundle fill in production are written on the seeded rows by
 this fixture — isbn13 and the genre labels. That is stated rather than hidden:
@@ -25,10 +27,10 @@ STOLD = "Stöld"
 STOLD_13 = "9789198559699"
 
 
-def seed_dir(tmp_path):
+def seed_dir(tmp_path, raw):
     r = subprocess.run(
         [sys.executable, str(ROOT / "data-import/import_seed.py"),
-         "--db", str(tmp_path / "liselott.db")],
+         "--db", str(tmp_path / "liselott.db"), "--raw", str(raw)],
         capture_output=True, text=True, cwd=str(ROOT))
     assert r.returncode == 0, f"seed CLI failed: {r.stdout}{r.stderr}"
 
@@ -60,8 +62,8 @@ def attach_enrichment_holes(tmp_path):
 
 
 @pytest.fixture()
-def client(tmp_path, monkeypatch):
-    seed_dir(tmp_path)
+def client(corpus, tmp_path, monkeypatch):
+    seed_dir(tmp_path, corpus)
     attach_enrichment_holes(tmp_path)
     monkeypatch.setenv("LISELOTT_DATA_DIR", str(tmp_path))
     monkeypatch.delenv("LISELOTT_PREFIX", raising=False)

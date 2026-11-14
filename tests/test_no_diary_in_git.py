@@ -1,7 +1,9 @@
 """T1.8 — diary-in-git guard (P0-1). Three legs:
 leg1 structural scan (corpus-free): no tracked file carries ≥100 seed-entry
-     shape lines; leg2 corpus scan (VM350 leg, §13 FAILS-not-skips without
-     the raw file): no tracked file contains ≥20 whole seed titles (K=20 —
+     shape lines; leg2 corpus scan (path F, MC 12451 c5 — the `corpus` fixture
+     skips it with a loud reason where the personal export is unresolvable, and
+     it runs wherever the export exists): no tracked file contains ≥20 whole
+     seed titles (K=20 —
      the 18 T1.3 goldens stay under); leg3 never-committed: the seed md,
      golden_parse.json and seed-bundle* appear in NO ls-files entry and the
      first two are check-ignore-clean. Works in ANY clone for legs 1+3."""
@@ -11,7 +13,6 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-RAW = ROOT / "data-import/seed-books-raw.md"
 # Seed-entry shape per the T1.8/T8.3 gate (POSIX classes written in Python syntax).
 SEED_LINE_RE = re.compile(r"^\s*-\s+((\d{6})\s+)?.{3,}\sav\s.*")
 MAX_SHAPE_LINES = 100      # leg1: legit test files carry ≤18
@@ -37,13 +38,11 @@ def leg1_shape_scan():
     return leaks
 
 
-def leg2_title_scan():
-    if not RAW.is_file():
-        raise AssertionError(f"{RAW} missing — VM350 corpus leg (§13), never skip")
+def leg2_title_scan(raw):
     sys.path.insert(0, str(ROOT))
     from app import seed
     titles = {seed.parse_row(e["raw"])["title"]
-              for e in seed.parse_file(RAW)}
+              for e in seed.parse_file(raw)}
     leaks = []
     for f in tracked_files():
         text = (ROOT / f).read_text(encoding="utf-8", errors="replace")
@@ -57,8 +56,8 @@ def test_leg1_no_tracked_file_looks_like_the_diary():
     assert leg1_shape_scan() == []
 
 
-def test_leg2_no_tracked_file_holds_20_whole_seed_titles():
-    assert leg2_title_scan() == []
+def test_leg2_no_tracked_file_holds_20_whole_seed_titles(corpus):
+    assert leg2_title_scan(corpus) == []
 
 
 def test_leg3_diary_artifacts_never_committed():
