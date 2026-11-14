@@ -76,9 +76,17 @@ dina egna betyg — varje kort förklarar varför ("För att du gav …").
 **Byt lösenord.** Under "Byt lösenord" (kräver nuvarande lösenord). OBS: alla
 inloggningar, även din egen, loggas ut vid bytet — logga in med det nya.
 
-**Radera en bok.** "Ta bort" finns inte på boksidan. Öppna boken → Redigera →
-längst ner på redigeringssidan står "Ta bort boken". Själva resan dit är den
-andra frågan — ett klick på den knappen tar bort boken direkt.
+**Redigera eller radera en bok.** Det som ändrar en bok — titel, författare,
+utgivningsår, format, läst-datum, ISBN, anteckningar, omslag och själva
+borttagningen — finns på redigeringssidan, `…/redigera/<bok-id>`. Boksidan har
+idag bara en länk dit, och den syns bara när omslag saknas: "**Omslag saknas —
+fixa**". (I listan "Saknade omslag", under Rapporter, heter länken "Ladda upp
+bild" och går till samma ställe.) Har boken ett omslag finns **ingen** synlig
+länk dit alls — då når du dit genom att skriva adressen. Det är en känd brist,
+inte meningen, och den gäller alla böcker som redan har ett omslag. Själva
+betygsättningen går alltid direkt på boksidan: stjärnorna och "Spara betyg",
+även på en bok med omslag. Längst ner på redigeringssidan står "Ta bort boken" —
+knappen är sin egen bekräftelse, ett klick tar bort boken direkt.
 
 ## For maintainers
 
@@ -292,6 +300,13 @@ remain vm106-ROOT actions — owner decision, never assumed.
   `enrich_fail=1`); production serves 80/724 (orchestrator rapport-measured
   in the M8 run). The residual misses ride the fix-me loop (`/rapa/omslag`),
   owner-driven — never a silent placeholder majority.
+- **No edit door for a book that HAS a cover** (measured at this commit):
+  `app/templates/bok.html` emits its only `/redigera/<id>` link inside
+  `{% if not bok.has_cover %}`, and the shelf cards link the book page only —
+  so a covered book reaches editing/deleting solely by typing the address
+  (the page itself answers 200). Grading is unaffected. Card MC 12493 is
+  filed to add a calm "Redigera" link; until that ships the manual above
+  states the typed-address path, never a link that is not there.
 - Production IS published and seeded (M8 ran — see Status). Live counts
   belong to the rapport doors behind the login, not to this file.
 - The production candidate pool was built by the runbook's candidate loop
