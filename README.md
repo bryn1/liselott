@@ -169,9 +169,35 @@ site content enters via POST /seed into the host state dir, never git.* The raw
 seed file (`data-import/seed-books-raw.md`, sha256
 `420259164605b1b9e221e4e9fc8b6f5f98676f0c4bc9e4f6c02e6e5555ec24dc`, re-measured
 2026-11-13 and matching the plan pin) and every whole-corpus artifact are
-gitignored and have never been committed — `tests/test_no_diary_in_git.py`
-guards that permanently. The transfer bundle lives outside git at
-`/home/claudecode/liselott-bundle/`.
+gitignored and have never been committed; the transfer bundle lives outside git
+at `/home/claudecode/liselott-bundle/`.
+
+**The exception that ships, named because the repo is PUBLIC.** Some real diary
+rows are tracked as test fixtures: the 18 T1.3 parse goldens in
+`tests/test_seed_rows.py` carry real titles and authors (two of them a read
+date, one a grade); `data-import/import_overrides.csv` carries one real row with
+its read date; five recorded provider fixtures name five more real titles in
+their filenames (`tests/fixtures/libris_xsearch_god-jul-agnes.json`,
+`_den-sarade-pianisten`, `_helenas-resa`, `_dar-vinden-dansar`, `_stold`); and
+three `app/` comments name one title, two of them its ISBN as well. Measured
+2026-11-14 on the build clone with the guard's own leg-2 parse — a whole-title
+*substring* instrument, so a hit can be a word-shape artifact (`Disa` inside
+"Disallow"): **35 tracked files hold ≥1 whole diary title** (18 in
+`test_seed_rows.py`, every other file 1–6).
+
+`tests/test_no_diary_in_git.py` is green beside those rows by calibration, not
+by cleanliness: leg 2 fails a file at ≥20 whole corpus titles (`MAX_TITLES = 20`,
+whose own comment reads "T1.3 goldens = 18") and leg 1 at ≥100 seed-shape lines
+(`MAX_SHAPE_LINES = 100`). What the guard does hold, in every checkout form, is
+the bulk: the raw export, `golden_parse.json` and any `seed-bundle*` appear in
+no commit, and the first two remain gitignored.
+
+Whether the tracked fixture rows belong in a public repo is an OPEN question,
+not a shipped decision: they await an **OWNER RULING** (P2-3, MC 12440 — the
+LEDGER's c2 and c4 rows carry it). The recommendation on the table is to
+synthetic-ize the goldens and the override row; ratifying them as shipped is the
+alternative. No ruling has landed. Until one does, this section states the
+exposure — it does not approve it.
 
 **Stale seed header:** the raw seed file's header prose (lines 1–7) is parsed
 nowhere and carries two false claims (it says no grades exist — 6 rating rows
