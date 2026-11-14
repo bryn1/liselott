@@ -16,7 +16,7 @@ rapporter — stays behind her one password. It is built to be served at
 `https://sibbamala.com/liselott` on the fleet's auto lane. The build contract
 is `PLAN-c3` (the pinned plan); this README states what the tree actually is.
 
-## Status snapshot — re-measured 2026-11-14 against HEAD 93f08f7 (public-read wave, MC 12497)
+## Status snapshot — re-measured 2026-11-14 against HEAD (sec-wave p2, MC 12497)
 
 - Build milestones M0–M7 are done and committed, and **the publish (plan
   milestone M8) HAS RUN**: `bryn1/liselott` exists on GitHub with visibility
@@ -41,13 +41,32 @@ is `PLAN-c3` (the pinned plan); this README states what the tree actually is.
   her session. **The live site still runs the pre-wave code until the
   orchestrator re-publishes; flipping live behaviour is that act, not this
   tree's.**
-- The full offline test suite passes: **504 passed, exit 0**
-  (`.venv/bin/pytest -q`, VM350 build clone, re-run 2026-11-14 at this wave —
-  the public-read matrix `tests/test_public_read.py` and the re-cut auth-wall
-  legs are the delta from the old 494) and **471 passed,
+- **SEC-WAVE p2 — security fixes (MC 12497, 2026-11-14):** the five findings of
+  the security gate `.audits/20261112-phase2/out/SEC-verdict-12497.md` are
+  cured in this tree — one commit each: HEAD never executes a state change
+  (POST is the only processing method on the three lifecycle views, and the
+  CSRF gate's same-origin rule now checks HEAD — F-1); ids beyond sqlite's
+  signed-64-bit domain answer the route's own 404 on /bok and /cover, never
+  the bind's 500 (F-2); a trailing slash on a public read is the same page in
+  place — guard match extended and one explicit rule per spelling, no redirect
+  mechanism (werkzeug 3.1 has no slash-redirect; F-3); the §6.2 bucket keys on
+  CF-Connecting-IP else the socket peer, `X-Forwarded-For` never trusted at
+  the origin, and the uvicorn entry runs `proxy_headers=False` (F-4); the
+  extension-less `.git` namespace answers the bare `.git`'s 404 and
+  owner-painted HTML carries `Cache-Control: no-store` beside its
+  `Vary: Cookie` (F-5). Carried P4s, documented NOT fixed: the CSRF-400
+  fingerprint on anonymous state-method attempts at allow-listed paths, and
+  the app-level body cap behind the edge caps. Live STILL answers the
+  pre-wave code (re-measured this session: the overflow GET answers 500
+  live, one read-only request) — flipping live behaviour is the re-publish,
+  not this tree.
+- The full offline test suite passes: **537 passed, exit 0**
+  (`.venv/bin/pytest -q`, VM350 build clone, re-run 2026-11-14 at the
+  sec-wave — the +33 legs are the five security fixes' red-before/green-after
+  suites, on top of the public-read wave's 504) and **504 passed,
   33 skipped, exit 0** in a clean clone without her personal export — the 33
   are the corpus legs, skipping by name, never silently (MC 12451 c5; the
-  +1 skip since the old count is the new corpus write-refusal leg).
+  sec-wave added no corpus leg — all 33 new legs run in any clone).
 - The build database holds **724 books** (706 read + 18 wishlist), **671** with
   an ISBN (parse: `isbn13` non-empty), **6** rated, **52** ljudbok, and a
   recommendation candidate pool of **284** authors' works
@@ -141,8 +160,8 @@ Debian box with `python3.10-venv` installed, `python3 -m venv` works too.
 Then `http://127.0.0.1:8166/liselott/` — first boot within 20 min shows the
 set-password page; both request shapes (bare `/…` and `/liselott/…`) route.
 Tests: `cd /home/claudecode/liselott && .venv/bin/pytest -q` (offline, no
-provider network; 504 tests green at this commit with the personal corpus
-resolvable, 471 passed + 33 corpus legs skipped in a clean clone — see
+provider network; 537 tests green at this commit with the personal corpus
+resolvable, 504 passed + 33 corpus legs skipped in a clean clone — see
 Suite-location rule).
 
 ### Suite-location rule (corpus legs, path F — MC 12451 c5)
@@ -159,8 +178,8 @@ the drift digest, the leak matrix. Absence skips loudly; it never greens an
 assertion. A `LISELOTT_SEED_FILE` naming no file ERRORS (misconfiguration is
 not absence), and a corpus with the wrong sha FAILS the pinned-sha leg.
 
-Measured at this commit, both sides: **504 passed, exit 0** on the VM350 build
-clone (export present), **471 passed, 33 skipped, exit 0** in a fresh clone
+Measured at this commit, both sides: **537 passed, exit 0** on the VM350 build
+clone (export present), **504 passed, 33 skipped, exit 0** in a fresh clone
 without it. Every other test is corpus-independent and runs in any clone.
 
 `tests/test_backup.sh` keeps its fail-loudly posture on purpose: it is the §11
