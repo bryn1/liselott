@@ -346,7 +346,9 @@ bytes say image, caps it at the same 900 000 bytes, and stores it as
 
 argon2id, min 10 chars; setup window 20 min from process start AND only while
 no password is set; `/satt-loesenord` is 404 forever after. 5 failed logins per
-15 min per client IP (CF-Connecting-IP, else the LAST `X-Forwarded-For` hop) →
+15 min per client IP — CF-Connecting-IP when present, else the socket peer;
+`X-Forwarded-For` is never trusted at the origin (MC 12497 sec-wave,
+SEC-verdict-12497 F-4: one client-written header used to hop the bucket) →
 429. Cookie `liselott_session`, HttpOnly, SameSite=Lax, Path=`/liselott`,
 Secure unless `LISELOTT_ENV=dev`. `POST /byter-losenord` rotates the hash and
 regenerates `secret.key`, killing every session. `scripts/reset_password.py`

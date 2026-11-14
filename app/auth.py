@@ -93,15 +93,21 @@ def _ago_iso(seconds: int) -> str:
 
 
 def client_ip(req) -> str:
-    """§6.2 (P2-1): CF-Connecting-IP when present, else the LAST hop of
-    X-Forwarded-For (the renderer appends the real peer — first hop is
-    client-supplied garbage, VERIFIED), else REMOTE_ADDR."""
+    """§6.2 (P2-1) with the trust order RE-DRAWN by F-4 (SEC-verdict-12497):
+    CF-Connecting-IP when present — the Cloudflare edge OVERWRITES any
+    client-supplied spelling of it on a proxied zone, so on the internet
+    path that header IS the edge's own value — else the SOCKET PEER
+    (REMOTE_ADDR). X-Forwarded-For is NOT consulted at all: at this origin
+    every request that can reach the port writes that header itself, and
+    the verdict measured a spoofed one hopping buckets past an exhausted
+    5/15-min bucket straight into password verification. The renderer
+    whose LAST hop the old rule trusted is not this app's path (§6.5: the
+    edge forwards to this port; the vm106 origin port is LAN-side). The
+    residual is documented and accepted: whoever can reach the port
+    directly can still rotate buckets via CF-Connecting-IP."""
     cf = req.headers.get("CF-Connecting-IP")
     if cf:
         return cf.strip()
-    xff = req.headers.get("X-Forwarded-For")
-    if xff:
-        return xff.split(",")[-1].strip()
     return req.remote_addr or ""
 
 
