@@ -8,14 +8,16 @@ filtered to the public set, public-set /bok and /cover) MAY carry seed
 bytes — a public shelf that rendered nothing would be the bug — while
 EVERY PRIVATE row must carry NONE of them: all 700 unrated corpus titles
 and ids are grepped out of the anonymous shelf BY NAME (a corpus-scale
-absence proof the synthetic shelf cannot fake), the search and rec
-surfaces are back on the refused-and-silent list, and every quarantined
+absence proof the synthetic shelf cannot fake) and — since MC 12522 put the
+public shelf on the landing too — out of the anonymous LANDING by the same
+sweep; the search and rec surfaces are back on the refused-and-silent list,
+and every quarantined
 name and refused anonymous write still carries ZERO seed bytes. The
 closed-window state keeps the whole old T2.6 claim over the same route
 list (the setup-state exception: while no password is set, nothing is
 public). /robots.txt is served to anonymous visitors in both open states
 (the robots legs state WHICH answer belongs to which state);
-/sitemap.xml exists not. Corpus leg (path F, MC 12451 c5): the seed needs
+/sitemap.xml exists not. Corpus legs (path F, MC 12451 c5): the seed needs
 the personal export, so the `corpus` fixture skips these with a loud
 reason where it is unresolvable and seeds the pinned one where it exists.
 """
@@ -36,9 +38,11 @@ SEEDED_TITLES = ("[personlig-data-purgad]", "Ellens val", "Falska toner", "[pers
 
 # The MC 12501 read set, WITHOUT the id-dependent legs (public ids resolve
 # from the seeded DB at run time — see _public_ids): the shelf is the one
-# route whose public answer never depends on picking an id here. "/" is
-# deliberately NOT here for the leak claim: its landing is still fixed copy
-# with zero app data (M8 staging gate).
+# route whose public answer never depends on picking an id here. "/" rides
+# its own leg below: since MC 12522 its landing carries the public shelf
+# under the intro copy, so the byte-silence claim on it is the claim on
+# PRIVATE rows (all four golden rows are unrated read rows — the private
+# half — and the corpus-scale absence sweep below runs over the landing too).
 PUBLIC_ROUTES = ("/bibliotek",)
 
 # Owner + read-private surfaces: behind the session on a configured site
@@ -107,13 +111,17 @@ def test_public_reads_answer_and_owner_surfaces_stay_silent(seeded):
     visitor with the real (FILTERED) page — 200 — and public-set /bok and
     /cover ids answer 200 with their data; the non-vacuity leg demands a
     RATED seeded title on the shelf (not just any seed byte); the landing
-    keeps its fixed-copy contract: 200, >256 B, zero seed bytes; owner and
-    read-private surfaces 302, quarantined names 404, all byte-silent."""
+    (MC 12522: it renders the public shelf under its intro) answers 200,
+    >256 B, and still carries ZERO bytes of the PRIVATE golden rows; owner
+    and read-private surfaces 302, quarantined names 404, all byte-silent."""
     _, client = configured_client(seeded)
     r = client.get("/")
     assert r.status_code == 200                # the landing leg, not a 302
     assert len(r.data) > 256                   # the staging gate's floor
-    assert_no_seed_bytes(r)                    # the landing is still ZERO data
+    assert_no_seed_bytes(r)                    # no PRIVATE seed byte (all four
+    # golden rows are unrated read rows, so the public shelf on the landing
+    # must not carry one — the byte-silence leg kept its teeth through MC 12522)
+    assert 'class="bok-lank"' in r.text         # MC 12522: the entrance is real
     rated_id, rated_title, wishlist_id = _public_ids(seeded)
     for entry in PUBLIC_ROUTES + (f"/bok/{rated_id}", f"/bok/{wishlist_id}",
                                   f"/cover/{rated_id}"):
@@ -151,15 +159,20 @@ def test_private_corpus_rows_are_absent_from_the_anon_shelf(seeded):
     this suite's development: zero private title is a substring of any
     public title, so no collision can excuse a hit) — and its id is linked
     NOWHERE. The private /bok and /cover ids answer the uniform login
-    refuse, byte-identical in shape to a nonexistent id's answer."""
+    refuse, byte-identical in shape to a nonexistent id's answer.
+    MC 12522: the sweep runs over the anonymous LANDING too — the landing
+    renders the same shelf now, so the same absence is owed there (the two
+    bodies are checked in one loop: one contract, one instrument)."""
     _, client = configured_client(seeded)
-    body = client.get("/bibliotek").text
+    bodies = {page: client.get(page).text
+              for page in ("/bibliotek", "/")}
     private = _rows(seeded, "SELECT id, title FROM book WHERE rating IS"
                             " NULL AND status = 'read' ORDER BY id")
     assert len(private) >= 100, len(private)   # anti-vacuity: the sweep is real
     for pid, title in private:
-        assert title not in body, (pid, title)
-        assert f'href="/liselott/bok/{pid}"' not in body, pid
+        for page, body in bodies.items():
+            assert title not in body, (page, pid, title)
+            assert f'href="/liselott/bok/{pid}"' not in body, (page, pid)
     gone = max(pid for pid, _ in private) + 10 ** 6
     for pid, _title in private[:25]:           # a sample of the equal-answer
         r = client.get(f"/bok/{pid}")          # legs across the id space

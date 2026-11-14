@@ -1,22 +1,12 @@
 {% extends "base.html" %}
-{% from "_bokkort.html" import bokkort with context %}
 {% block title %}Din hylla — Liselotts bokhylla{% endblock %}
 {% block content %}
-{# §9 copy: "Din hylla"; one section per read year newest first, then "Utan
-   år" for yearless read rows, "Att läsa" LAST (group_for_shelf's labels). An
-   empty group never renders (a heading over nothing is a lie about the
-   data); ids ride loop.index — a label like "Utan år" carries a space, and
-   an id may not. #}
+{# §9's page frame for the shelf: the h1 and the honest empty copy are this
+   page's; the sections themselves live in _hyllan.html — the SAME include the
+   anonymous landing renders (MC 12522), so the shelf is one markup. #}
 <h1>Din hylla</h1>
 {% if not grupper %}
 <p class="tom-state">Hyllan är tom. Böcker kommer in när du lägger till dem.</p>
 {% endif %}
-{% for ar, bocker in grupper %}
-<section class="grupp" aria-labelledby="grupp-{{ loop.index }}">
-  <h2 id="grupp-{{ loop.index }}">{{ ar }}</h2>
-  <ul class="hylla">
-    {% for b in bocker %}{{ bokkort(b) }}{% endfor %}
-  </ul>
-</section>
-{% endfor %}
+{% include "_hyllan.html" -%}
 {% endblock %}

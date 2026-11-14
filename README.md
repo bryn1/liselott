@@ -11,7 +11,8 @@ verbatim: "Rated books and their ratings as well as whishlist shall be
 public. The rest behind password" — narrowing the same-day earlier claim of
 MC 12497, the newer ruling binding): the shelf filtered to it (rated books
 with their stars, plus the wishlist), the bok pages and covers of public-set
-ids, and the data-free landing answer any anonymous visitor on a configured
+ids, and the landing — which since MC 12522 OPENS that public shelf instead of
+only pointing at a login door — answer any anonymous visitor on a configured
 site; everything else — the unfiltered shelf, search, recommendations, and
 every write (grading, wishing, adding, editing, deleting, the machine doors,
 backups, rapporter) — stays behind her one password. It is built to be
@@ -56,6 +57,34 @@ tree actually is.
   stays state-dependent (`Allow: /` on the configured site, `Disallow: /`
   while it is still wrapped). **The live site still answers the pre-wave
   code until the orchestrator re-publishes.**
+- **MC 12522 public entrance (2026-11-14, re-measured against HEAD the same
+  day):** OWNER REPORT (web chat, verbatim): "I want you to do a browser test
+  of the live website sibbamala.com/liselott. I only get to thr logga in page."
+  Measured cause: the anonymous landing rendered its intro copy and one
+  "Logga in" link and nothing else — the public shelf `/bibliotek` serves had
+  NO path from the landing, so the public promise was unreachable from the door
+  the owner actually opens. The cure is reuse, not a mechanism: the anonymous
+  branch of `rot()` hands the landing `_hyllgrupper()` — the SAME read
+  `/bibliotek` serves (`books.load_books(public_only=True)` under the ONE
+  filter `PUBLIC_SET_SQL`) — and `templates/start.html` includes
+  `templates/_hyllan.html`, the SAME shelf markup `/bibliotek` includes
+  (extracted, never copied: one card, one meaning). `app/auth.py` is
+  byte-identical (the root leg is MC 12451's, untouched); the logged-in landing
+  is byte-identical MEASURED (HEAD~1's tree and this one rendered through one
+  script on identical scratch DBs — every page this card did not change answers
+  byte for byte the same, seeded and empty states alike); the door stays as the
+  landing's small
+  footer line; the WRAPPED setup state still shows no shelf (no password → no
+  public). Tests: 8 new legs in `tests/test_public_landing.py` (entrance, card
+  links identical to `/bibliotek`'s, synthetic private rows absent by
+  title/author/year/id, the owner's landing unchanged, the door, the setup
+  state, the empty public shelf, corpus-scale private absence) and the
+  corpus-scale absence sweep in
+  `tests/test_no_leak.py` now runs over the landing too; three planted-RED
+  transcripts (entrance removed / unfiltered read / door removed). Suite:
+  547 → **555 passed, exit 0** (the counts live in the Status snapshot below).
+  **The live site still answers the pre-wave code until the orchestrator
+  re-publishes.**
 - **SEC-WAVE p2 — security fixes (MC 12497, 2026-11-14):** the five findings of
   the security gate `.audits/20261112-phase2/out/SEC-verdict-12497.md` are
   cured in this tree — one commit each: HEAD never executes a state change
@@ -75,15 +104,16 @@ tree actually is.
   pre-wave code (re-measured this session: the overflow GET answers 500
   live, one read-only request) — flipping live behaviour is the re-publish,
   not this tree.
-- The full offline test suite passes: **546 passed, exit 0**
-  (`.venv/bin/pytest -q`, VM350 build clone, re-run 2026-11-14 at the
-  public-scope wave — the +9 legs over the sec-wave's 537 are the
-  public-scope matrix: absence proofs, equal-answer legs and the flipped
-  per-route posture) and **512 passed, 34 skipped, exit 0** in a clean
-  clone without her personal export — the 34 are the corpus legs, skipping
-  by name, never silently (MC 12451 c5; the public-scope wave added one
-  corpus leg — the corpus-scale absence sweep — and 8 that run in any
-  clone).
+- The full offline test suite passes: **555 passed, exit 0**
+  (`.venv/bin/pytest -q`, VM350 build clone, re-run 2026-11-14 at MC 12522 —
+  the +8 legs over the prior 547 are `tests/test_public_landing.py`: the
+  public entrance, its card-link equality with `/bibliotek`, the synthetic
+  private-row absence, the owner's unchanged landing, the door, the wrapped
+  setup state, the empty public shelf and one corpus-scale absence leg) and
+  **520 passed, 35 skipped, exit 0** in a clean clone without her personal export (`git archive`
+  of the tree; the corpus legs skip
+  by name, never silently (MC 12451 c5; MC 12522 added one corpus leg and
+  seven that run in any clone)).
 - The build database holds **724 books** (706 read + 18 wishlist), **671** with
   an ISBN (parse: `isbn13` non-empty), **6** rated, **52** ljudbok, and a
   recommendation candidate pool of **284** authors' works
@@ -246,8 +276,10 @@ The guard (`app/auth.py::_auth_gate`) answers in three states, measured in
 `tests/test_guard.py`, `tests/test_public_read.py` and (over the corpus)
 `tests/test_no_leak.py`:
 
-- **Configured site, anonymous reads:** the guard opens `/` (the fixed-copy
-  landing: still zero app data, one door), `/bibliotek`, `/bok/<id>`,
+- **Configured site, anonymous reads:** the guard opens `/` (since MC 12522 the
+  landing IS the entrance: intro copy + the public shelf under it, one small
+  "Logga in" door as the footer — the private half stays out of the body by the
+  same ONE filter), `/bibliotek`, `/bok/<id>`,
   `/cover/<id>`, `/healthz`, `/robots.txt`, `/static/*` — and the data
   layer (the ONE filter, `app/books.py::PUBLIC_SET_SQL`:
   `rating IS NOT NULL OR status <> 'read'`) decides WHAT those pages may

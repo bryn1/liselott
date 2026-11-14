@@ -5,10 +5,10 @@ ruling 2026-11-14, superseding MC 12497 the same day: "Rated books and
 their ratings as well as whishlist shall be public. The rest behind
 password" — the shelf answers an anonymous GET FILTERED to the public set,
 bok/cover answer it for public-set ids only, and search and the rec
-surface are back behind the session; the root keeps the fixed-copy landing
-the M8 staging gate pinned, see rot() and templates/start.html), and every
-state change is owner-authenticated and token- and origin-checked
-(T2.3/T2.5)."""
+surface are back behind the session; the root answers the same public
+shelf under its intro copy — MC 12522 cured the missing entrance, see
+rot() and templates/start.html), and every state change is
+owner-authenticated and token- and origin-checked (T2.3/T2.5)."""
 import re
 import shutil
 import tempfile
@@ -87,37 +87,50 @@ def init_routes(app):
         "number_and_word",
         lambda n, one, many: f"{n} {one if n == 1 else many}")
 
-    def _hylla():
-        """One read, one render — shared by the two rules below. MC 12501:
-        the anonymous read is narrowed to the public set (books.PUBLIC_SET_
-        SQL) right here at the fetch — the ONE filter, so no section, year
-        or count a private-only book populated can render around it. The
-        owner's render is the full shelf, unchanged."""
-        grupper = books.group_for_shelf(books.load_books(
+    def _hyllgrupper():
+        """The shelf's sections for whoever is asking — the ONE shelf read,
+        shared by the shelf page and by the landing. MC 12501: the anonymous
+        read is narrowed to the public set (books.PUBLIC_SET_SQL) right here
+        at the fetch — the ONE filter, so no section, year or count a
+        private-only book populated can render around it. The owner's read is
+        the full shelf, unchanged."""
+        return books.group_for_shelf(books.load_books(
             db.get_db(), public_only=_publikt_endast()))
-        return render_template("bibliotek.html", grupper=grupper,
+
+    def _hylla():
+        """One read, one render — shared by the two rules below."""
+        return render_template("bibliotek.html", grupper=_hyllgrupper(),
                                current="hylla")
 
     @app.get("/")
     def rot():
         """The home page IS the shelf for the owner, and the public landing
         for everyone else (the root leg §6.4 got from the M8 staging gate,
-        MC 12451): an anonymous GET answers 200 with the fixed data-free
-        page and the ONE door legal in the current §6.1 state — window-open
-        → /satt-loesenord "Välj ditt lösenord", configured → /logga-in
-        "Logga in". The closed state never reaches this view; the guard's
-        pinned gate page answers it. Two ENDPOINTS on one render (not two
-        rules on one endpoint): with one endpoint url_for would collapse
-        onto the shorter rule and the nav would emit /liselott without a
-        path. §6.1's "after setup GET / -> 200" is answered here, not by a
-        redirect."""
+        MC 12451). MC 12522 (owner report 2026-11-14, verbatim): "I want you
+        to do a browser test of the live website sibbamala.com/liselott. I
+        only get to thr logga in page." — the public set was readable at
+        /bibliotek and the landing never pointed there, so the promise had no
+        entrance. An anonymous GET now answers 200 with the intro AND the same
+        public shelf /bibliotek serves: _hyllgrupper() — the same fetch, the
+        same grouping, _hyllan.html the same markup, no second query path.
+        The ONE door legal in the current §6.1 state stays, as the landing's
+        small footer line: window-open → /satt-loesenord "Välj ditt lösenord",
+        configured → /logga-in "Logga in". The setup state keeps its data-free
+        landing (grupper=[]): while no password stands NOTHING is public — the
+        setup-state exception, not an entrance. The closed state never reaches
+        this view; the guard's pinned gate page answers it. Two ENDPOINTS on
+        one render (not two rules on one endpoint): with one endpoint url_for
+        would collapse onto the shorter rule and the nav would emit /liselott
+        without a path. §6.1's "after setup GET / -> 200" is answered here,
+        not by a redirect."""
         if session.get(auth.SESSION_FLAG):
             return _hylla()
         if auth.is_configured(db.get_db()):
             return render_template("start.html", dorren="logga_in",
-                                   etiketten="Logga in")
+                                   etiketten="Logga in",
+                                   grupper=_hyllgrupper())
         return render_template("start.html", dorren="satt_losenord",
-                               etiketten="Välj ditt lösenord")
+                               etiketten="Välj ditt lösenord", grupper=[])
 
     @app.get("/bibliotek")
     def bibliotek():

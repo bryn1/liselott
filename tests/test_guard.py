@@ -161,8 +161,10 @@ def test_configured_state_sweep(tmp_path, monkeypatch):
     assert r.status_code == 404  # static is allow-listed (not redirected)
     r = client.post("/seed", data="x")
     assert r.status_code == 302  # machine routes too (§6.4)
-    # the root leg (MC 12451): the landing answers 200, never a redirect,
-    # carries the ONE legal door and none of the owner's shelf or nav.
+    # the root leg (MC 12451, shape widened by MC 12522): the landing answers
+    # 200, never a redirect, carries the ONE legal door and stays the PUBLIC
+    # page — the public shelf under its intro yes, the owner's page (her
+    # "Din hylla" h1, her nav) never.
     r = client.get("/")
     assert r.status_code == 200, "root must not 302 (§6.4 landing leg)"
     assert 'href="/liselott/logga-in"' in r.text

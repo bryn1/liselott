@@ -425,3 +425,75 @@ postdating a line make that line STALE — de-stale before quoting it.
   untouched (scratch `LISELOTT_DATA_DIR` only); nothing pushed.
   Transcripts: `.audits/20261112-phase2/.tmp/notes-gate-evidence.md`
   (host-local, MC-linked).
+- **MC 12522 public entrance at `/` — DONE (this commit):** OWNER REPORT
+  2026-11-14 (web chat, verbatim): "I want you to do a browser test of the
+  live website sibbamala.com/liselott. I only get to thr logga in page."
+  Measured cause (orchestrator, real chromium 17:52Z, re-read here against
+  HEAD): an anonymous `GET /` rendered `templates/start.html`'s intro copy and
+  ONE "Logga in" link — no entrance to the public shelf — while `/bibliotek`
+  anonymously served every public card. The public promise had no path from
+  the door the owner actually opens. THE CURE IS REUSE, NOT A MECHANISM:
+  `routes.rot()`'s anonymous configured branch hands the landing
+  `_hyllgrupper()` — the ONE shelf read `/bibliotek` already ran (extracted
+  out of `_hylla()`, which now calls it: the shelf page's read is unchanged,
+  one caller gained) — and the shelf's section loop MOVED OUT of
+  `bibliotek.html` into `templates/_hyllan.html`, which BOTH `/bibliotek` and
+  the landing include (used twice → extracted, the `_bokkort.html` rule: one
+  card markup, never a copy). Zero new query path, zero new filter
+  (`books.PUBLIC_SET_SQL` stays the ONE gate, applied at the fetch by
+  `load_books(public_only=…)`), zero new template mechanism, zero auth code
+  touched. `app/auth.py` is BYTE-IDENTICAL (proven by this commit's
+  `git diff HEAD~1 --name-only` — it does not appear; the root leg is MC
+  12451's `_is_public_root`/`PUBLIC_READ_PATHS`) — the guard did not widen one
+  path, one method or one id. The logged-in landing is MEASURED byte-identical,
+  not merely asserted: HEAD~1's tree (git-archive'd) and this one rendered
+  through ONE script on identical scratch DBs, with only the `?v=` cache key and
+  the CSRF token normalised — the owner's `/`, `/bibliotek`, `/bok/2`,
+  `/onska`, `/sok` and the anonymous shelf/book pages answer byte for byte the
+  same in the seeded AND the empty state (`.audits/20261114-mc12522/`,
+  host-local); only the anonymous `/` changed. The extraction is
+  whitespace-neutral ON PURPOSE — `-%}` on the partial's import, the pages'
+  `{% include … -%}` and one trailing-newline note in the partial: a stray
+  newline is enough to change a served page — and one new leg pins her `/`
+  equal to `/bibliotek` byte for byte, so drift in the shared include goes red.
+  The WRAPPED setup state keeps its data-free landing and
+  the "Välj ditt lösenord" door (no password → no public, the setup-state
+  exception); the closed state still never reaches the view. The door stays:
+  "Logga in" is now the landing's small footer line (`.landnings-dorr`, two
+  rules in app.css, DESIGN.md's existing tokens only — the token gate and
+  `scripts/contrast_check.py` stay green).
+  TESTS: `tests/test_public_landing.py`, 8 legs — the entrance renders cards +
+  the "Att läsa" section under the intro; its card links are EXACTLY the set
+  `/bibliotek` emits (equality, not a sample); zero private rows, using TWO
+  synthetic unrated wishlist-less fixtures seeded in the test's OWN temp DB
+  (never real titles from `data-import/`), absent by title, author, year
+  heading and id link; the door stays; the owner's landing is still her own
+  full shelf; the wrapped setup landing shows no shelf; the CONFIGURED-but-
+  empty public shelf still renders (the empty-page-import seam
+  `test_empty_owner_surface` guards, now on the landing too); plus the
+  corpus-scale private absence over the real export (path F). `tests/test_no_leak.py`
+  strengthened, not weakened: its corpus absence sweep now runs over the
+  landing too, and the landing's byte-silence leg gained the
+  `class="bok-lank"` non-vacuity leg (the four golden corpus rows are all
+  PRIVATE, so the silence claim still bites). Planted-REDs, one per contract
+  half — entrance removed / landing reading the UNFILTERED shelf / door
+  removed — each went red on its own legs
+  (`.audits/20261114-mc12522/planted-red.md`, host-local, MC-linked).
+  Retired-claim sweep: "the fixed-copy landing", "data-free landing", "zero
+  app data" and "the landing is still ZERO data" rewritten in README (intro,
+  status bullet, exposure section) + `routes.py` + `start.html` + the
+  `test_no_leak`/`test_guard` comments — grep-to-zero over the tree, the
+  M8/MC 12451 and MC 12497 LEDGER rows left standing as history (this row
+  supersedes their landing SHAPE only: the root leg, the >256 B floor and the
+  one-door rule all still hold). ONE stale line knowingly left: `app/auth.py`
+  still describes the landing as "fixed copy with zero app data" — this card
+  was bound to leave auth.py byte-identical, so that comment is a one-line
+  doc follow-up for the next card, not a licence to touch the guard here.
+  Suite: base 547 → **555 passed, exit 0** (VM350 build clone, corpus legs
+  green, 97.9 s — the venv named on the card,
+  `/var/lib/vm106-venvs/liselott/bin/python3`, does not exist on this host;
+  the repo's own `.venv` ran it) and **520 passed, 35 skipped, exit 0** from
+  a clean `git archive` clone (the corpus legs skip by name). LIVE untouched
+  — no request left this session, ZERO writes, scratch `LISELOTT_DATA_DIR`
+  only; live still answers the pre-wave posture until the orchestrator
+  re-publishes. Nothing pushed.

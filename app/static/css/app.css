@@ -135,6 +135,11 @@ figcaption a { color: var(--link); font-size: .8125rem; }
 }
 .tom-state, .ledtråd, .ingna-traffar { color: var(--muted); }
 
+/* the landing's ONE door (MC 12522): the shelf is the entrance now, so the
+   login door is the landing's quiet footer line, not the page. */
+.landnings-dorr { color: var(--muted); font-size: .8125rem; margin-top: var(--s6); }
+.landnings-dorr a { color: var(--link); }
+
 /* ── forms: fields on card, full width where they sit ── */
 form { max-width: 480px; }
 label { display: block; font-size: .8125rem; color: var(--muted); margin: var(--s3) 0 var(--s1); }

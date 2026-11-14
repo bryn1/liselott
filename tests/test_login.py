@@ -120,9 +120,11 @@ def test_logout_clears_session(env):
     r = client.get("/liselott/bibliotek")
     assert r.status_code == 200
     assert "Logga ut" not in r.text
-    # …while the root answers its public landing again, never the shelf
-    # (the landing leg MC 12451 — a 302 here is exactly what the vm106
-    # staging gate refused, so the root must stay 200 and data-free).
+    # …while the root answers its PUBLIC landing again, never her own shelf
+    # page (the landing leg MC 12451 — a 302 here is exactly what the vm106
+    # staging gate refused, so the root stays 200. MC 12522: the body is the
+    # PUBLIC shelf under the intro copy now, never her unfiltered one — which
+    # is what "Din hylla", the h1 of HER page, still proves absent).
     r = client.get("/liselott/")
     assert r.status_code == 200
     assert "Din hylla" not in r.text

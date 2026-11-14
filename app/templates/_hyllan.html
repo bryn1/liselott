@@ -1,0 +1,25 @@
+{#- The shelf's sections — THE one shelf markup (§9 copy: one section per
+   read_year newest first, then "Utan år" for yearless read rows, "Att läsa"
+   LAST — group_for_shelf's labels). Used twice → extracted, the same rule
+   that gave us _bokkort.html: /bibliotek includes this and the anonymous
+   landing includes this, so the shelf can never mean two different things
+   and no card markup is copied (MC 12522). An empty group never renders (a
+   heading over nothing is a lie about the data); ids ride loop.index — a
+   label like "Utan år" carries a space, and an id may not. WHAT arrives in
+   `grupper` belongs to the view (routes._hyllgrupper: the owner's full shelf,
+   the public set for an anonymous reader — books.PUBLIC_SET_SQL, the ONE
+   filter); this partial adds no second gate and no page h1: each page keeps
+   its own. -#}
+{% from "_bokkort.html" import bokkort with context -%}
+{% for ar, bocker in grupper %}
+<section class="grupp" aria-labelledby="grupp-{{ loop.index }}">
+  <h2 id="grupp-{{ loop.index }}">{{ ar }}</h2>
+  <ul class="hylla">
+    {% for b in bocker %}{{ bokkort(b) }}{% endfor %}
+  </ul>
+</section>
+{% endfor %}
+{# The trailing newline here is on purpose: inline, the loop sat above the
+   page's own end-of-block newline, and the shelf's served bytes are pinned
+   unchanged (MC 12522) — Jinja strips only the LAST newline of a file, so this
+   comment keeps exactly one of them. #}
