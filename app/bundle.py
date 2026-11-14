@@ -81,26 +81,6 @@ class BundleError(Exception):
         self.line, self.reason = line, reason
 
 
-def _unstoreable(value: str) -> str | None:
-    """F-L2 (DA-verdict-c3, the plant that SURVIVED c3, MC 12451 c4): a lone
-    surrogate is json-LEGAL — `"\\ud800"` parses — so the vocabulary pass let
-    it through and the sqlite TEXT bind died with UnicodeEncodeError, which is
-    NOT a sqlite3.Error: the door answered 500, past its own rollback AND past
-    the cover unlink (the verifier left `covers/1.jpg` behind, FL2-repro-run1
-    shape 2). The bind is strict UTF-8, so the door refuses exactly what the
-    bind refuses, HERE, in the pass that already owns every other value shape
-    — and names the 1-based line, the only address the owner gets. The answer
-    body itself must stay encodable, so the refusal prints the code point,
-    never the character."""
-    try:
-        value.encode("utf-8")
-    except UnicodeEncodeError as refused:
-        return (f"innehåller en enlig surrogate (U+"
-                f"{ord(value[refused.start]):04X}) som varken databasen eller "
-                "sidan kan visa")
-    return None
-
-
 def parse_bundle(raw: bytes) -> list[dict]:
     """ndjson bytes -> validated dicts, EVERY line before anything writes
     (leg g's rollback guarantee). Raises BundleError on the first refusal."""
@@ -149,12 +129,18 @@ def parse_bundle(raw: bytes) -> list[dict]:
         # the door already answers for rating/status/cover_source — "fix
         # once, not per family" (DA-verdict-c2 F-D2). Formats stay with
         # their owners: status/cover_source/rating keep their own checks.
+        # F-L2+F-L3 (c4) join the SAME pass rather than opening a second one:
+        # the two shapes that survived it — a lone surrogate (dies at the
+        # bind) and a control byte (survives all the way to served HTML) —
+        # are value-shape refusals like every other, so the check lives in
+        # seed.unstoreable, which /seed's row validator calls too: one rule,
+        # both doors, no drift between them.
         for field in ("book_key", "title", "date_read", "isbn13", "isbn10"):
             value = obj.get(field)
             if value is not None and not isinstance(value, str):
                 raise BundleError(n, f"fältet {field} ska vara text eller "
                                      f"tomt, inte {type(value).__name__}")
-            if value is not None and (why := _unstoreable(value)):
+            if value is not None and (why := seed.unstoreable(value)):
                 raise BundleError(n, f"fältet {field} {why}")
         for field in ("year",):
             value = obj.get(field)
@@ -173,7 +159,7 @@ def parse_bundle(raw: bytes) -> list[dict]:
                                      f"texter, inte {value!r}")
             if value is not None:
                 for item in value:
-                    if why := _unstoreable(item):
+                    if why := seed.unstoreable(item):
                         raise BundleError(n, f"fältet {field} {why}")
         if obj.get("cover_source") not in (
                 None, "libris", "googlebooks", "openlibrary", "manual",

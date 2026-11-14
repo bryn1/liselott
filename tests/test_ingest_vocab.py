@@ -189,6 +189,105 @@ def test_the_lone_surrogate_repro_is_the_shape_it_claims(authed):
     assert any(0xD800 <= ord(c) <= 0xDFFF for c in obj["title"])
 
 
+# ── F-L3/F-M (c4): control bytes never reach a field, a row or a page ──────
+@pytest.mark.parametrize("field,char", [
+    ("title", "\x00"), ("title", "\x01"), ("title", "\x7f"),
+    ("title", "\x1f"), ("title", "\t"), ("title", "\n"),
+    ("book_key", "\x00"), ("isbn13", "\x00"), ("date_read", "\x00"),
+    ("authors", "\x01"), ("genres", "\x00"),
+], ids=["title-nul", "title-soh", "title-del", "title-us", "title-tab",
+        "title-lf", "book_key-nul", "isbn-nul", "date-nul", "author-soh",
+        "genre-nul"])
+def test_bundle_refuses_control_characters_naming_the_field(authed, field,
+                                                            char):
+    """F-L3 + F-M (verifier c3: `a\x01b` and a NUL in a title were STORED with
+    200 and reached the shelf markup). These fields are shaped — a title, an
+    author, an ISBN, a date, a key — and none of them has a legitimate control
+    character in its vocabulary, so the door refuses every C0/C1 (category
+    Cc): the bind would otherwise carry it into served HTML. The refusal names
+    the line AND the field, like every other refusal here."""
+    tmp, client = authed
+    kw = {"book_key": "kCtl", "title": "Styrtitel"}
+    junk = {"title": f"Styrtitel {char} slut", "book_key": "k" + char,
+            "isbn13": "9781234" + char, "date_read": "2024" + char,
+            "authors": ["Aina A" + char],
+            "genres": ["skönlitteratur" + char]}[field]
+    kw[field] = junk
+    r = client.post("/liselott/bundle", data=bundle_bytes(line(**kw)),
+                    content_type="application/octet-stream")
+    assert r.status_code == 400, r.get_data(as_text=True)
+    body = r.get_data(as_text=True)
+    assert "rad 1" in body and field in body
+    assert "\x00" not in body          # names the code point, never the byte
+    assert stored_count(tmp) == 0
+
+
+def test_bundle_still_accepts_everyday_text(authed):
+    """The guard's paired leg: the rule refuses control characters, NOT the
+    alphabet. Swedish åäö, an emoji, a non-breaking space and a § stay legal —
+    a rule that rejects the corpus it exists to serve is worse than the hole
+    it closes."""
+    tmp, client = authed
+    r = client.post("/liselott/bundle", data=bundle_bytes(line(
+        book_key="kOk", title="Även Åsa — Ö 2024 § 📚\u00a0",
+        authors=["Joël Aït"], genres=["skönlitteratur"], read_year=2024)),
+        content_type="application/octet-stream")
+    assert r.status_code == 200, r.get_data(as_text=True)
+    assert stored_count(tmp) == 1
+
+
+def test_seed_refuses_a_row_carrying_a_nul_naming_it(authed):
+    """F-L3's /seed half (verifier .tmp/c3/FL3-repro-run1.log: the author name
+    `Test\x00sson` imported with 200 and the NUL rode all the way into the
+    shelf markup). The row is refused by its line number in the file, the byte
+    is never echoed, and the F-C2 atomicity posture holds: the clean row
+    beside it stores nothing either — one transaction, all or nothing."""
+    tmp, client = authed
+    r = client.post("/liselott/seed", data=(
+        "## Lästa böcker 2024\n- 240101 Frisk bok av Aino A\n"
+        "- 240102 Nollbok av Test\x00sson\n").encode(),
+        content_type="application/octet-stream")
+    assert r.status_code == 400, r.get_data(as_text=True)
+    body = r.get_data(as_text=True)
+    assert "rad 3" in body and "U+0000" in body
+    assert "\x00" not in body
+    assert "Ingen rad är importerad" in body
+    assert stored_count(tmp) == 0
+
+
+def test_seed_tab_form_row_is_still_the_overrides_path(authed):
+    """The rule's own boundary: §5.4's tab-form author tail is FLAGGED (named,
+    routed to import_overrides.csv), not refused as a control character — the
+    separator the file format itself uses belongs to the row validator, so the
+    answer still names the overrides file and never a U+0009."""
+    tmp, client = authed
+    r = client.post("/liselott/seed", data=(
+        "## Lästa böcker 2024\n"
+        "- 260101 Flaggad av Författare\tav\tTabbe T\n").encode(),
+        content_type="application/octet-stream")
+    assert r.status_code == 400
+    body = r.get_data(as_text=True)
+    assert "U+0009" not in body and "import_overrides.csv" in body
+
+
+def test_served_pages_carry_no_control_bytes_after_an_import(authed):
+    """F-M's measurement was BYTES on served pages, not responses: one NUL on
+    each of the five pages the row reached. After the doors refuse the shapes,
+    the same journey — import, shelf, home, detail, edit, search — paints zero
+    NUL bytes, and a NUL posted straight into the detail field is refused."""
+    tmp, client = authed
+    assert client.post("/liselott/seed", data=(
+        "## Lästa böcker 2024\n- 240101 Nollbok av Aino A\n").encode(),
+        content_type="application/octet-stream").status_code == 200
+    assert client.post("/liselott/bundle", data=bundle_bytes(
+        line(book_key="kSida", title="Nollbok", isbn13="9781234567897")),
+        content_type="application/octet-stream").status_code == 200
+    for path in ("/liselott/bibliotek", "/liselott/", "/liselott/bok/1",
+                 "/liselott/redigera/1", "/liselott/sok?q=Nollbok"):
+        assert client.get(path).status_code == 200, path
+        assert b"\x00" not in client.get(path).get_data(), path
+
+
 def bomb_png() -> bytes:
     """A REAL PNG carrying a real bomb: valid signature + IHDR announcing
     20 000×20 000 px — 400 M px, over twice Pillow's guard limit — plus a
