@@ -76,8 +76,10 @@ LENGTH_REQUIRED = (
     "Innehållets längd (Content-Length) saknas — dörren vägrar gissa sig "
     "till vad transporten skickade: skicka chunken igen med längden i "
     "höljet. Ingen rad är importerad")   # F-E2 (MC 12451), see the doors
-SEED_ALIASES = REPO_ROOT / "data-import" / "author_aliases.csv"
-SEED_OVERRIDES = REPO_ROOT / "data-import" / "import_overrides.csv"
+# MC 12523: the personal CSVs are OFF-REPO state data — the door resolves
+# them through seed.aliases_file()/seed.overrides_file() (env first, absent =
+# clean no-op via load_aliases {}/read_overrides {}). No path constants here:
+# one resolver per CSV, defined once in app/seed.py.
 
 
 class BundleError(Exception):
@@ -402,8 +404,8 @@ def init_bundle(app):
                 # so the body lands as ONE transaction: a flagged or refused
                 # row rolls the WHOLE import back, not just its own line.
                 # (The CLI keeps its survivor posture — seed.load default.)
-                report = seed.load(conn, raw, SEED_ALIASES, SEED_OVERRIDES,
-                                   commit=False)
+                report = seed.load(conn, raw, seed.aliases_file(),
+                                   seed.overrides_file(), commit=False)
             except ValueError as fel:
                 conn.rollback()
                 return (f"Seed-filen duger inte: {fel}. Ingen rad är "
@@ -412,7 +414,8 @@ def init_bundle(app):
             conn.rollback()
             return ("Importeraden hittade rader den inte litar på: "
                     + ", ".join(report["flagged"])
-                    + " — se data-import/import_overrides.csv. Ingen rad är "
+                    + " — se import_overrides.csv i ~/liselott-data/ (eller "
+                    + "LISELOTT_OVERRIDE_FILE). Ingen rad är "
                     "importerad"), 400
         conn.commit()
         # F-L4b (MC 12451 c4): `stored=` is the rows THIS POST stored. The

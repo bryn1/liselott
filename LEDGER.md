@@ -497,3 +497,56 @@ postdating a line make that line STALE — de-stale before quoting it.
   — no request left this session, ZERO writes, scratch `LISELOTT_DATA_DIR`
   only; live still answers the pre-wave posture until the orchestrator
   re-publishes. Nothing pushed.
+- **MC 12523 P2-3 RESOLVED — public repo synthetic-ized — DONE (two commits,
+  one per concern: fixtures/cases, then the CSV move + gate):** OWNER RULING
+  2026-11-14 (web chat, verbatim, recing the P2-3 recommendation): "Do rec for
+  p2-p3". SUPERSEDES the P2-3-PENDING notes carried in the MC 12440-era rows
+  (rows above, left standing as history): the public repo's tracked test
+  material carried real diary content — 40+ files, 35 unique real ISBN-13s,
+  real titles/authors in goldens, fixtures and `app/` comments — measured at
+  `97911ce` with the guard's leg-2 parse (36 tracked files ≥1 whole title;
+  a substring instrument, its artifact class named generically in README per
+  this card). **c1 (fixtures + suite):** every tracked title/author/publisher/
+  ISBN/provider-fixture rewritten to Swedish-shaped SYNTHETIC data preserving
+  each parse property (åäö folds, dupe-variants, multi-author splitters, the
+  X-check-digit and ISBN-10 vectors, one intentionally-bad checksum kept bad;
+  check-valid synthetic block `978-91-7371-…`); eight title-named fixture
+  files renamed; new committed synthetic corpus `tests/fixtures/synthetic_seed.md`
+  (43 entries, sha + digest + count pins computed at landing) and the corpus
+  legs cut into TWO CASES (conftest `pytest_generate_tests`): `synthetic` runs
+  everywhere (a clean clone runs the behaviour legs, it skips nothing),
+  `personal` is ADDED wherever path F resolves the export — every personal pin
+  (sha256 `420259…`, 725/724/1/6/52, digest `79ec15…`, dedupe tie-break,
+  leak-matrix floors) stands unpinned-weak; legs that had to NAME rows (Evelyn
+  override, Falska toner tie-break, search-e2e attach, no-leak probe) pin the
+  mechanism on synthetic rows / DB-read probe titles instead, and the personal
+  aliases CSV keeps a NAME-FREE pin (row count 15, every row resolving) where
+  the file resolves. Suite: base 555 -> **577 passed, 0 skipped** (VM350).
+  **c2 (this commit — CSVs off-repo + the gate):** `git rm
+  data-import/author_aliases.csv data-import/import_overrides.csv` after
+  byte-identical copies landed 0600 under `/home/claudecode/liselott-data/`;
+  ONE resolver per CSV (`app/seed.py::aliases_file()/overrides_file()`, env
+  `LISELOTT_ALIASES_FILE`/`LISELOTT_OVERRIDE_FILE` first, default off-repo
+  home; no fallback pair) wired through the importer CLI, the /bundle door,
+  `app_aliases()` and the tests; absent file = clean no-op, pinned by tests
+  BOTH ways (tmp synthetic CSV applies; a fresh import with neither file
+  stores every row, no alias rows, fel-år date stands). New committed
+  `scripts/exposure_check.py`: reads the personal title/ISBN lists from
+  OFF-REPO paths, `git grep -F -w` over the tracked universe, prints ONE
+  number (tracked files with ≥1 hit), exit 0 only at 0 — measured **0** here;
+  red-proofed by a planted real-title file in a throwaway `git archive` export
+  (red, then green after removal — real tree never touched), transcript
+  `.audits/20261114-mc12523/planted-red.md` (host-local, MC-linked). The
+  whole-word instrument also retires the substring artifact class (one
+  four-letter diary title hides inside robots.txt "Disallow" — class named,
+  word not). CAVEATS, honestly: **git HISTORY keeps the old blobs** — this is
+  a public repo and a history rewrite is a separate OWNER decision, NOT taken
+  here; new clones and the current tree measure 0. `LISELOTT_REAL_TITLES`
+  lists 734 titles (724 seed-parsed + 10 fixture-extracted extras, disclosed).
+  Suite c2: **579 passed, 0 skipped, exit 0** on VM350; clean `git archive`
+  clone **557 passed, 1 skipped, exit 0** — the single skip is the diary-in-git
+  guard's leg 2, whose subject IS the personal export (loud reason; the 33 old
+  corpus skips are gone, their shape-work now runs synthetic in every clone).
+  The gate's own first RED run caught this card's committed script carrying
+  the four-letter artifact word in its docstring — fixed, amended pre-push,
+  transcript kept. Live untouched. Nothing pushed.

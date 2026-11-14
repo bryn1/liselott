@@ -16,10 +16,12 @@ from app import db, seed
 
 ROOT = Path(__file__).resolve().parent.parent
 
-# Per-case aliases/overrides: personal = the repo's real CSVs; synthetic =
-# rows the test itself writes (a clean clone has neither real CSV nor needs it).
-PERSONAL_ALIASES = ROOT / "data-import/author_aliases.csv"
-PERSONAL_OVERRIDES = ROOT / "data-import/import_overrides.csv"
+# Per-case aliases/overrides: personal = the OFF-REPO CSVs through the app's
+# own resolver (env first; absent on hosts that never held them — the loader's
+# clean no-op then applies and the pinned counts still hold, since aliases
+# only merge author NAMES); synthetic = rows the test itself writes.
+PERSONAL_ALIASES = seed.aliases_file()
+PERSONAL_OVERRIDES = seed.overrides_file()
 SYNTH_ALIASES = ("Sissela Åhrnstedt,Sissela Åhrstedt\n"
                  "Sara H. Ohlsson,Sara H Ohlsson\n"
                  "Elsa Lindqvist,Elsie Lindqvist\n")
@@ -142,3 +144,23 @@ def test_book_key_is_stable_and_order_insensitive():
     assert a != seed.book_key("Kartboken", ["Lena Lindorsson Roth"])
     # Pinned from the first implementation run (quoted in the T1.5 commit msg).
     assert k1 == "9db8b2d68fb95d08053694157039050486a8d47f4d477e6105f180090e4cdc59"  # MC 12523: re-pinned after the synthetic-ize (was the real-corpus key)
+
+
+def test_absent_alias_and_override_files_are_a_clean_noop(tmp_path, synth_seed):
+    """MC 12523 (e): absent ⇒ clean no-op. Both resolver-default paths are
+    ABSENT on a fresh host; importing then stores every row, flags nothing,
+    invents no alias rows, and leaves the fel-år row at its PARSED (wrong)
+    date — the override is an enrichment, not a precondition. The
+    synthetic-seeded `seeded_synth` fixture above is the present-applies
+    half of the same contract."""
+    conn = sqlite3.connect(":memory:")
+    db.init_db(conn)
+    report = seed.load(conn, synth_seed,
+                       tmp_path / "none-a.csv", tmp_path / "none-o.csv")
+    assert report["stored"] == PINS["synthetic"]["stored"]
+    assert report["flagged"] == []
+    assert conn.execute("SELECT COUNT(*) FROM author_alias").fetchone()[0] == 0
+    assert conn.execute(
+        "SELECT date_read FROM book WHERE title = 'Eskils tio äkta vänner'"
+    ).fetchone() == ("2026-10-26",)   # no override file -> parsed date stands
+    conn.close()

@@ -207,27 +207,29 @@ Debian box with `python3.10-venv` installed, `python3 -m venv` works too.
 Then `http://127.0.0.1:8166/liselott/` — first boot within 20 min shows the
 set-password page; both request shapes (bare `/…` and `/liselott/…`) route.
 Tests: `cd /home/claudecode/liselott && .venv/bin/pytest -q` (offline, no
-provider network; 537 tests green at this commit with the personal corpus
-resolvable, 504 passed + 33 corpus legs skipped in a clean clone — see
-Suite-location rule).
+provider network; **577 passed, exit 0** at this commit on the VM350 build
+clone — see Suite-location rule).
 
-### Suite-location rule (corpus legs, path F — MC 12451 c5)
+### Suite-location rule (corpus cases, path F — MC 12451 c5; two-case cut MC 12523)
 
-The corpus-dependent tests (T1.2/T1.5/T1.6/T1.7/T1.8-leg2/T2.6/T4.3) need the
-raw personal export `data-import/seed-books-raw.md` (sha-pinned, gitignored —
-path F keeps it OUT of git). `tests/conftest.py` holds the ONE locator:
-`LISELOTT_SEED_FILE` wins, else that in-repo location, else the leg **SKIPS**
-with the reason `personal corpus absent — path F keeps it out of git; run on a
-host holding the export or set LISELOTT_SEED_FILE` (`pytest -rs` prints one
-line per skipped leg — 33 of them). Where the export resolves, those legs RUN
-and every pin holds unchanged: file sha256, 725/724/1, the dedupe tie-break,
-the drift digest, the leak matrix. Absence skips loudly; it never greens an
-assertion. A `LISELOTT_SEED_FILE` naming no file ERRORS (misconfiguration is
-not absence), and a corpus with the wrong sha FAILS the pinned-sha leg.
-
-Measured at this commit, both sides: **537 passed, exit 0** on the VM350 build
-clone (export present), **504 passed, 33 skipped, exit 0** in a fresh clone
-without it. Every other test is corpus-independent and runs in any clone.
+The corpus-dependent tests (T1.2/T1.5/T1.6/T1.7/T2.6/T4.3) are **case-
+parametrized, not skipped**: the `synthetic` case runs EVERYWHERE on the
+committed `tests/fixtures/synthetic_seed.md` (invented Swedish-shaped rows
+carrying the same parse shapes, sha/digest/count-pinned at landing), and the
+`personal` case is ADDED wherever path F resolves the personal export — the
+ONE locator lives in `tests/conftest.py` (`LISELOTT_SEED_FILE` wins, else
+`data-import/seed-books-raw.md`, gitignored). Where the export resolves every
+personal pin holds unchanged (file sha256, 725/724/1, dedupe tie-break, drift
+digest, leak-matrix scale floors); a corpus with the wrong sha FAILS the
+pinned-sha leg and a `LISELOTT_SEED_FILE` naming no file ERRORS (misconfig is
+not absence). A clean clone runs the synthetic half for real — zero skips on
+the behaviour legs; the only skip left is `test_no_diary_in_git` leg 2, whose
+subject IS the personal export (a guard grepping the real corpus's titles
+proves nothing without it, and it skips with a loud reason). Measured at this
+commit: **577 passed, 0 skipped, exit 0** on the VM350 build clone; from a
+clean `git archive` clone **557 passed, 1 skipped, exit 0** — the single skip
+is `test_no_diary_in_git` leg 2 (its subject IS the export). The 33 old corpus
+skips are gone: their shape-work now runs synthetic in every clone.
 
 `tests/test_backup.sh` keeps its fail-loudly posture on purpose: it is the §11
 round-trip runbook a human runs by hand, not a collected pytest leg, and a
@@ -250,7 +252,10 @@ silent skip there would be the vacuous-green defect class §13 named.
 | `LISELOTT_DATA_DIR` | data-dir override — dev/test/build use only |
 | `LISELOTT_BACKUP_DIR` | where `scripts/backup.sh` writes its pairs; default `$HOME/liselott-backups` (§11). `GET /backup` never writes here — it streams from a temp dir |
 | `LISELOTT_ENV=dev` | local/test only — turns the session cookie's `Secure` flag off; UNSET means production (Secure ON, debug OFF) |
-| `LISELOTT_SEED_FILE` | test suite ONLY (MC 12451 c5) — points at the personal seed export so the corpus legs RUN; unset, the locator falls back to `data-import/seed-books-raw.md` and the legs skip where neither exists. The app never reads it |
+| `LISELOTT_SEED_FILE` | test suite ONLY (MC 12451 c5) — points at the personal seed export so the `personal` corpus CASE runs; unset, the locator falls back to `data-import/seed-books-raw.md`; with neither, only the synthetic cases run. The app never reads it |
+| `LISELOTT_ALIASES_FILE` | MC 12523 — the personal author-alias CSV (off-repo state data, `canonical,alias` rows); default `/home/claudecode/liselott-data/author_aliases.csv`; ABSENT = no aliases (clean no-op, tested). Read by the importer CLI, the /bundle door and the add/edit doors through `app/seed.py` |
+| `LISELOTT_OVERRIDE_FILE` | MC 12523 — the personal date-override CSV (`exact title,ISO-date` rows); default `/home/claudecode/liselott-data/import_overrides.csv`; ABSENT = no date fixes (clean no-op, tested). Same readers |
+| `LISELOTT_REAL_TITLES` / `LISELOTT_REAL_ISBNS` | `scripts/exposure_check.py` ONLY (MC 12523) — the off-repo personal lists the public-repo gate greps for; defaults `/home/claudecode/liselott-data/real-titles.txt` / `real-isbns.txt`. The app never reads them |
 | `FIRECRAWL_SEARCH_URL` | the S12 cover pass ONLY (`scripts/cover_pass.py`, MC 12466) — the search endpoint it asks for candidate pages; default `http://192.168.5.20:3002/v1/search` (firecrawl on noa). The app never reads it |
 | `DESCRIBE_IMAGE_ENDPOINT` | the S12 cover pass ONLY — the chat-completions endpoint its vision gate (verbatim transcription check) calls; default `http://192.168.5.223:8888/v1/chat/completions`. The app never reads it |
 | `DESCRIBE_IMAGE_MODEL` | the S12 cover pass ONLY — the model the vision gate asks to report the cover's printed words; default `qwen3.8-flash-next`. The app never reads it |
@@ -348,15 +353,27 @@ committed synthetic corpus `tests/fixtures/synthetic_seed.md` name nothing
 real, and every earlier row that quoted a real title now reads generically —
 "raden omnämner verliga titlar — borttagna ur publisert material av MC 12523;
 spåret på MC 12440" — the row's claim stands, only its quoted strings left.
-The two personal CSVs (`data-import/author_aliases.csv`,
-`data-import/import_overrides.csv`) still carry real content **as of this
-commit**; MC 12523's second commit moves them off-repo. Two honest caveats:
+The two personal CSVs that used to sit in `data-import/`
+(`author_aliases.csv`, `import_overrides.csv`) are OFF-REPO state data now —
+removed from git by this card, read through ONE resolver each
+(`app/seed.py::aliases_file()/overrides_file()`; `LISELOTT_ALIASES_FILE` /
+`LISELOTT_OVERRIDE_FILE` win, else `/home/claudecode/liselott-data/<name>.csv`
+on the app host). An absent file is a clean no-op: no aliases, no date fixes,
+every row still imports (both halves pinned by tests). Two honest caveats:
 **git history keeps the old blobs** — this repo is public, and a history
 rewrite is a separate OWNER decision, not taken here; new clones and the
 current tree are clean. And a whole-title *substring* instrument has a
-word-shape artifact class (`[personlig-data-purgad]` inside "Disallow") — MC 12523's second
-commit ships `scripts/exposure_check.py`, which takes over this measurement
-with whole-word matching.
+word-shape artifact class (one four-letter diary title is a substring of the
+robots.txt directive "Disallow" — named here only as a class, not as the
+word) — `scripts/exposure_check.py` is the standing measurement: it reads the
+personal title/ISBN lists from OUTSIDE the repo (never committed), runs
+`git grep -F -w` over the tracked universe, prints ONE number — the count of
+tracked files holding ≥1 real diary string — and exits 0 only at zero. It
+measured **0 (exit 0)** at this commit; its red-proof (a planted real-title
+file in a throwaway archive-export repo, red then green, real tree untouched)
+is in the landing transcript `.audits/20261114-mc12523/planted-red.md`
+(host-local, MC-linked). P2-3 is **RESOLVED** by the owner's ruling MC 12523,
+verbatim: "Do rec for p2-p3".
 
 `tests/test_no_diary_in_git.py` guards this posture in every checkout form:
 leg 2 fails a tracked file at ≥20 whole PERSONAL-corpus titles, leg 1 at ≥100

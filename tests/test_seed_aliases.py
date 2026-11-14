@@ -75,11 +75,11 @@ def test_strip_then_alias_chain(conn, aliases_csv):
 
 def test_real_csv_still_resolves_name_free():
     """The personal CSV, pinned without naming it: row count 15 (§5.9's
-    audit) and EVERY row resolving alias->canonical. Runs wherever the CSV
-    resolves through its path (the in-repo file until MC 12523 commit 2 moves
-    it, the env/off-repo path after); skips with a loud reason where it does
-    not exist — the file is personal data by path F."""
-    path = seed.ALIASES_CSV
+    audit) and EVERY row resolving alias->canonical. The CSV is off-repo
+    state data after MC 12523 — resolved through seed.aliases_file() (env
+    first, else the off-repo home); skips with a loud reason where the host
+    has no copy, the synthetic mechanism legs above run everywhere."""
+    path = seed.aliases_file()
     if not path.is_file():
         pytest.skip("personal aliases CSV absent — path F; the mechanism legs "
                     "above run on synthetic rows in every checkout")
@@ -90,3 +90,20 @@ def test_real_csv_still_resolves_name_free():
     for canonical, alias in rows:
         assert canonical and alias
         assert amap[alias] == canonical
+
+
+def test_env_file_wins_over_the_default_home(tmp_path, monkeypatch):
+    """MC 12523: ONE resolver per CSV, env first — LISELOTT_ALIASES_FILE /
+    LISELOTT_OVERRIDE_FILE win; without them both default to the off-repo
+    home, and NO caller keeps a repo path (the old data-import/ paths are
+    gone from the code, grep-proven in the card's sweep)."""
+    env_a = tmp_path / "a.csv"
+    env_o = tmp_path / "o.csv"
+    monkeypatch.setenv("LISELOTT_ALIASES_FILE", str(env_a))
+    monkeypatch.setenv("LISELOTT_OVERRIDE_FILE", str(env_o))
+    assert seed.aliases_file() == env_a.resolve() or seed.aliases_file() == env_a
+    assert seed.overrides_file() == env_o.resolve() or seed.overrides_file() == env_o
+    monkeypatch.delenv("LISELOTT_ALIASES_FILE")
+    monkeypatch.delenv("LISELOTT_OVERRIDE_FILE")
+    assert seed.aliases_file() == seed.DATA_HOME / "author_aliases.csv"
+    assert seed.overrides_file() == seed.DATA_HOME / "import_overrides.csv"

@@ -22,8 +22,10 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--db", help="target DB path (default: state_base()/liselott.db)")
     ap.add_argument("--raw", default=str(ROOT / "data-import/seed-books-raw.md"))
-    ap.add_argument("--aliases", default=str(ROOT / "data-import/author_aliases.csv"))
-    ap.add_argument("--overrides", default=str(ROOT / "data-import/import_overrides.csv"))
+    # MC 12523: defaults are the OFF-REPO resolver paths (env first); the
+    # flags still override for experiments. Absent files = clean no-op.
+    ap.add_argument("--aliases", default=str(seed.aliases_file()))
+    ap.add_argument("--overrides", default=str(seed.overrides_file()))
     args = ap.parse_args(argv)
 
     if args.db:

@@ -11,6 +11,7 @@ file's header prose (lines 1-7) is parsed nowhere — it carries stale claims
 # number in this line (see app/bundle.py's note for why a counted one stales).
 import csv
 import hashlib
+import os
 import re
 import unicodedata
 from datetime import datetime, timezone
@@ -111,8 +112,14 @@ def split_authors(tail: str) -> list[str]:
 
 
 def load_aliases(path) -> dict:
-    """data-import/author_aliases.csv: 'canonical,alias' rows -> alias→canonical."""
-    with Path(path).open(encoding="utf-8") as fh:
+    """author_aliases.csv: 'canonical,alias' rows -> alias→canonical. An
+    ABSENT file is a clean no-op ({}) — same posture as read_overrides: the
+    table is personal data and lives off-repo after MC 12523, so every
+    caller must degrade to "no aliases" instead of erroring (P3-2's rule)."""
+    p = Path(path)
+    if not p.is_file():
+        return {}
+    with p.open(encoding="utf-8") as fh:
         return {alias: canonical for canonical, alias in csv.reader(fh)}
 
 
@@ -362,15 +369,35 @@ def parse_file(path) -> list[dict]:
 # obey one contract — the plan's own P1-3 rule ("one shared function, no
 # re-derivation drift") applied to the write side, not just the match key.
 
-ALIASES_CSV = Path(__file__).resolve().parent.parent / "data-import" / "author_aliases.csv"
+# The personal CSVs are OFF-REPO state data (MC 12523, owner ruling
+# "Do rec for p2-p3": the repo ships code, the person's data stays with the
+# person). ONE resolver each, env first — every door (CLI, /bundle, the app
+# alias table, the tests) resolves through these, no second path anywhere.
+DATA_HOME = Path("/home/claudecode/liselott-data")
+
+
+def _env_or(env_var: str, default: Path) -> Path:
+    env = os.environ.get(env_var)
+    return Path(env).expanduser() if env else default
+
+
+def aliases_file() -> Path:
+    """LISELOTT_ALIASES_FILE wins; else the off-repo home. Absent = no-op."""
+    return _env_or("LISELOTT_ALIASES_FILE", DATA_HOME / "author_aliases.csv")
+
+
+def overrides_file() -> Path:
+    """LISELOTT_OVERRIDE_FILE wins; else the off-repo home. Absent = no-op."""
+    return _env_or("LISELOTT_OVERRIDE_FILE", DATA_HOME / "import_overrides.csv")
 
 
 def app_aliases() -> dict:
-    """The repo's own alias table (git-tracked data, read-only at runtime);
-    loaded once per process — add/edit cannot invent new spellings anyway."""
+    """The alias table (personal data, off-repo after MC 12523; absent until
+    the owner places it — then read-only at runtime), loaded once per process
+    — add/edit cannot invent new spellings anyway."""
     global _APP_ALIASES
     if _APP_ALIASES is None:
-        _APP_ALIASES = load_aliases(ALIASES_CSV) if ALIASES_CSV.is_file() else {}
+        _APP_ALIASES = load_aliases(aliases_file())
     return _APP_ALIASES
 
 
