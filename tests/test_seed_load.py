@@ -1,5 +1,7 @@
 """T1.5 — override + dedupe (tie-break pinned §5.7) + book_key assignment (§5.3).
-VM350 corpus leg: reads the gitignored raw file from the build worktree (§13)."""
+Corpus leg (path F, MC 12451 c5): reads the gitignored raw export through the
+`corpus` fixture — skipped with a loud reason where no export is resolvable,
+fully asserted where one is."""
 import sqlite3
 from pathlib import Path
 
@@ -8,18 +10,16 @@ import pytest
 from app import db, seed
 
 ROOT = Path(__file__).resolve().parent.parent
-RAW = ROOT / "data-import/seed-books-raw.md"
 ALIASES = ROOT / "data-import/author_aliases.csv"
 OVERRIDES = ROOT / "data-import/import_overrides.csv"
 
 
 @pytest.fixture()
-def seeded(tmp_path, monkeypatch):
-    assert RAW.is_file(), f"{RAW} missing — VM350 build clone leg (§13), never skip"
+def seeded(corpus, tmp_path, monkeypatch):
     monkeypatch.setenv("LISELOTT_DATA_DIR", str(tmp_path))
     conn = db.connect()
     db.init_db(conn)
-    report = seed.load(conn, RAW, ALIASES, OVERRIDES)
+    report = seed.load(conn, corpus, ALIASES, OVERRIDES)
     yield conn, report
     conn.close()
 
@@ -70,9 +70,9 @@ def test_every_book_has_unique_book_key(seeded):
     assert (n, distinct, empty) == (724, 724, 0)
 
 
-def test_reimport_is_idempotent(seeded, tmp_path):
+def test_reimport_is_idempotent(seeded, corpus):
     conn, report1 = seeded
-    report2 = seed.load(conn, RAW, ALIASES, OVERRIDES)
+    report2 = seed.load(conn, corpus, ALIASES, OVERRIDES)
     assert report2["stored"] == 724
     assert conn.execute("SELECT COUNT(*) FROM book").fetchone()[0] == 724
 
