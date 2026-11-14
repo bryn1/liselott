@@ -232,3 +232,27 @@ postdating a line make that line STALE — de-stale before quoting it.
   an OWNER ruling, and the c3 verdict's F-L1 doc staleness is the class of
   finding this wave keeps having to sweep — a count in prose is a claim
   without an instrument behind it.
+- **Test-suite wave c5 (MC 12451)** — DONE (this commit, two test-only commits
+  + this docs duty; transcripts in
+  `.audits/20261112-phase2/.tmp/c5-*-evidence`-set): knut's SEALED rerun died
+  `7 failed, 462 passed, 25 errors` on a clean checkout because the corpus legs
+  hard-required the personal export (§13: "a `pytest.skip` is FORBIDDEN"), so
+  the suite ran ONLY on the host already holding her diary — path F made the
+  clean-environment contract unmeetable and no commit-bound card here could
+  ever PASS. `tests/conftest.py` is now the ONE locator (`LISELOTT_SEED_FILE` →
+  the gitignored in-repo location → skip with a named reason) and the eight
+  corpus files take the path from it, CLI legs included, so the suite and
+  `import_seed.py`/`parse_digest.py` resolve the corpus through one mechanism.
+  Both sides measured at this commit: **494 passed, exit 0** with the export
+  (zero new skips — the pins still RUN here) and **462 passed, 32 skipped,
+  exit 0** in a fresh clone without it (`tests/` and bare, same result). The
+  gate's own red legs: a one-byte-mutated copy FAILS the pinned sha256
+  (`1 failed`, the two digests printed side by side) and a
+  `LISELOTT_SEED_FILE` naming no file ERRORS all five parse legs — absence
+  skips, misconfiguration and drift do not. OUT of this wave, named: (a)
+  `tests/test_backup.sh` still fails loudly on a missing export BY DESIGN (a
+  hand-run round-trip runbook, not a collected leg); (b) `test_no_diary_in_git`
+  legs 1+3 need a real `.git` — they fail in a git-ARCHIVE tree with no `.git`,
+  VERIFIED pre-existing at base `1e65919` (`c5-archive-nogit-BASE-1e65919.txt`),
+  so a rerun host that unpacks an archive instead of cloning needs an OWNER/
+  verifier call: clone-based rerun, or a separate wave for that guard.
