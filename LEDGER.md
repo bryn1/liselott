@@ -275,8 +275,9 @@ postdating a line make that line STALE — de-stale before quoting it.
   ride inside the c5 row above; c6 and c8 were test-only). C-1: §CODE-ONLY now
   states the rule AND the exception that ships in the PUBLIC tree — the 18
   T1.3 goldens, `data-import/import_overrides.csv`, five title-named provider
-  fixtures, three `app/` comments, 35 tracked files holding ≥1 whole diary
-  title by the guard's own leg-2 parse — with the guard's thresholds
+  fixtures, three `app/` comments, 36 tracked files holding ≥1 whole diary
+  title by the guard's own leg-2 parse (the 36th is README itself, via the
+  word-shape class it documents) — with the guard's thresholds
   (K = 20 titles / 100 shape lines) and the OWNER RULING still PENDING (P2-3,
   MC 12440; recommendation synthetic-ize, no consent manufactured). C-2: the
   manual no longer sends her through a "Redigera" link `bok.html` emits only
