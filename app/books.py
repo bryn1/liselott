@@ -33,14 +33,26 @@ def load_books(conn, ids=None, public_only=False):
     `authors`/`genres` name lists and a `has_cover` flag. Returned in id
     order — presentation order is sort_by_read_date's job.
 
-    `public_only` narrows the fetch to PUBLIC_SET_SQL — the anonymous read
-    posture (MC 12501). The owner's reads never pass it: her view is the
-    full shelf, unchanged.
+    `public_only` narrows the fetch to PUBLIC_SET_SQL AND strips the note
+    field (F-1 cure, MC 12501) — the anonymous read posture. The owner's
+    reads never pass it: her view is the full shelf, notes included,
+    unchanged.
+
+    F-1 (SEC-verdict-12501; owner ruling 2026-11-14): the ruling named the
+    rated books, their ratings and the wishlist public — the free-text note
+    is NOT named, so it is "the rest behind password". The public
+    projection therefore carries NO notes value: the SELECT itself yields
+    NULL for it, so no template — today's bok.html render or a future one —
+    can paint an anonymous note. One gate, at the data layer; the templates
+    add no second one. The date_read ("Läst") stays public by design: it
+    rides the rated-book card the ruling made public.
 
     The two vocabularies arrive in two queries total (not one per card: a
     700-card page would otherwise be 1 400 queries)."""
+    notes_sql = "NULL" if public_only else "notes"
     sql = ("SELECT id, title, year, read_year, date_read, rating, format,"
-           " status, isbn13, isbn10, cover_path, notes FROM book")
+           f" status, isbn13, isbn10, cover_path, {notes_sql} AS notes"
+           " FROM book")
     clauses = []
     params = ()
     if ids is not None:

@@ -20,6 +20,12 @@ _the_private_only_year below — corpus-free, so it runs in any clone):
   the answer is the guard's login refuse and it is the SAME status and
   Location a nonexistent id gets — id-enumeration cannot tell them apart
   (the equal-answer legs assert both halves);
+* the public projection carries NO note text (F-1 cure): the ruling names
+  the books, their ratings and the wishlist public — the free-text note is
+  "the rest" — so the note is stripped in the data layer itself
+  (books.load_books projects NULL for it under public_only), absent from
+  every anonymous body by exact string while the owner keeps her notes;
+  the "Läst" DATE stays public (it rides the rated-book card by design);
 * /sok and /rekommendationer answer the guard's 302 to the login page
   anonymous and 200 to the owner (back behind the password);
 * every write route refuses an anonymous POST non-2xx (unchanged from
@@ -164,9 +170,9 @@ def test_public_ids_answer_anonymous_with_their_data(configured):
     r = anon.get("/liselott/bok/2")
     assert r.status_code == 200
     assert "[personlig-data-purgad]" in r.text and "Ann-Helén Laestadius" in r.text
-    r = anon.get("/liselott/bok/1")             # the note ships with the page
-    assert r.status_code == 200
-    assert "Sommarstugeklassikern" in r.text
+    r = anon.get("/liselott/bok/1")             # the BOOK is public; the
+    assert r.status_code == 200                 # note is not (the F-1 legs
+    assert "[personlig-data-purgad]" in r.text            # pin the note below)
     r = anon.get("/liselott/bok/5")             # the wishlist row is public too
     assert r.status_code == 200 and "[personlig-data-purgad]" in r.text
     r = anon.get("/liselott/cover/2")           # the stored cover, real bytes
@@ -251,6 +257,40 @@ def test_public_book_page_still_shows_the_readonly_stars(configured):
     _, _ = configured
     anon = _app().test_client()
     assert 'aria-label="Betyg 4 av 5"' in anon.get("/liselott/bok/2").text
+
+
+# ── configured state: the note field is "the rest" — owner-only (F-1 cure) ──
+def test_note_text_never_reaches_an_anonymous_body(configured):
+    """SEC-verdict-12501 F-1, cured. Book 1 is in the PUBLIC set (rated 5)
+    AND carries a seeded note — the exact scenario the verdict reproduced
+    (note present on anon /bok, hits=1). The ruling named the books, their
+    ratings and the wishlist public; the note is NOT named, so it is "the
+    rest behind password": the public projection must carry no notes value
+    at all (books.load_books NULLs the column under public_only — the ONE
+    gate, no second one in any template). The wishlist half of the public
+    set gets the same leg with a planted note. The Läst date is NOT part
+    of this gate and stays painted; the owner's pages keep every note."""
+    tmp, client = configured
+    note = "Sommarstugeklassikern, igen."          # seeded on rated book 1
+    wish_note = "WINSKAD-TEXT-julklapp"            # verdict's own repro string
+    conn = sqlite3.connect(tmp / "liselott.db")
+    conn.execute("UPDATE book SET notes = ? WHERE id = 5", (wish_note,))
+    conn.commit()
+    conn.close()
+    anon = _app().test_client()
+    bok1 = anon.get("/liselott/bok/1")
+    assert bok1.status_code == 200 and "[personlig-data-purgad]" in bok1.text
+    assert note not in bok1.text                   # exact string absent
+    assert 'class="anteckningar"' not in bok1.text  # render branch stays shut
+    assert "29 oktober 2026" in bok1.text           # Läst stays public
+    wish = anon.get("/liselott/bok/5")
+    assert wish.status_code == 200 and "[personlig-data-purgad]" in wish.text
+    assert wish_note not in wish.text
+    shelf = anon.get("/liselott/bibliotek").text   # anon shelf note-free too
+    assert note not in shelf and wish_note not in shelf
+    # the owner's view is unchanged: she sees her notes everywhere the book is
+    assert note in client.get("/liselott/bok/1").text
+    assert wish_note in client.get("/liselott/bok/5").text
 
 
 # ── the setup-state exception: no password -> nothing is public ─────────────

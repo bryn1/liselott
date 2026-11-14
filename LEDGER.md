@@ -407,4 +407,21 @@ postdating a line make that line STALE — de-stale before quoting it.
   writes (scratch `LISELOTT_DATA_DIR` only); live still answers the
   pre-wave posture until the orchestrator re-publishes. Transcripts:
   `.audits/20261112-phase2/.tmp/public-scope-evidence.md` (host-local,
-  MC-linked).
+  MC-linked). F-1 CURE (same card, same concern, 2026-11-14): the scope
+  gate (SEC-verdict-12501, VERDICT SHIP) found `book.notes` rendered
+  UNGATED on public `/bok` pages (books.py SELECT + bok.html render) —
+  latent, 0 of 53 live public pages carried note text; by the ruling's
+  "rest" clause notes are owner-only. The cure is ONE place at the data
+  layer: `load_books(public_only=…)` now projects `NULL AS notes` — no
+  second gate in any template (bok.html untouched), the "Läst" date stays
+  public (it rides the rated-book card by design), the owner's view is
+  unchanged (she keeps her notes everywhere she sees the book). Tests:
+  the stale "the note ships with the page" leg flipped to the new
+  contract; one new leg plants a note on a rated AND on a wishlist public
+  book and asserts the exact strings absent from anon `/bok` + anon shelf,
+  present on the owner's; planted-RED both pre-cure and with the cure gate
+  forced off (transcripts). Suite: base 546 re-measured at 0b8d801 →
+  **547 passed, exit 0** (build clone, corpus legs green, 103.7s). LIVE
+  untouched (scratch `LISELOTT_DATA_DIR` only); nothing pushed.
+  Transcripts: `.audits/20261112-phase2/.tmp/notes-gate-evidence.md`
+  (host-local, MC-linked).

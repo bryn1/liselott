@@ -255,7 +255,12 @@ The guard (`app/auth.py::_auth_gate`) answers in three states, measured in
   stars and the wishlist section — and an unrated book appears NOWHERE in
   an anonymous response (no title, no private-only author, no year-section
   only they populated, no id link: the corpus-scale absence legs grep all
-  700 unrated corpus titles out of the shelf body). `/bok/<id>` and
+  700 unrated corpus titles out of the shelf body). The free-text note
+  field is NOT public — owner-only by the ruling's "The rest behind
+  password" clause (F-1 cure, 2026-11-14): `load_books(public_only=…)`
+  projects `notes` as NULL in the ONE public projection, so no public page
+  paints a note and no template can (the "Läst" date stays public — it
+  rides the rated-book card by design). `/bok/<id>` and
   `/cover/<id>` answer 200 for public-set ids; any other id — private or
   nonexistent alike, overflow ids included — meets the guard's uniform 302
   to `/logga-in`, identical in status AND Location, so id-enumeration
