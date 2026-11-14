@@ -1,16 +1,22 @@
 # Liselotts bokhylla
 
-A Swedish-language, login-gated personal book diary for exactly one reader
-(Liselott): she adds the books she reads, grades them 1–5, searches her own
+A Swedish-language personal book diary for exactly one writer (Liselott):
+she adds the books she reads, grades them 1–5, searches her own
 library, and gets recommendations derived only from her own books and grades —
 a real cover on a shelf card wherever one has been found, a calm fix-me
 placeholder wherever it has not, with the cover waves still running (the
 measured share lives in the Status snapshot and Known limits below, never in
-this line). It is built to be served at
+this line). **Reading the diary is public** (owner ruling 2026-11-14, MC
+12497: "The website sibbamala.com/liselott should be public. All rate books
+should be public. Rating and whishing is blocked behind liselotts
+password"): the shelf, bok pages, search, recommendation pages, covers and
+rating stars answer any anonymous visitor on a configured site; every write
+— grading, wishing, adding, editing, deleting, the machine doors, backups,
+rapporter — stays behind her one password. It is built to be served at
 `https://sibbamala.com/liselott` on the fleet's auto lane. The build contract
 is `PLAN-c3` (the pinned plan); this README states what the tree actually is.
 
-## Status snapshot — re-measured 2026-11-14 against HEAD c0246b1 (docs wave c10, MC 12451)
+## Status snapshot — re-measured 2026-11-14 against HEAD 93f08f7 (public-read wave, MC 12497)
 
 - Build milestones M0–M7 are done and committed, and **the publish (plan
   milestone M8) HAS RUN**: `bryn1/liselott` exists on GitHub with visibility
@@ -23,11 +29,25 @@ is `PLAN-c3` (the pinned plan); this README states what the tree actually is.
   publish took — staging-gate landing, static in the closed state,
   quarantine 404s, the live-500 cachebust fix, the setup-window reopens —
   is LEDGER rows, not this snapshot's fine print.
-- The full offline test suite passes: **494 passed, exit 0**
-  (`.venv/bin/pytest -q`, VM350 build clone, re-run 2026-11-14 at c0246b1 —
-  the c10 wave is docs-only) and **462 passed,
-  32 skipped, exit 0** in a clean clone without her personal export — the 32
-  are the corpus legs, skipping by name, never silently (MC 12451 c5).
+- **MC 12497 public-read wave (2026-11-14):** the tree implements the
+  public-read contract — `app/auth.py::_is_public_read` answers the read set
+  (`/`, `/bibliotek`, `/bok/<id>`, `/sok`, `/rekommendationer`, `/cover/<id>`,
+  plus `/healthz`, `/robots.txt`, static) to anonymous GET/HEAD on a
+  CONFIGURED site, every write keeps the guard's non-2xx refuse, the
+  setup-state exception holds (no password set → the choose-password gate
+  wraps the whole site as before), and `robots.txt` now answers `Allow: /`
+  on the public site (`Disallow: /` while it is still wrapped). Owner write
+  UI (betyg form, "Omslag saknas — fixa", "Visa inte igen") paints only in
+  her session. **The live site still runs the pre-wave code until the
+  orchestrator re-publishes; flipping live behaviour is that act, not this
+  tree's.**
+- The full offline test suite passes: **504 passed, exit 0**
+  (`.venv/bin/pytest -q`, VM350 build clone, re-run 2026-11-14 at this wave —
+  the public-read matrix `tests/test_public_read.py` and the re-cut auth-wall
+  legs are the delta from the old 494) and **471 passed,
+  33 skipped, exit 0** in a clean clone without her personal export — the 33
+  are the corpus legs, skipping by name, never silently (MC 12451 c5; the
+  +1 skip since the old count is the new corpus write-refusal leg).
 - The build database holds **724 books** (706 read + 18 wishlist), **671** with
   an ISBN (parse: `isbn13` non-empty), **6** rated, **52** ljudbok, and a
   recommendation candidate pool of **284** authors' works
@@ -45,6 +65,12 @@ is `PLAN-c3` (the pinned plan); this README states what the tree actually is.
 **Logga in.** Öppna sidan (länken får du av orchestratorn,
 `sibbamala.com/liselott`) och skriv ditt lösenord. Inget annat än lösenordet
 behövs — det finns inget användarnamn.
+
+**Alla kan läsa.** Sedan den 14 november 2026 är sajten publik: hyllan,
+boksidorna, sök, rekommendationer, omslag och stjärnor syns för alla utan
+lösenord — och det som står som anteckning på en bok sida visas då för alla.
+Bara du kan skriva: betygsätta, önska, lägga till, redigera och ta bort
+kräver ditt lösenord.
 
 **Första lösenordet.** När appen startas för första gången är ett fönster öppet
 i 20 minuter: då sätter du ditt lösenord (minst 10 tecken). Fönstret stängs för
@@ -115,8 +141,8 @@ Debian box with `python3.10-venv` installed, `python3 -m venv` works too.
 Then `http://127.0.0.1:8166/liselott/` — first boot within 20 min shows the
 set-password page; both request shapes (bare `/…` and `/liselott/…`) route.
 Tests: `cd /home/claudecode/liselott && .venv/bin/pytest -q` (offline, no
-provider network; 494 tests green at this commit with the personal corpus
-resolvable, 462 passed + 32 corpus legs skipped in a clean clone — see
+provider network; 504 tests green at this commit with the personal corpus
+resolvable, 471 passed + 33 corpus legs skipped in a clean clone — see
 Suite-location rule).
 
 ### Suite-location rule (corpus legs, path F — MC 12451 c5)
@@ -127,14 +153,14 @@ path F keeps it OUT of git). `tests/conftest.py` holds the ONE locator:
 `LISELOTT_SEED_FILE` wins, else that in-repo location, else the leg **SKIPS**
 with the reason `personal corpus absent — path F keeps it out of git; run on a
 host holding the export or set LISELOTT_SEED_FILE` (`pytest -rs` prints one
-line per skipped leg — 32 of them). Where the export resolves, those legs RUN
+line per skipped leg — 33 of them). Where the export resolves, those legs RUN
 and every pin holds unchanged: file sha256, 725/724/1, the dedupe tie-break,
 the drift digest, the leak matrix. Absence skips loudly; it never greens an
 assertion. A `LISELOTT_SEED_FILE` naming no file ERRORS (misconfiguration is
 not absence), and a corpus with the wrong sha FAILS the pinned-sha leg.
 
-Measured at this commit, both sides: **494 passed, exit 0** on the VM350 build
-clone (export present), **462 passed, 32 skipped, exit 0** in a fresh clone
+Measured at this commit, both sides: **504 passed, exit 0** on the VM350 build
+clone (export present), **471 passed, 33 skipped, exit 0** in a fresh clone
 without it. Every other test is corpus-independent and runs in any clone.
 
 `tests/test_backup.sh` keeps its fail-loudly posture on purpose: it is the §11
@@ -177,6 +203,39 @@ Inside the data dir: `liselott.db` (SQLite, WAL), `covers/<book_id>.jpg`,
 `secret.key` (0600, first boot), `enrich_report.json`. The build run uses
 `LISELOTT_DATA_DIR=/home/claudecode/liselott-build`. The whole diary is thus
 two things: one SQLite file and one directory of JPEGs.
+
+### Reading is public, writing is private (MC 12497, owner ruling 2026-11-14)
+
+The guard (`app/auth.py::_auth_gate`) answers in three states, measured in
+`tests/test_guard.py`, `tests/test_public_read.py` and (over the corpus)
+`tests/test_no_leak.py`:
+
+- **Configured site, anonymous reads:** the §6.4 allow-list plus the
+  public-read set — `/` (the fixed-copy landing: still zero app data, one
+  door), `/bibliotek`, `/bok/<id>`, `/sok`, `/rekommendationer`,
+  `/cover/<id>`, `/healthz`, `/robots.txt`, `/static/*` — answer with the
+  real route (200, or the route's own 404 when no row stands behind it).
+  A public page carries no owner door (no edit link, no byt lösenord, no
+  logga-ut, no betyg widget, no "Visa inte igen") and never sets a session
+  cookie. `robots.txt` says `Allow: /` here — the site is public to read.
+- **Configured site, anonymous writes:** every POST stays the guard's 302 to
+  `/logga-in` (the `/satt-loesenord` door answers its §6.1 404) — including
+  POSTs aimed at the READ paths: the method rule in `_is_public_read` is what
+  makes "public to read" not mean "public to write". Owner surfaces —
+  `/onska`, `/lagg-till`, `/redigera/<id>`, `/rapa/*`, `/backup`,
+  `/byter-losenord`, `/logga-ut` and the machine doors `/seed`, `/bundle`,
+  `/backfill` — stay behind her session.
+- **No password set (the setup-state exception):** everything above reverts
+  to the §6.1 wrap — every data route redirects to `/satt-loesenord`,
+  `robots.txt` says `Disallow: /` (an inviting one would point crawlers at a
+  setup door), the landing keeps its single setup door. Public-read is a
+  property of the CONFIGURED site only. The closed window 404s `robots.txt`
+  and serves the pinned gate page everywhere else, as before.
+
+Quarantines are untouched in every state: `/liselott.db`, `/VERSION`, state
+paths and other mirror-dropped names answer the guard's 404; extension-less
+unknowns keep the uniform 302 (T2.6). `tests/test_backup.sh`'s
+`GET /backup` door is still session-gated.
 
 ### CODE-ONLY repo (the P0-1 rule)
 
@@ -322,7 +381,9 @@ remain vm106-ROOT actions — owner decision, never assumed.
   owner-driven — never a silent placeholder majority.
 - **No edit door for a book that HAS a cover** (measured at this commit):
   `app/templates/bok.html` emits its only `/redigera/<id>` link inside
-  `{% if not bok.has_cover %}`, and the shelf cards link the book page only —
+  `{% if not bok.has_cover %}` (and since MC 12497 inside her session too —
+  the public bok page paints no write door at all), and the shelf cards link
+  the book page only —
   so a covered book reaches editing/deleting solely by typing the address
   (the page itself answers 200). Grading is unaffected. Card MC 12493 is
   filed to add a calm "Redigera" link; until that ships the manual above
