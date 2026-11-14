@@ -1,6 +1,8 @@
 """T1.7 — whole-corpus drift gate WITHOUT committing the diary (P0-1).
 Digest + aggregates only (scripts/parse_digest.py); literals pinned from the
-planner-audited corpus run on this VM350 build clone. VM350 corpus leg (§13)."""
+planner-audited corpus run. Corpus leg (path F, MC 12451 c5): runs on the
+export the `corpus` fixture resolves — skipped with a loud reason where none is
+resolvable, digest-pinned where one is."""
 import json
 import subprocess
 import sys
@@ -9,7 +11,6 @@ from pathlib import Path
 from app import seed
 
 ROOT = Path(__file__).resolve().parent.parent
-RAW = ROOT / "data-import/seed-books-raw.md"
 
 # Pinned literals — digest over (section,row,title,authors,date,rating) of
 # all 725 rows, produced by scripts/parse_digest.py on the sha-pinned file.
@@ -25,9 +26,9 @@ PINNED_AGGREGATES = {
 }
 
 
-def test_digest_and_aggregates_equal_pinned_literals():
-    assert RAW.is_file(), f"{RAW} missing — VM350 build clone leg (§13), never skip"
-    proc = subprocess.run([sys.executable, str(ROOT / "scripts/parse_digest.py")],
+def test_digest_and_aggregates_equal_pinned_literals(corpus):
+    proc = subprocess.run([sys.executable, str(ROOT / "scripts/parse_digest.py"),
+                           str(corpus)],
                           cwd=ROOT, capture_output=True, text=True)
     assert proc.returncode == 0, proc.stderr
     got = json.loads(proc.stdout)
@@ -36,16 +37,16 @@ def test_digest_and_aggregates_equal_pinned_literals():
         assert got[key] == expected, key
 
 
-def _rows():
+def _rows(corpus):
     out = []
-    for e in seed.parse_file(RAW):
+    for e in seed.parse_file(corpus):
         out.append((e, seed.parse_row(e["raw"])))
     return out
 
 
-def test_invariants_over_every_parsed_row():
+def test_invariants_over_every_parsed_row(corpus):
     bad_av_author, bad_title_annotation, af_rows, av_ending = [], [], [], []
-    for entry, row in _rows():
+    for entry, row in _rows(corpus):
         for a in row["authors"]:
             if " av " in a:
                 bad_av_author.append((entry["raw"], a))
