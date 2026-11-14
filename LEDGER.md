@@ -295,3 +295,35 @@ postdating a line make that line STALE — de-stale before quoting it.
   the base `5c6b420`'s count: ZERO test delta. Live site untouched (anonymous
   GETs were not even needed). Transcripts:
   `.audits/20261112-phase2/.tmp/c9-fix-evidence.md`.
+- **Public-read wave (MC 12497)** — DONE (four commits, one per concern:
+  guard+templates / tests / robots / this docs row): OWNER RULING 2026-11-14
+  (web chat, verbatim): "The website sibbamala.com/liselott should be public.
+  All rate books should be public. Rating and whishing is blocked behind
+  liselotts password". Reading is public on a CONFIGURED site (shelf, bok
+  page, search, recs, covers, the data-free landing, healthz, robots,
+  static — anonymous GET/HEAD only), writing is every POST refused non-2xx
+  (the guard's 302, never a 2xx), the SETUP-STATE exception holds (no
+  password set → the choose-password gate wraps the whole site, robots says
+  Disallow then too), quarantines untouched in all states, and the owner's
+  write UI (betyg form, fixa-link, "Visa inte igen") paints only in her
+  session. Owner surfaces `/onska /lagg-till /redigera /rapa /backup
+  /byter-losenord /logga-ut` and the machine doors stay behind the session.
+  The auth-wall tests were REWRITTEN to the new per-route matrix
+  (`tests/test_public_read.py` NEW; guard/no_leak/browse/search/prefix/
+  login/change_pw re-cut), and the guard's 501-stub helper now decides via
+  the url_map matcher (its old string compare shadowed converter routes the
+  moment anonymous reads reached routing — the flip surfaced a latent test
+  defect, fixed here). Suite: 494 → **504 passed, exit 0** (build clone,
+  corpus legs green) and 462+32skipped → **471 passed, 33 skipped, exit 0**
+  (clean clone, `git archive` check). TEN planted-REDs pasted with executed
+  restores (P1 reads-off, P2 method-rule, P3 fresh-wrap, P4/P5 owner-UI-on-
+  public-pages, P6/P9 robots both directions, P7 anon Set-Cookie, P8 owner
+  write dead, P10 owner-surface leak into the read set) — the campaign's
+  FIRST P1 attempt echoed its plant/restore instead of executing them, that
+  self-catch is recorded in the transcript header. Password machinery,
+  doors' authenticated behaviour, data-import/ and golden rows: untouched.
+  LIVE site untouched — it still answers the pre-wave code until the
+  orchestrator re-publishes (the README Status row states that, no live
+  claim manufactured). Transcripts:
+  `.audits/20261112-phase2/.tmp/public-read-evidence.md` + `planted-red.md`
+  (host-local, MC-linked).
