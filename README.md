@@ -204,8 +204,12 @@ LEADING `YYMMDD` token, 45 rows). Trust the plan's §5 rules, never the header.
 ### Covers and "hitta omslag"
 
 Provider order libris → openlibrary → google-books (GB is keyless →
-opportunistic, with a 6 h cooldown after a 429; Libris does not resolve from
-VM350 at all and is exercised by fixtures). One normalizer, `store_cover`,
+opportunistic, with a 6 h cooldown after a 429; Libris IS reachable from
+VM350 — `https://libris.kb.se/` answers 200 (measured 2026-11-14), exactly as
+`app/enrich_libris.py`'s HOST-CORRECTION header (2026-11-13) records: the
+plan's NO-DNS measurement pinned the wrong host, `librisxl.net` — and its
+enrichment legs are still exercised by fixtures, because the suite is offline
+by contract). One normalizer, `store_cover`,
 re-encodes every image to ≤340×510 JPEG — upload, bundle-write and provider-
 fetch all ride it. Browser uploads are downscaled client-side (`omslag-upp.js`,
 canvas + quality ladder) before POST, so a large phone photo never trips the
@@ -257,7 +261,9 @@ remain vm106-ROOT actions — owner decision, never assumed.
   belong to the rapport doors behind the login, not to this file.
 - The production candidate pool was built by the runbook's candidate loop
   (build pool reference: 284).
-- Libris is unreachable from VM350 (fixture-tested; may work from the lane —
-  upside only). Google Books without a key 429s under load.
+- Libris is reachable from VM350 (`https://libris.kb.se/` answers 200,
+  measured 2026-11-14; the Covers section carries the HOST-CORRECTION note) —
+  its enrichment legs stay fixture-tested because the suite is offline.
+  Google Books without a key 429s under load.
 - The recommendation engine and every provider run inside the app's own jail;
   it needs no VM350 for future books.
