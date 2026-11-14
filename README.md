@@ -6,15 +6,18 @@ library, and gets recommendations derived only from her own books and grades —
 a real cover on a shelf card wherever one has been found, a calm fix-me
 placeholder wherever it has not, with the cover waves still running (the
 measured share lives in the Status snapshot and Known limits below, never in
-this line). **Reading the diary is public** (owner ruling 2026-11-14, MC
-12497: "The website sibbamala.com/liselott should be public. All rate books
-should be public. Rating and whishing is blocked behind liselotts
-password"): the shelf, bok pages, search, recommendation pages, covers and
-rating stars answer any anonymous visitor on a configured site; every write
-— grading, wishing, adding, editing, deleting, the machine doors, backups,
-rapporter — stays behind her one password. It is built to be served at
-`https://sibbamala.com/liselott` on the fleet's auto lane. The build contract
-is `PLAN-c3` (the pinned plan); this README states what the tree actually is.
+this line). **The PUBLIC SET is public** (owner ruling 2026-11-14, web chat,
+verbatim: "Rated books and their ratings as well as whishlist shall be
+public. The rest behind password" — narrowing the same-day earlier claim of
+MC 12497, the newer ruling binding): the shelf filtered to it (rated books
+with their stars, plus the wishlist), the bok pages and covers of public-set
+ids, and the data-free landing answer any anonymous visitor on a configured
+site; everything else — the unfiltered shelf, search, recommendations, and
+every write (grading, wishing, adding, editing, deleting, the machine doors,
+backups, rapporter) — stays behind her one password. It is built to be
+served at `https://sibbamala.com/liselott` on the fleet's auto lane. The
+build contract is `PLAN-c3` (the pinned plan); this README states what the
+tree actually is.
 
 ## Status snapshot — re-measured 2026-11-14 against HEAD (sec-wave p2, MC 12497)
 
@@ -29,18 +32,30 @@ is `PLAN-c3` (the pinned plan); this README states what the tree actually is.
   publish took — staging-gate landing, static in the closed state,
   quarantine 404s, the live-500 cachebust fix, the setup-window reopens —
   is LEDGER rows, not this snapshot's fine print.
-- **MC 12497 public-read wave (2026-11-14):** the tree implements the
-  public-read contract — `app/auth.py::_is_public_read` answers the read set
-  (`/`, `/bibliotek`, `/bok/<id>`, `/sok`, `/rekommendationer`, `/cover/<id>`,
-  plus `/healthz`, `/robots.txt`, static) to anonymous GET/HEAD on a
-  CONFIGURED site, every write keeps the guard's non-2xx refuse, the
-  setup-state exception holds (no password set → the choose-password gate
-  wraps the whole site as before), and `robots.txt` now answers `Allow: /`
-  on the public site (`Disallow: /` while it is still wrapped). Owner write
-  UI (betyg form, "Omslag saknas — fixa", "Visa inte igen") paints only in
-  her session. **The live site still runs the pre-wave code until the
-  orchestrator re-publishes; flipping live behaviour is that act, not this
-  tree's.**
+- **MC 12497 public-read wave (2026-11-14; its WHOLE-site read scope is
+  SUPERSEDED the same day by MC 12501 below — this bullet stands as the
+  trail of what that wave fixed beside the scope):** the write posture it
+  pinned stands unchanged — every write keeps the guard's non-2xx refuse,
+  the setup-state exception holds (no password set → the choose-password
+  gate wraps the whole site as before), the owner write UI (betyg form,
+  "Omslag saknas — fixa", "Visa inte igen") paints only in her session.
+  **The live site still runs the pre-wave code until the orchestrator
+  re-publishes; flipping live behaviour is that act, not this tree's.**
+- **MC 12501 public-scope narrowing (2026-11-14, re-measured against HEAD
+  the same day):** OWNER RULING (web chat, verbatim): "Rated books and
+  their ratings as well as whishlist shall be public. The rest behind
+  password". The anonymous read surface is the PUBLIC SET — rated books
+  with their stars, exactly as the owner sees them, plus the wishlist
+  (`app/auth.py::PUBLIC_READ_PATHS` carries `/` and `/bibliotek` only;
+  `app/books.py::PUBLIC_SET_SQL` is the ONE filter the shelf/bok/cover
+  fetches apply). `/sok` and `/rekommendationer` answer the guard's 302 to
+  `/logga-in` again; a private `/bok/<id>` or `/cover/<id>` answers the
+  SAME 302 a nonexistent id does (id-enumeration learns nothing, VERIFIED
+  by equal-status-and-Location legs); the owner's own view is unfiltered
+  everywhere, zero visible change when she is logged in. `robots.txt`
+  stays state-dependent (`Allow: /` on the configured site, `Disallow: /`
+  while it is still wrapped). **The live site still answers the pre-wave
+  code until the orchestrator re-publishes.**
 - **SEC-WAVE p2 — security fixes (MC 12497, 2026-11-14):** the five findings of
   the security gate `.audits/20261112-phase2/out/SEC-verdict-12497.md` are
   cured in this tree — one commit each: HEAD never executes a state change
@@ -60,13 +75,15 @@ is `PLAN-c3` (the pinned plan); this README states what the tree actually is.
   pre-wave code (re-measured this session: the overflow GET answers 500
   live, one read-only request) — flipping live behaviour is the re-publish,
   not this tree.
-- The full offline test suite passes: **537 passed, exit 0**
+- The full offline test suite passes: **546 passed, exit 0**
   (`.venv/bin/pytest -q`, VM350 build clone, re-run 2026-11-14 at the
-  sec-wave — the +33 legs are the five security fixes' red-before/green-after
-  suites, on top of the public-read wave's 504) and **504 passed,
-  33 skipped, exit 0** in a clean clone without her personal export — the 33
-  are the corpus legs, skipping by name, never silently (MC 12451 c5; the
-  sec-wave added no corpus leg — all 33 new legs run in any clone).
+  public-scope wave — the +9 legs over the sec-wave's 537 are the
+  public-scope matrix: absence proofs, equal-answer legs and the flipped
+  per-route posture) and **512 passed, 34 skipped, exit 0** in a clean
+  clone without her personal export — the 34 are the corpus legs, skipping
+  by name, never silently (MC 12451 c5; the public-scope wave added one
+  corpus leg — the corpus-scale absence sweep — and 8 that run in any
+  clone).
 - The build database holds **724 books** (706 read + 18 wishlist), **671** with
   an ISBN (parse: `isbn13` non-empty), **6** rated, **52** ljudbok, and a
   recommendation candidate pool of **284** authors' works
@@ -223,31 +240,46 @@ Inside the data dir: `liselott.db` (SQLite, WAL), `covers/<book_id>.jpg`,
 `LISELOTT_DATA_DIR=/home/claudecode/liselott-build`. The whole diary is thus
 two things: one SQLite file and one directory of JPEGs.
 
-### Reading is public, writing is private (MC 12497, owner ruling 2026-11-14)
+### The public set is public, the rest behind the password (MC 12501, owner ruling 2026-11-14 — narrowing MC 12497 the same day)
 
 The guard (`app/auth.py::_auth_gate`) answers in three states, measured in
 `tests/test_guard.py`, `tests/test_public_read.py` and (over the corpus)
 `tests/test_no_leak.py`:
 
-- **Configured site, anonymous reads:** the §6.4 allow-list plus the
-  public-read set — `/` (the fixed-copy landing: still zero app data, one
-  door), `/bibliotek`, `/bok/<id>`, `/sok`, `/rekommendationer`,
-  `/cover/<id>`, `/healthz`, `/robots.txt`, `/static/*` — answer with the
-  real route (200, or the route's own 404 when no row stands behind it).
-  A public page carries no owner door (no edit link, no byt lösenord, no
-  logga-ut, no betyg widget, no "Visa inte igen") and never sets a session
-  cookie. `robots.txt` says `Allow: /` here — the site is public to read.
+- **Configured site, anonymous reads:** the guard opens `/` (the fixed-copy
+  landing: still zero app data, one door), `/bibliotek`, `/bok/<id>`,
+  `/cover/<id>`, `/healthz`, `/robots.txt`, `/static/*` — and the data
+  layer (the ONE filter, `app/books.py::PUBLIC_SET_SQL`:
+  `rating IS NOT NULL OR status <> 'read'`) decides WHAT those pages may
+  paint: the shelf shows the public set only — rated books with their
+  stars and the wishlist section — and an unrated book appears NOWHERE in
+  an anonymous response (no title, no private-only author, no year-section
+  only they populated, no id link: the corpus-scale absence legs grep all
+  700 unrated corpus titles out of the shelf body). `/bok/<id>` and
+  `/cover/<id>` answer 200 for public-set ids; any other id — private or
+  nonexistent alike, overflow ids included — meets the guard's uniform 302
+  to `/logga-in`, identical in status AND Location, so id-enumeration
+  learns nothing. `/sok` and `/rekommendationer` are NOT public: same
+  uniform 302. A public page carries no owner door (no edit link, no byt
+  lösenord, no logga-ut, no betyg widget, no "Visa inte igen") and never
+  sets a session cookie. `robots.txt` says `Allow: /` here — the site
+  publishes its public set (the private half is unreachable to a crawler
+  regardless of what the file says).
 - **Configured site, anonymous writes:** every POST stays the guard's 302 to
   `/logga-in` (the `/satt-loesenord` door answers its §6.1 404) — including
   POSTs aimed at the READ paths: the method rule in `_is_public_read` is what
   makes "public to read" not mean "public to write". Owner surfaces —
   `/onska`, `/lagg-till`, `/redigera/<id>`, `/rapa/*`, `/backup`,
   `/byter-losenord`, `/logga-ut` and the machine doors `/seed`, `/bundle`,
-  `/backfill` — stay behind her session.
+  `/backfill` — stay behind her session, as do search and recommendations.
+- **Configured site, the owner:** she sees EVERYTHING unfiltered,
+  everywhere — the full shelf including every unrated row, search, recs,
+  her pages in every slash spelling. The narrowing changed nothing in her
+  view.
 - **No password set (the setup-state exception):** everything above reverts
   to the §6.1 wrap — every data route redirects to `/satt-loesenord`,
   `robots.txt` says `Disallow: /` (an inviting one would point crawlers at a
-  setup door), the landing keeps its single setup door. Public-read is a
+  setup door), the landing keeps its single setup door. The public set is a
   property of the CONFIGURED site only. The closed window 404s `robots.txt`
   and serves the pinned gate page everywhere else, as before.
 

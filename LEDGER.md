@@ -295,6 +295,12 @@ postdating a line make that line STALE — de-stale before quoting it.
   the base `5c6b420`'s count: ZERO test delta. Live site untouched (anonymous
   GETs were not even needed). Transcripts:
   `.audits/20261112-phase2/.tmp/c9-fix-evidence.md`.
+- SUPERSEDED 2026-11-14 (MC 12501): the row below stands as the trail of
+  the wave that built the public-read machinery and its write posture — its
+  WHOLE-site read scope (the shelf unfiltered, search and recs public too)
+  was narrowed the same day to the PUBLIC SET; see the public-scope row at
+  the end of this ledger. The quoted ruling stands; the implemented scope
+  it describes is DO NOT USE as the contract any more.
 - **Public-read wave (MC 12497)** — DONE (four commits, one per concern:
   guard+templates / tests / robots / this docs row): OWNER RULING 2026-11-14
   (web chat, verbatim): "The website sibbamala.com/liselott should be public.
@@ -372,4 +378,33 @@ postdating a line make that line STALE — de-stale before quoting it.
   orchestrator re-publishes); ZERO POSTs off loopback; production state
   untouched (scratch `LISELOTT_DATA_DIR` only); nothing pushed. Transcripts:
   `.audits/20261112-phase2/.tmp/secwave-p2-evidence.md` (host-local,
+  MC-linked).
+- **Public-scope narrowing (MC 12501)** — DONE (four commits, one per
+  concern: guard+filter / tests / landing copy / this docs row): OWNER
+  RULING 2026-11-14 (web chat, verbatim): "Rated books and their ratings as
+  well as whishlist shall be public. The rest behind password" — the NEWER
+  ruling supersedes the same-day broader public-read scope above (both
+  quotes stand on their cards; the newer binds). The PUBLIC SET is the
+  books with `rating IS NOT NULL` plus the wishlist rows — ONE predicate,
+  `app/books.py::PUBLIC_SET_SQL`, applied at the data layer by
+  `load_books(public_only=…)` (shelf + bok) and composed into the cover
+  probe: no second gate, no new route. `/sok` and `/rekommendationer`
+  rejoin the guard's uniform 302; a private `/bok`/`/cover` id answers the
+  SAME 302, SAME Location, as a nonexistent id (equal-answer legs —
+  id-enumeration learns nothing); unrated titles are absent from every
+  anonymous response BY NAME, corpus-scale (all 700 unrated rows grepped
+  out of the anon shelf, zero title collisions verified); the owner sees
+  everything unfiltered everywhere — her view changed NOTHING; fresh-state
+  wrap, write refusals, quarantines, robots state-dependence and the
+  password machinery untouched. Tests: matrix flipped + planted-REDs per
+  new leg (transcripts in the evidence file). Retired-claim sweep:
+  landing copy rewritten, README exposure section + status bullets
+  rewritten truthfully, the MC 12497 LEDGER row carries a SUPERSEDED
+  marker line beside this one (replace, not erase). Suite: 537 → **546
+  passed, exit 0** (build clone, corpus legs green) and **512 passed,
+  34 skipped, exit 0** (clean clone, `git archive` check, exit 0). LIVE
+  site untouched — one anonymous read-only GET of the live shelf, ZERO
+  writes (scratch `LISELOTT_DATA_DIR` only); live still answers the
+  pre-wave posture until the orchestrator re-publishes. Transcripts:
+  `.audits/20261112-phase2/.tmp/public-scope-evidence.md` (host-local,
   MC-linked).
