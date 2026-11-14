@@ -38,11 +38,13 @@ TOO_MANY_COPY = "För många försök — försök igen om en kvart."
 # answer 200 with a public landing like the three live service apps
 # (measured 2026-11-13: fest40 200/1815 B, matapp 200/12388 B, klartx
 # 200/4056 B) — a login-gated app's root is a landing, not a redirect. The
-# root joins as a READS-ONLY leg (_is_public_root below); its page is fixed
-# copy with zero app data (app/templates/start.html), and /satt-loesenord
-# within the list is further gated by state. Data routes joined this posture
-# through _is_public_read (MC 12497, narrowed to the public set by MC 12501
-# the same day) — see the constants below.
+# root joins as a READS-ONLY leg (_is_public_root below); since MC 12522 its
+# configured-state page (app/templates/start.html) serves the PUBLIC shelf —
+# rated + wishlist — through the PUBLIC_READ_* machinery defined below, while
+# the setup-state landing stays data-free and everything else stays behind
+# the password; /satt-loesenord within the list is further gated by state.
+# Data routes joined this posture through _is_public_read (MC 12497, narrowed
+# to the public set by MC 12501 the same day) — see the constants below.
 UNAUTHENTICATED_ALLOW = ("/healthz", "/logga-in", "/satt-loesenord", "/robots.txt")
 STATIC_PREFIX = "/static/"
 PUBLIC_ROOT = "/"

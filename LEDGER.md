@@ -550,3 +550,15 @@ postdating a line make that line STALE — de-stale before quoting it.
   The gate's own first RED run caught this card's committed script carrying
   the four-letter artifact word in its docstring — fixed, amended pre-push,
   transcript kept. Live untouched. Nothing pushed.
+- **MC 12526 stale landing comment retired — DONE (this commit):** closes
+  the ONE follow-up the MC 12522 row knowingly left open: `app/auth.py` §6.4
+  still called the anonymous landing "fixed copy with zero app data" —
+  CONTRADICTED since MC 12522 made the configured-state `/` render the
+  PUBLIC shelf (rated + wishlist, `books.PUBLIC_SET_SQL` at the data layer)
+  through the `PUBLIC_READ_*` rules in this file. COMMENT-ONLY fix: the
+  sentence now states today's truth (public shelf via `PUBLIC_READ_*`; the
+  setup-state landing stays data-free; everything else behind the password).
+  Proof the guard is untouched: `git diff -w -- app/auth.py` — every changed
+  line starts with `#`, zero logic lines, zero test files, `tests/conftest.py`
+  untouched. Suite: **579 passed, exit 0** (base unchanged, VM350 `.venv`,
+  `-p no:cacheprovider`, 110.45 s). Live untouched; nothing pushed.
