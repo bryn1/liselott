@@ -49,6 +49,16 @@ def main(argv=None) -> int:
         return 2
     counts = {k: report[k] for k in AUDITED}
     print(json.dumps(counts, ensure_ascii=False))
+    if counts["stored"] != report["stored_now"]:
+        # F-L4b (MC 12451 c4): say which number is which, on the run where
+        # they differ. This line is §5.9's AUDITED outcome — the whole table,
+        # 724 on a fresh import and 724 again on an idempotent re-run, which is
+        # how the rerun proves nothing new landed. POST /seed answers the other
+        # one, the rows that POST stored (seed.load's `stored_now`, also in
+        # import_report.json). One word, two doors: the CLI owns the table.
+        print(f"stored={counts['stored']} är hyllans totala antal rader (§5.9);"
+              f" den här körningen tillförde {report['stored_now']}",
+              file=sys.stderr)
     if counts != AUDITED:
         print(f"FAIL: counts {counts} differ from audited {AUDITED} (§5.9)",
               file=sys.stderr)

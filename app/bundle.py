@@ -44,10 +44,15 @@ no CSRF token, but a foreign Origin still 400s (P2-r4) and no session still
 302s — and there is NO seed token (F-7: the owner session IS the gate, in
 every state; the plan retires the one-time door).
 """
-# FILE-SIZE 413 (MC 12451 c3): the six c3 door fixes (F-A2/F-B2/F-C2/F-D2/
-# F-E2) all belong to THIS one mechanism and pushed it past the 400 ceiling;
-# the split is queued clean-code follow-up (the c3 dispatch names file sizes
-# out of scope) — not a reason to bend the door rules into a second file.
+# FILE-SIZE (MC 12451 c3, re-stated c4): this file carries the whole ingest
+# door mechanism — both doors, the byte budgets, the shared vocabulary pass
+# and the one transaction — and the door fixes (c3: F-A2/F-B2/F-C2/F-D2/
+# F-E2; c4: F-L2/F-L3) all belong to THAT one mechanism, which is why they
+# landed here instead of bending the door rules across a second file. The
+# split is a queued clean-code follow-up (both dispatches name file sizes out
+# of scope). The count is deliberately NOT written here: c3's note said 413
+# while the file was already 417 (F-L4a), and a number that stales in the
+# commit that wrote it is worse than no number — the reason is the point.
 import base64
 import json
 import sqlite3
@@ -407,7 +412,16 @@ def init_bundle(app):
                     + " — se data-import/import_overrides.csv. Ingen rad är "
                     "importerad"), 400
         conn.commit()
-        return (f"parsed={report['parsed']} stored={report['stored']} "
+        # F-L4b (MC 12451 c4): `stored=` is the rows THIS POST stored. The
+        # line used to answer the whole-table COUNT(*), so a one-row body onto
+        # a shelf of eight answered "stored=8" — the count of the shelf
+        # masquerading as the count of the POST. On the fresh-import path the
+        # two are the same number (T8.5's parsed=725 stored=724 duplicates=1
+        # stands), which is exactly why the wrong reading survived: the only
+        # run that ever checked the line had never re-POSTed onto a full table.
+        # The CLI keeps the §5.9 audited (whole-table) meaning of `stored` and
+        # says so on stderr when the two diverge — see data-import/import_seed.py.
+        return (f"parsed={report['parsed']} stored={report['stored_now']} "
                 f"duplicates={report['duplicates']}")
 
     @app.post("/bundle")

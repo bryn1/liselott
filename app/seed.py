@@ -2,6 +2,12 @@
 import_seed.py) and the later HTTP routes. Section parsing per §5.1; the
 file's header prose (lines 1-7) is parsed nowhere — it carries stale claims
 (P2-8), this module's rules are canonical."""
+# FILE-SIZE (MC 12451 c4): this file is the SHARED write side — key
+# computation, author registration, the read/wishlist flip, the row validator
+# and the ingest text vocabulary all live here precisely so the three doors
+# (CLI, /seed, add/edit) obey one contract instead of three near-copies; that
+# is what took it past the ~250 target and up to the ceiling. Deliberately no
+# number in this line (see app/bundle.py's note for why a counted one stales).
 import csv
 import hashlib
 import re
@@ -212,6 +218,13 @@ def dedupe_read(records: list[dict]):
 def load(conn, raw_path, aliases_path, overrides_path, commit=True) -> dict:
     """Parse the raw seed md and store books+authors per §5. Idempotent:
     re-importing the same rows updates nothing new (book_key UNIQUE).
+
+    TWO counts, two meanings (F-L4b, MC 12451 c4 — the one-row POST that
+    answered `stored=8` was reporting the SHELF, not the POST): `stored` is the
+    WHOLE-TABLE count, the §5.9 audited outcome the CLI's counts line prints
+    (724 on a fresh import, 724 again on an idempotent re-run); `stored_now` is
+    the rows THIS call inserted (0 on that re-run), which is what POST /seed
+    answers and what import_report.json now carries beside the audited five.
     commit=False (F-C2, MC 12451) defers the transaction boundary to the
     CALLER: POST /seed answers "Ingen rad är importerad" on a flagged row,
     so nothing may commit while ANY row is refused — the CLI keeps the
@@ -237,6 +250,7 @@ def load(conn, raw_path, aliases_path, overrides_path, commit=True) -> dict:
     survivors, pairs = dedupe_read(records)
 
     now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    stored_now = 0                # F-L4: rows THIS run inserted, see the report
     for r in survivors:
         # register under the RAW names so alias spellings populate
         # author_alias; the returned ids are always the canonical ones.
@@ -250,6 +264,7 @@ def load(conn, raw_path, aliases_path, overrides_path, commit=True) -> dict:
         book_id = (cur.lastrowid if cur.rowcount
                    else conn.execute("SELECT id FROM book WHERE book_key = ?",
                                      (r["book_key"],)).fetchone()[0])
+        stored_now += 1 if cur.rowcount else 0
         for aid in set(author_ids):
             conn.execute("INSERT OR IGNORE INTO book_author (book_id, author_id)"
                          " VALUES (?,?)", (book_id, aid))
@@ -260,6 +275,7 @@ def load(conn, raw_path, aliases_path, overrides_path, commit=True) -> dict:
         return conn.execute(sql).fetchone()[0]
 
     return {"parsed": len(entries), "stored": q("SELECT COUNT(*) FROM book"),
+            "stored_now": stored_now,
             "duplicates": len(pairs), "duplicates_pairs": pairs,
             "ratings": q("SELECT COUNT(*) FROM book WHERE rating IS NOT NULL"),
             "ljudbok": q("SELECT COUNT(*) FROM book WHERE format='ljudbok'"),

@@ -37,6 +37,23 @@ def test_cli_rerun_is_idempotent(tmp_path):
     assert json.loads(second.stdout) == AUDITED  # stored stays 724
 
 
+def test_cli_names_which_count_is_which(tmp_path):
+    """F-L4b (MC 12451 c4): `stored` in this line is §5.9's AUDITED outcome —
+    the whole table — while POST /seed's `stored=` is the rows that POST
+    stored. One word, two readings, and a re-run is exactly where they differ:
+    the CLI then says so (and says nothing when the fresh import makes them
+    the same number). stdout's pinned payload is untouched — the sentence is
+    stderr copy, and the delta also lands in import_report.json."""
+    db = tmp_path / "seed.db"
+    first = run_cli(db, RAW)
+    assert "hyllans totala antal" not in first.stderr   # fresh: 724 = 724
+    second = run_cli(db, RAW)
+    assert "hyllans totala antal rader" in second.stderr
+    assert "tillförde 0" in second.stderr
+    report = json.loads((tmp_path / "import_report.json").read_text())
+    assert report["stored"] == 724 and report["stored_now"] == 0
+
+
 def test_cli_refuses_validator_flagged_row_and_names_it(tmp_path):
     bad = tmp_path / "seed-bad.md"
     text = RAW.read_text(encoding="utf-8")
