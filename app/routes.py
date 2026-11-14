@@ -1,9 +1,10 @@
 """Page routes (§6.7 password lifecycle; M4 adds browse/search; T5.1
-adds grading). Guard + CSRF already ran before any view here — the request
-is owner-authenticated and (for state changes) token- and origin-checked
-(T2.3/T2.5), with the ONE public exception: the anonymous landing on the
-root, fixed copy and zero app data (§6.4 as widened by the M8 staging gate,
-MC 12451 — see rot() and templates/start.html)."""
+adds grading). Guard + CSRF already ran before any view here: reads ride
+the §6.4 allow-list as widened by the public-read contract (MC 12497 —
+shelf, bok, search, recs and covers answer an anonymous GET on a
+configured site; the root keeps the fixed-copy landing the M8 staging
+gate pinned, see rot() and templates/start.html), and every state change
+is owner-authenticated and token- and origin-checked (T2.3/T2.5)."""
 import re
 import shutil
 import tempfile
@@ -186,8 +187,9 @@ def init_routes(app):
     @app.get("/cover/<int:book_id>")
     def cover(book_id):
         """T3.4 — the stored cover, or the placeholder SVG when the row has
-        none (the §6.4 guard already put this route behind the login; the
-        placeholder is served as data, never as a redirect to anything)."""
+        none (public-read per MC 12497: the cover image belongs to the
+        public shelf; the placeholder is served as data, never as a
+        redirect to anything)."""
         conn = db.get_db()
         row = conn.execute("SELECT cover_path FROM book WHERE id = ?",
                            (book_id,)).fetchone()

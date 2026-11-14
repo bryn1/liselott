@@ -36,12 +36,28 @@ TOO_MANY_COPY = "För många försök — försök igen om en kvart."
 # (measured 2026-11-13: fest40 200/1815 B, matapp 200/12388 B, klartx
 # 200/4056 B) — a login-gated app's root is a landing, not a redirect. The
 # root joins as a READS-ONLY leg (_is_public_root below); its page is fixed
-# copy with zero app data (app/templates/start.html), every data route keeps
-# its guard, and /satt-loesenord within the list is further gated by state.
+# copy with zero app data (app/templates/start.html), and /satt-loesenord
+# within the list is further gated by state. Data routes joined this posture
+# through _is_public_read (MC 12497) when the site got its public-read
+# contract — see the constants below.
 UNAUTHENTICATED_ALLOW = ("/healthz", "/logga-in", "/satt-loesenord", "/robots.txt")
 STATIC_PREFIX = "/static/"
 PUBLIC_ROOT = "/"
 READ_METHODS = ("GET", "HEAD")
+
+# MC 12497 (owner ruling 2026-11-14, verbatim): "The website
+# sibbamala.com/liselott should be public. All rate books should be public.
+# Rating and whishing is blocked behind liselotts password" => reading is
+# public, writing stays behind the one owner session. The list IS the DoD
+# matrix: shelf, bok page, search, the rec surface and covers answer an
+# anonymous READ (plus the root landing + static, which the M8 gate already
+# widened). The owner surfaces are deliberately NOT here — /onska,
+# /lagg-till, /redigera, /rapa, /backup, /byter-losenord stay behind the
+# session exactly as every POST does. Setup-state exception: this rule is
+# consulted in the CONFIGURED branch of _auth_gate only — while no password
+# is set the choose-password gate wraps the whole site as before.
+PUBLIC_READ_PATHS = ("/", "/bibliotek", "/sok", "/rekommendationer")
+PUBLIC_READ_PREFIXES = ("/bok/", "/cover/")
 
 # F-F2 (DA-verdict-c2, MC 12451): the _file_shaped() dot heuristic has
 # exactly one known miss — VERSION, the extension-less repo-root file the
@@ -177,8 +193,23 @@ def rotate_secret(app):
 
 def _is_public_root() -> bool:
     """The §6.4 landing leg: the ROOT itself, reads only — every other
-    method on / keeps facing the guard's old answer (MC 12451)."""
+    method on / keeps facing the guard's old answer (MC 12451). The
+    configured branch does not need this rule any more (the root is one of
+    PUBLIC_READ_PATHS, MC 12497); it stands for the fresh-state landing,
+    where the choose-password gate still wraps everything else."""
     return request.path == PUBLIC_ROOT and request.method in READ_METHODS
+
+
+def _is_public_read() -> bool:
+    """MC 12497 (owner ruling 2026-11-14): the public-read contract of a
+    CONFIGURED site — shelf, bok page, search, rec surface, covers and the
+    root answer an anonymous READ. READ_METHODS only: a POST to a read path
+    stays the guard's refuse, the same non-2xx the route contract pins for
+    every anonymous write."""
+    if request.method not in READ_METHODS:
+        return False
+    path = request.path
+    return path in PUBLIC_READ_PATHS or path.startswith(PUBLIC_READ_PREFIXES)
 
 
 def _file_shaped() -> bool:
@@ -275,7 +306,7 @@ def init_auth(app):
             return redirect_prefixed("/satt-loesenord")
         if request.path == "/satt-loesenord":
             abort(404)  # configured -> gone forever (§6.1)
-        if (request.path in UNAUTHENTICATED_ALLOW or _is_public_root()
+        if (request.path in UNAUTHENTICATED_ALLOW or _is_public_read()
                 or request.path.startswith(STATIC_PREFIX)):
             return _csrf_gate()
         if session.get(SESSION_FLAG):

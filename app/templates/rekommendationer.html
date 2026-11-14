@@ -31,11 +31,16 @@
     {% if r.authors %}<p class="forfattare">{{ r.authors | join(", ") }}</p>{% endif %}
     {% if r.year %}<p class="meta">{{ r.year }}</p>{% endif %}
     {% if r.reason %}<p class="motivering">{{ r.reason }}</p>{% endif %}
+    {# MC 12497: the rec list READS public; "Visa inte igen" is a state
+       change, so the button paints on the owner's pages only — a public
+       page carries no door into a write route. #}
+    {% if inloggad() %}
     <form method="post"
           action="{{ url_for('djem', kind=r.kind, item_id=r.id) }}">
       <input type="hidden" name="csrf" value="{{ csrf_token() }}">
       <button type="submit" class="overopande">Visa inte igen</button>
     </form>
+    {% endif %}
   </li>
   {% endfor %}
 </ul>
