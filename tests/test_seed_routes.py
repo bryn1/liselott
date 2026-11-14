@@ -158,7 +158,7 @@ def test_bundle_fills_holes_never_transitions(authed):
     r = client.post(
         "/liselott/bundle", data=bundle_bytes(
             line(book_key=key_hal, title="Hålboken",
-                 isbn13="[personlig-data-purgad]", isbn10="9100000001", year=2024,
+                 isbn13="9789173712064", isbn10="9173712019", year=2024,
                  genres=["Roman"], status="wishlist", read_year=1999,
                  date_read="1999-01-01"),
             line(book_key=key_on, title="Önskan", status="read",
@@ -167,7 +167,7 @@ def test_bundle_fills_holes_never_transitions(authed):
     assert r.status_code == 200
     after = rows(tmp)
     hal = after[key_hal]
-    assert hal[3] == "[personlig-data-purgad]"                 # isbn filled
+    assert hal[3] == "9789173712064"                 # isbn filled
     assert hal[5] is None                            # rating: not a fill key
     assert hal[2] == "read"                          # status NEVER changes
     assert hal[8] == 2024                            # read_year untouched
@@ -255,11 +255,11 @@ def test_bundle_duplicate_isbn_refused_and_reported(authed):
     hole-fill STILL applies. First writer wins (A keeps its isbn)."""
     tmp, client = authed
     client.post("/liselott/bundle", data=bundle_bytes(
-        line(book_key="kA", title="Bok A", isbn13="[personlig-data-purgad]"),
-        line(book_key="kB", title="Bok B", isbn13="[personlig-data-purgad]",
+        line(book_key="kA", title="Bok A", isbn13="9789173712088"),
+        line(book_key="kB", title="Bok B", isbn13="9789173712088",
              year=2022)), content_type="application/octet-stream")
     after = rows(tmp)
-    assert after["kA"][3] == "[personlig-data-purgad]"
+    assert after["kA"][3] == "9789173712088"
     assert after["kB"][3] is None                    # isbn refused…
     assert after["kB"][4] == 2022                    # …year hole still filled
 
@@ -270,9 +270,9 @@ def test_bundle_duplicate_conflict_shape_and_count(authed):
     reason string)."""
     tmp, client = authed
     r = client.post("/liselott/bundle", data=bundle_bytes(
-        line(book_key="kA", title="Bok A", isbn13="[personlig-data-purgad]"),
-        line(book_key="kB", title="Bok B", isbn13="[personlig-data-purgad]"),
-        line(book_key="kC", title="Bok C", isbn13="[personlig-data-purgad]")),
+        line(book_key="kA", title="Bok A", isbn13="9789173712088"),
+        line(book_key="kB", title="Bok B", isbn13="9789173712088"),
+        line(book_key="kC", title="Bok C", isbn13="9789173712088")),
         content_type="application/octet-stream")
     j = r.get_json()
     assert j["conflicts"] == [{"book_key": "kB", "reason": "duplicate isbn"},
@@ -286,7 +286,7 @@ def test_bundle_rerun_is_idempotent_zero_everything(authed):
     0. The T8.6 loop re-POSTs nothing, but a POST must never churn."""
     tmp, client = authed
     chunk = bundle_bytes(line(book_key="k1", title="Första",
-                              isbn13="[personlig-data-purgad]", year=2020,
+                              isbn13="9789173712071", year=2020,
                               cover_b64=B64, cover_source="openlibrary"))
     first = client.post("/liselott/bundle", data=chunk,
                         content_type="application/octet-stream").get_json()
@@ -368,7 +368,7 @@ def test_bundle_end_to_end_through_the_real_exporter(tmp_path, monkeypatch):
         "INSERT INTO book (title, format, date_read, read_year, rating,"
         " status, book_key, isbn13, year, created, updated)"
         " VALUES ('En bok','bok','2026-01-01',2026,5,'read',?,"
-        " '[personlig-data-purgad]',2020,?,?)", (key, now, now))
+        " '9789173712101',2020,?,?)", (key, now, now))
     seed.set_authors(conn2, cur.lastrowid, ["Aino A"])
     conn2.execute("INSERT INTO genre (name) VALUES ('Roman')")
     conn2.execute("INSERT INTO book_genre (book_id, genre_id) VALUES (1,1)")
@@ -410,7 +410,7 @@ def test_bundle_end_to_end_through_the_real_exporter(tmp_path, monkeypatch):
         " JOIN book b ON b.id = bg.book_id WHERE b.book_key = ?",
         (key,)).fetchall()
     conn.close()
-    assert row[1] == "[personlig-data-purgad]" and row[2] == 2020
+    assert row[1] == "9789173712101" and row[2] == 2020
     assert row[3] == f"covers/{row[0]}.jpg"           # the PRODUCTION id
     assert row[4] == "openlibrary"
     assert (prod / row[3]).read_bytes() == enrich.normalize_image(
@@ -563,7 +563,7 @@ def test_bundle_domain_error_mid_file_rolls_back_every_row(authed):
     count is UNCHANGED — not line 1, not line 3."""
     tmp, client = authed
     r = client.post("/liselott/bundle", data=bundle_bytes(
-        line(book_key="kA", title="Först", isbn13="[personlig-data-purgad]",
+        line(book_key="kA", title="Först", isbn13="9789173712095",
              cover_b64=B64, cover_source="openlibrary"),
         line(book_key="kB", title="Fusk", rating=99),
         line(book_key="kC", title="Sist")),
@@ -572,7 +572,7 @@ def test_bundle_domain_error_mid_file_rolls_back_every_row(authed):
     assert "rad 2" in r.get_data(as_text=True)
     assert stored_count(tmp) == 0
     again = client.post("/liselott/bundle", data=bundle_bytes(
-        line(book_key="kA", title="Först", isbn13="[personlig-data-purgad]"),
+        line(book_key="kA", title="Först", isbn13="9789173712095"),
         line(book_key="kC", title="Sist")),
         content_type="application/octet-stream")
     assert again.status_code == 200                   # the DB took nothing

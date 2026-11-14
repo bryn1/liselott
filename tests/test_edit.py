@@ -61,8 +61,8 @@ def save(client, book_id, **fields):
 def test_edit_page_shows_the_current_record(shelf):
     page = shelf[1].get("/liselott/redigera/2")
     assert page.status_code == 200
-    assert 'value="[personlig-data-purgad]"' in page.text
-    assert "Ann-Helén Laestadius" in page.text
+    assert 'value="Nattfjärden"' in page.text
+    assert "Elsa Lindqvist" in page.text
     assert 'action="/liselott/redigera/2"' in page.text
     assert 'name="csrf"' in page.text
     # OQ-2(a): the hitta-omslag paste-url form is wired on this page (the M3
@@ -76,48 +76,48 @@ def test_edit_page_shows_the_current_record(shelf):
 def test_unknown_id_is_404_and_echoes_nothing(shelf):
     r = shelf[1].get("/liselott/redigera/9999")
     assert r.status_code == 404
-    assert "[personlig-data-purgad]" not in r.text
+    assert "Nattfjärden" not in r.text
 
 
 # ── the plan's core leg: the named fields change ─────────────────────────────
 def test_post_changes_title_year_format_date_and_notes(shelf):
     tmp, client = shelf
-    r = save(client, 3, titel="[personlig-data-purgad] (ny titel)",
-             forfattare="Ann-Charlotte Persson", utgivningsar="2025",
+    r = save(client, 3, titel="Ekliden i Björkvik (ny titel)",
+             forfattare="Ann-Sofi Berggren", utgivningsar="2025",
              format="bok", last="2025-06-01", anteckningar="Lyssnad och läst.")
     assert r.status_code == 302
     got = row(tmp, 3, ["title", "year", "format", "date_read", "notes"])
-    assert got == ("[personlig-data-purgad] (ny titel)", 2025, "bok", "2025-06-01",
+    assert got == ("Ekliden i Björkvik (ny titel)", 2025, "bok", "2025-06-01",
                    "Lyssnad och läst.")
     page = client.get("/liselott/bok/3")
-    assert "[personlig-data-purgad] (ny titel)" in page.text
+    assert "Ekliden i Björkvik (ny titel)" in page.text
     assert "1 juni 2025" in page.text            # Swedish date on the bok page
 
 
 # ── ISBN: the ONE §7 normalizer, else 400 in Swedish ─────────────────────────
 def test_isbn10_input_is_stored_normalized_both_columns(shelf):
     tmp, client = shelf
-    r = save(client, 1, titel="[personlig-data-purgad]", forfattare="Kristin Emilsson",
-             isbn13="91-985596-99")
+    r = save(client, 1, titel="Goda natten Agda", forfattare="Kristina Hemmar",
+             isbn13="91-7371001-6")
     assert r.status_code == 302
     isbn13, isbn10 = row(tmp, 1, ["isbn13", "isbn10"])
-    assert isbn13 == search.isbn10_to_13("9198559699")   # one mechanism, not a re-derivation
-    assert isbn10 == "9198559699"
+    assert isbn13 == search.isbn10_to_13("9173710016")   # one mechanism, not a re-derivation
+    assert isbn10 == "9173710016"
 
 
 def test_valid_isbn13_accepted(shelf):
     tmp, client = shelf
-    r = save(client, 1, titel="[personlig-data-purgad]", forfattare="Kristin Emilsson",
-             isbn13="[personlig-data-purgad]")
+    r = save(client, 1, titel="Goda natten Agda", forfattare="Kristina Hemmar",
+             isbn13="9789173710015")
     assert r.status_code == 302
-    assert row(tmp, 1, ["isbn13"])[0] == "[personlig-data-purgad]"
+    assert row(tmp, 1, ["isbn13"])[0] == "9789173710015"
 
 
 def test_bad_isbn_is_400_says_so_in_swedish_and_changes_nothing(shelf):
     tmp, client = shelf
     before = row(tmp, 1, ["isbn13"])
-    r = save(client, 1, titel="[personlig-data-purgad]", forfattare="Kristin Emilsson",
-             isbn13="978919855969X")
+    r = save(client, 1, titel="Goda natten Agda", forfattare="Kristina Hemmar",
+             isbn13="978917371001X")
     assert r.status_code == 400
     assert "fel-meddelande" in r.text and "ISBN" in r.text
     assert row(tmp, 1, ["isbn13"]) == before
@@ -127,31 +127,34 @@ def test_only_isbn_posted_does_not_wipe_the_title(shelf):
     """The rapport page's per-row ISBN input posts this ONE field."""
     tmp, client = shelf
     r = client.post("/liselott/redigera/1",
-                    data={"isbn13": "[personlig-data-purgad]", "csrf": token(client)})
+                    data={"isbn13": "9789173710015", "csrf": token(client)})
     assert r.status_code == 302
-    assert row(tmp, 1, ["title", "isbn13"]) == ("[personlig-data-purgad]", "[personlig-data-purgad]")
+    assert row(tmp, 1, ["title", "isbn13"]) == ("Goda natten Agda", "9789173710015")
 
 
 # ── §5.3: the match key follows the identity it keys ─────────────────────────
 def test_editing_title_and_author_recomputes_book_key(shelf):
     tmp, client = shelf
     before = row(tmp, 1, ["book_key"])[0]
-    r = save(client, 1, titel="[personlig-data-purgad]!", forfattare="Kristin Emilsson")
+    r = save(client, 1, titel="Goda natten, Agda!", forfattare="Kristina Hemmar")
     assert r.status_code == 302
     after = row(tmp, 1, ["book_key"])[0]
     assert after != before
-    assert after == seed.book_key("[personlig-data-purgad]!", ["Kristin Emilsson"])
+    assert after == seed.book_key("Goda natten, Agda!", ["Kristina Hemmar"])
 
 
-def test_author_spelling_is_alias_resolved_before_keying(shelf):
+def test_author_spelling_is_alias_resolved_before_keying(shelf, monkeypatch):
     """T1.4's chain applies to the edit door too: the misspelled form keys (and
     registers) under the canonical name, or the row would collide with itself
-    under two spellings."""
+    under two spellings. The alias pair is a synthetic one (MC 12523), so the
+    leg pins the MECHANISM, not the personal CSV."""
     tmp, client = shelf
-    r = save(client, 1, titel="[personlig-data-purgad]", forfattare="Simona Ahrnsredt")
+    monkeypatch.setattr(seed, "_APP_ALIASES",
+                        {"Sissela Åhrstedt": "Sissela Åhrnstedt"})
+    r = save(client, 1, titel="En enda lögn", forfattare="Sissela Åhrstedt")
     assert r.status_code == 302
     assert row(tmp, 1, ["book_key"])[0] == seed.book_key(
-        "[personlig-data-purgad]", ["Simona Ahrnstedt"])
+        "En enda lögn", ["Sissela Åhrnstedt"])
 
 
 def test_editing_into_an_existing_books_key_is_400(shelf):
@@ -160,35 +163,35 @@ def test_editing_into_an_existing_books_key_is_400(shelf):
     rows carry SYNTHETIC literal keys, so leg 1 first gives row 2 its real
     §5.3 key (the same recompute this route runs), then row 1 edits into it."""
     tmp, client = shelf
-    assert save(client, 2, titel="[personlig-data-purgad]",
-                forfattare="Ann-Helén Laestadius").status_code == 302
+    assert save(client, 2, titel="Nattfjärden",
+                forfattare="Elsa Lindqvist").status_code == 302
     key2 = row(tmp, 2, ["book_key"])[0]
-    assert key2 == seed.book_key("[personlig-data-purgad]", ["Ann-Helén Laestadius"])
-    r = save(client, 1, titel="[personlig-data-purgad]", forfattare="Ann-Helén Laestadius")
+    assert key2 == seed.book_key("Nattfjärden", ["Elsa Lindqvist"])
+    r = save(client, 1, titel="Nattfjärden", forfattare="Elsa Lindqvist")
     assert r.status_code == 400
     assert "fel-meddelande" in r.text
     assert row(tmp, 2, ["book_key"])[0] == key2           # the other row untouched
-    assert row(tmp, 1, ["title"])[0] == "[personlig-data-purgad]"   # and this one unharmed
+    assert row(tmp, 1, ["title"])[0] == "Goda natten Agda"   # and this one unharmed
 
 
 # ── validation negatives (the brief's edit-validation row) ───────────────────
 def test_empty_title_is_400(shelf):
     tmp, client = shelf
-    r = save(client, 1, titel="  ", forfattare="Kristin Emilsson")
+    r = save(client, 1, titel="  ", forfattare="Kristina Hemmar")
     assert r.status_code == 400
-    assert row(tmp, 1, ["title"])[0] == "[personlig-data-purgad]"
+    assert row(tmp, 1, ["title"])[0] == "Goda natten Agda"
 
 
 def test_non_numeric_year_is_400(shelf):
     tmp, client = shelf
-    r = save(client, 1, titel="[personlig-data-purgad]", forfattare="Kristin Emilsson",
+    r = save(client, 1, titel="Goda natten Agda", forfattare="Kristina Hemmar",
              utgivningsar="tjugotvå")
     assert r.status_code == 400
 
 
 def test_impossible_date_is_400(shelf):
     tmp, client = shelf
-    r = save(client, 1, titel="[personlig-data-purgad]", forfattare="Kristin Emilsson",
+    r = save(client, 1, titel="Goda natten Agda", forfattare="Kristina Hemmar",
              last="2026-13-01")
     assert r.status_code == 400
     assert row(tmp, 1, ["date_read"])[0] == "2026-10-29"
@@ -198,7 +201,7 @@ def test_format_outside_the_vocabulary_is_400(shelf):
     """The DB CHECK ('bok','ljudbok') would 500 — validated before the write,
     answered 400 in Swedish (a CHECK violation is not a product surface)."""
     tmp, client = shelf
-    r = save(client, 1, titel="[personlig-data-purgad]", forfattare="Kristin Emilsson",
+    r = save(client, 1, titel="Goda natten Agda", forfattare="Kristina Hemmar",
              format="cd")
     assert r.status_code == 400
     assert row(tmp, 1, ["format"])[0] == "bok"

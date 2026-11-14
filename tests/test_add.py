@@ -80,7 +80,7 @@ def fixture_transports():
     def ol(title, authors):
         return [{"source": "openlibrary", "title": title,
                  "authors": list(authors) or ["Någon"],
-                 "isbn13": "[personlig-data-purgad]", "isbn10": None, "year": 2022,
+                 "isbn13": "9789173710015", "isbn10": None, "year": 2022,
                  "cover_id": 77,
                  "cover_url": "https://covers.openlibrary.org/b/id/77-M.jpg",
                  "subjects": ["Crime, Detective stories"]}]
@@ -143,10 +143,10 @@ def test_isbn_field_is_stored_normalized(shelf, monkeypatch):
     silent_providers(monkeypatch, no_providers())
     client.post("/liselott/lagg-till",
                 data={"titel": "Med ISBN", "forfattare": "Någon",
-                      "isbn13": "978-91-98559-69-9",
+                      "isbn13": "978-91-73710-01-5",
                       "csrf": token(client)})
     assert row(tmp / "liselott.db", ["isbn13"], newest_id(tmp / "liselott.db")) \
-        == ("[personlig-data-purgad]",)
+        == ("9789173710015",)
 
 
 def test_bad_isbn_on_add_is_400_says_so_in_swedish(shelf, monkeypatch):
@@ -193,14 +193,14 @@ def test_an_added_book_enriches_itself_no_bundle_no_vm350(shelf, monkeypatch):
     tmp, client = shelf
     silent_providers(monkeypatch)
     client.post("/liselott/lagg-till",
-                data={"titel": "[personlig-data-purgad]", "forfattare": "Ann-Helén Laestadius",
-                      "isbn13": "[personlig-data-purgad]",   # matches the fixture row
+                data={"titel": "Nattfjärden", "forfattare": "Elsa Lindqvist",
+                      "isbn13": "9789173710015",   # matches the fixture row
                       "csrf": token(client)})
     new_id = newest_id(tmp / "liselott.db")
     isbn13, year, cover_path, source = row(
         tmp / "liselott.db", ["isbn13", "year", "cover_path", "cover_source"],
         new_id)
-    assert isbn13 == "[personlig-data-purgad]" and year == 2022
+    assert isbn13 == "9789173710015" and year == 2022
     assert cover_path == f"covers/{new_id}.jpg" and source == "openlibrary"
     assert (tmp / "covers" / f"{new_id}.jpg").is_file()
 

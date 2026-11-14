@@ -236,7 +236,7 @@ def _many(value):
 
 
 def _persons(value):
-    """'Emilsson, Kristin' / 'Strömberg, Louise' -> ['Kristin Emilsson'].
+    """'Hemmar, Kristina' / 'Strand, Lovisa' -> ['Kristina Hemmar'].
     Libris inverts names and appends life dates ('1971-'), which would otherwise
     sit in the way of the author gate's comparison."""
     names = value if isinstance(value, list) else [value]

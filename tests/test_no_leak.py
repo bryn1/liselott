@@ -6,9 +6,11 @@ as whishlist shall be public. The rest behind password" — narrowing MC
 The claim narrowed, the instrument did not: the public READ set (the shelf
 filtered to the public set, public-set /bok and /cover) MAY carry seed
 bytes — a public shelf that rendered nothing would be the bug — while
-EVERY PRIVATE row must carry NONE of them: all 700 unrated corpus titles
-and ids are grepped out of the anonymous shelf BY NAME (a corpus-scale
-absence proof the synthetic shelf cannot fake) and — since MC 12522 put the
+EVERY PRIVATE row must carry NONE of them: every unrated corpus title
+(700+ on the personal export) and id is grepped out of the anonymous shelf
+BY NAME (a corpus-scale absence proof the synthetic shelf cannot fake;
+MC 12523 reads the probe titles off the seeded DB, so no personal name is
+written into this file) and — since MC 12522 put the
 public shelf on the landing too — out of the anonymous LANDING by the same
 sweep; the search and rec surfaces are back on the refused-and-silent list,
 and every quarantined
@@ -33,8 +35,13 @@ from app import create_app
 ROOT = Path(__file__).resolve().parent.parent
 PASSWORD = "_test_losenord_"
 
-# Titles VERIFIED present in the audited corpus (T1.x golden rows).
-SEEDED_TITLES = ("[personlig-data-purgad]", "Ellens val", "Falska toner", "[personlig-data-purgad]")
+# The anti-vacuity floor for the private sweep, per corpus case (MC 12523):
+# the personal corpus carries 700+ unrated read rows, the synthetic one ~35.
+PRIVATE_FLOOR = {"personal": 100, "synthetic": 20}
+# What the seed CLI answers per case on this DB: the personal corpus hits
+# §5.9's audited counts (exit 0); the synthetic one DRIFTS by design (exit 1)
+# — both leave a fully committed db, which is what this matrix seeds from.
+SEED_RC = {"personal": 0, "synthetic": 1}
 
 # The MC 12501 read set, WITHOUT the id-dependent legs (public ids resolve
 # from the seeded DB at run time — see _public_ids): the shelf is the one
@@ -50,7 +57,7 @@ PUBLIC_ROUTES = ("/bibliotek",)
 # stay byte-silent to an anonymous visitor.
 OWNER_ROUTES = ("/onska", "/lagg-till", "/redigera/1", "/rapa/omslag",
                 "/byter-losenord", "/backup", "/logga-ut", "/x",
-                "/sok?q=[personlig-data-purgad]", "/rekommendationer")
+                "/sok?q=Nattfjärden", "/rekommendationer")
 
 # M8-hotfix-2 (MC 12451): mirror-DROPPED root names — the guard's own 404,
 # unchanged in every state, asserted over the seeded DB so a leak of a
@@ -66,22 +73,34 @@ WRITE_ROUTES = ("/betyg/1", "/onska/lagg-till", "/onska/1/las", "/redigera/1",
                 "/bibliotek", "/bok/1")
 
 
-def seed_dir(tmp_path, raw):
-    """Seal the corpus into the tmp state dir through the REAL CLI (T1.6)."""
+def seed_dir(tmp_path, raw, expect_rc):
+    """Seal the corpus into the tmp state dir through the REAL CLI (T1.6).
+    The synthetic corpus drifts off §5.9's audited table (exit 1 by design);
+    the db is committed before the gate prints, so the matrix seeds off both
+    cases — each pinned to its own exit code."""
     r = subprocess.run(
         [sys.executable, str(ROOT / "data-import/import_seed.py"),
          "--db", str(tmp_path / "liselott.db"), "--raw", str(raw)],
         capture_output=True, text=True, cwd=str(ROOT))
-    assert r.returncode == 0, f"seed CLI failed: {r.stdout}{r.stderr}"
+    assert r.returncode == expect_rc, f"seed CLI: {r.stdout}{r.stderr}"
 
 
 @pytest.fixture()
-def seeded(corpus, tmp_path, monkeypatch):
-    seed_dir(tmp_path, corpus)
+def seeded(corpus_case, corpus_file, tmp_path, monkeypatch):
+    seed_dir(tmp_path, corpus_file, SEED_RC[corpus_case])
     monkeypatch.setenv("LISELOTT_DATA_DIR", str(tmp_path))
     monkeypatch.delenv("LISELOTT_PREFIX", raising=False)
     monkeypatch.delenv("LISELOTT_ENV", raising=False)
     return tmp_path
+
+
+@pytest.fixture()
+def private_probe(seeded):
+    """The private rows of WHICHEVER corpus seeded this DB, read off it at
+    run time (MC 12523): the absence proof greps these names, so the file
+    itself never carries a personal title."""
+    return _rows(seeded, "SELECT id, title FROM book WHERE rating IS"
+                         " NULL AND status = 'read' ORDER BY id")
 
 
 def configured_client(seeded):
@@ -94,8 +113,8 @@ def configured_client(seeded):
     return app, client
 
 
-def assert_no_seed_bytes(response):
-    for title in SEEDED_TITLES:
+def assert_no_seed_bytes(response, private_probe):
+    for _pid, title in private_probe:
         assert title not in response.text, (title, response.request.path)
 
 
@@ -106,7 +125,7 @@ def _rows(seeded, sql):
     return rows
 
 
-def test_public_reads_answer_and_owner_surfaces_stay_silent(seeded):
+def test_public_reads_answer_and_owner_surfaces_stay_silent(seeded, private_probe, corpus_case):
     """Configured state (MC 12501): the public route answers the anonymous
     visitor with the real (FILTERED) page — 200 — and public-set /bok and
     /cover ids answer 200 with their data; the non-vacuity leg demands a
@@ -118,9 +137,9 @@ def test_public_reads_answer_and_owner_surfaces_stay_silent(seeded):
     r = client.get("/")
     assert r.status_code == 200                # the landing leg, not a 302
     assert len(r.data) > 256                   # the staging gate's floor
-    assert_no_seed_bytes(r)                    # no PRIVATE seed byte (all four
-    # golden rows are unrated read rows, so the public shelf on the landing
-    # must not carry one — the byte-silence leg kept its teeth through MC 12522)
+    assert_no_seed_bytes(r, private_probe)   # no PRIVATE seed byte: the probe
+    # is every unrated read row of the seeded corpus, so the public shelf on
+    # the landing must not carry one of THOSE (byte-silence kept its teeth)
     assert 'class="bok-lank"' in r.text         # MC 12522: the entrance is real
     rated_id, rated_title, wishlist_id = _public_ids(seeded)
     for entry in PUBLIC_ROUTES + (f"/bok/{rated_id}", f"/bok/{wishlist_id}",
@@ -129,17 +148,17 @@ def test_public_reads_answer_and_owner_surfaces_stay_silent(seeded):
         assert r.status_code == 200, entry     # the real page, not a refuse
         assert "Location" not in r.headers, entry
     assert rated_title in client.get("/bibliotek").text   # non-vacuity: a
-    # rated row reads public, and every golden-row title here is UNRATED —
-    # the same instrument that let MC 12497 demand "[personlig-data-purgad]" now demands its
-    # ABSENCE (see test_private_corpus_rows_are_absent_from_the_anon_shelf).
+    # rated row reads public, and EVERY probe title is UNRATED — the same
+    # instrument that proves public presence now proves private ABSENCE
+    # (see test_private_corpus_rows_are_absent_from_the_anon_shelf).
     for entry in OWNER_ROUTES:
         r = client.get(entry)
         assert r.status_code in (302, 404), entry
-        assert_no_seed_bytes(r)
+        assert_no_seed_bytes(r, private_probe)
     for entry in QUARANTINE_NAMES:
         r = client.get(entry)
         assert r.status_code == 404, entry
-        assert_no_seed_bytes(r)
+        assert_no_seed_bytes(r, private_probe)
 
 
 def _public_ids(seeded):
@@ -152,9 +171,10 @@ def _public_ids(seeded):
     return rated[0], rated[1], wish
 
 
-def test_private_corpus_rows_are_absent_from_the_anon_shelf(seeded):
+def test_private_corpus_rows_are_absent_from_the_anon_shelf(seeded, private_probe, corpus_case):
     """THE absence proof at corpus scale — the deliverable of the
-    narrowing: EVERY unrated corpus book (700 rows) is gone from the
+    narrowing: EVERY unrated corpus book (both corpora's whole private set)
+    is gone from the
     anonymous shelf by NAME — its title a raw substring check (VERIFIED
     this suite's development: zero private title is a substring of any
     public title, so no collision can excuse a hit) — and its id is linked
@@ -166,9 +186,8 @@ def test_private_corpus_rows_are_absent_from_the_anon_shelf(seeded):
     _, client = configured_client(seeded)
     bodies = {page: client.get(page).text
               for page in ("/bibliotek", "/")}
-    private = _rows(seeded, "SELECT id, title FROM book WHERE rating IS"
-                            " NULL AND status = 'read' ORDER BY id")
-    assert len(private) >= 100, len(private)   # anti-vacuity: the sweep is real
+    private = private_probe
+    assert len(private) >= PRIVATE_FLOOR[corpus_case], len(private)  # anti-vacuity
     for pid, title in private:
         for page, body in bodies.items():
             assert title not in body, (page, pid, title)
@@ -177,7 +196,7 @@ def test_private_corpus_rows_are_absent_from_the_anon_shelf(seeded):
     for pid, _title in private[:25]:           # a sample of the equal-answer
         r = client.get(f"/bok/{pid}")          # legs across the id space
         assert r.status_code == 302, pid
-        assert_no_seed_bytes(r)
+        assert_no_seed_bytes(r, private_probe)
     r_gone = client.get(f"/bok/{gone}")
     assert r_gone.status_code == 302
     assert r_gone.headers["Location"] == \
@@ -186,7 +205,7 @@ def test_private_corpus_rows_are_absent_from_the_anon_shelf(seeded):
     assert client.get(f"/cover/{gone}").status_code == 302
 
 
-def test_anonymous_writes_are_refused_and_silent(seeded):
+def test_anonymous_writes_are_refused_and_silent(seeded, private_probe):
     """NEVER 2xx on an anonymous write (the route contract's refuse — the
     guard's 302, or the retired setup door's 404) — and the refuse body
     carries zero seed bytes, write door or read-path-aimed POST alike."""
@@ -195,10 +214,10 @@ def test_anonymous_writes_are_refused_and_silent(seeded):
         r = client.post(entry, data="x")
         assert r.status_code in (302, 404), (entry, r.status_code)
         assert not (200 <= r.status_code < 300), entry
-        assert_no_seed_bytes(r)
+        assert_no_seed_bytes(r, private_probe)
 
 
-def test_sitemap_absent_robots_present(seeded):
+def test_sitemap_absent_robots_present(seeded, private_probe):
     """No sitemap route exists (§6.4): the LOGGED-IN leg sees the honest 404.
     Unauthenticated /sitemap.xml is the guard's own 404 too — the dot makes
     it file-shaped (M8-hotfix-2); an extension-less unknown stays the T2.6
@@ -208,17 +227,17 @@ def test_sitemap_absent_robots_present(seeded):
     _, client = configured_client(seeded)
     r = client.get("/liselott/sitemap.xml")
     assert r.status_code == 404  # authed: the route exists not
-    assert_no_seed_bytes(r)
+    assert_no_seed_bytes(r, private_probe)
     r = client.get("/sitemap.xml")
     assert r.status_code in (302, 404)
-    assert_no_seed_bytes(r)
+    assert_no_seed_bytes(r, private_probe)
     r = client.get("/robots.txt")
     assert r.status_code == 200
     assert "Allow: /" in r.text
     assert "Disallow" not in r.text
 
 
-def test_closed_window_over_seeded_db(seeded, monkeypatch):
+def test_closed_window_over_seeded_db(seeded, private_probe, monkeypatch):
     """F-5's hard leg, unchanged by MC 12497 — it IS the setup-state
     exception at the corpus scale: pw unset + aged window on a SEEDED
     database, zero seed bytes leak ANYWHERE, in every answer shape. The
@@ -236,7 +255,7 @@ def test_closed_window_over_seeded_db(seeded, monkeypatch):
     client = app.test_client()
     for entry in PUBLIC_ROUTES + OWNER_ROUTES + QUARANTINE_NAMES:
         r = client.get(entry)
-        assert_no_seed_bytes(r)
+        assert_no_seed_bytes(r, private_probe)
         if "." in entry.rsplit("/", 1)[-1]:       # file-shaped quarantine
             assert r.status_code == 404, entry
         else:
@@ -244,13 +263,12 @@ def test_closed_window_over_seeded_db(seeded, monkeypatch):
     assert client.get("/healthz").data == b"ok"
 
 
-def test_seed_actually_ran(seeded):
+def test_seed_actually_ran(seeded, private_probe, corpus_case):
     """Guard against a vacuously green matrix: the DB behind this test MUST
-    contain the titles the other legs grep for."""
-    import sqlite3
+    carry the private probe rows the other legs grep for — at the case's
+    pinned scale (MC 12523: names come off the DB, the COUNT is the pin)."""
     conn = sqlite3.connect(seeded / "liselott.db")
-    for title in SEEDED_TITLES:
-        n = conn.execute("SELECT COUNT(*) FROM book WHERE title LIKE ?",
-                         (f"%{title}%",)).fetchone()[0]
-        assert n >= 1, title
+    n = conn.execute("SELECT COUNT(*) FROM book WHERE rating IS NULL"
+                     " AND status = 'read'").fetchone()[0]
     conn.close()
+    assert n == len(private_probe) >= PRIVATE_FLOOR[corpus_case]

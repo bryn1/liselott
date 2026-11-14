@@ -10,31 +10,31 @@ import pytest
 
 from app.search import fold, isbn10_to_13, normalize_isbn, parse_query
 
-STOLD_13 = "[personlig-data-purgad]"
+NATT_13 = "9789173710015"
 GENRES = ["Kriminalitet", "Historisk roman", "Romantik"]
 
 
 # ── ISBN normalization ──────────────────────────────────────────────────────
 @pytest.mark.parametrize("raw", [
-    STOLD_13,                       # bare 13
-    "978-91-9855-969-9",            # hyphenated (T4.3's query shape)
-    "978 91 9855 969 9",            # spaced
-    "9198559699",                   # 10-digit, the OL fixture's own form
-    "91-9855-969-9",                # hyphenated 10
-    " [personlig-data-purgad] ",              # surrounding whitespace
+    NATT_13,                       # bare 13
+    "978-91-7371-001-5",            # hyphenated (T4.3's query shape)
+    "978 91 7371 001 5",            # spaced
+    "9173710016",                   # 10-digit, the OL fixture's own form
+    "91-7371-001-6",                # hyphenated 10
+    " 9789173710015 ",              # surrounding whitespace
 ])
 def test_isbn_forms_normalize_to_the_thirteen_digit_form(raw):
     kind, value = parse_query(raw)
     assert kind == "isbn"
-    assert value == STOLD_13
+    assert value == NATT_13
 
 
 def test_isbn10_to_13_is_the_mod_10_ean_conversion():
-    # 9198559699 -> 978 + 919855969 + check digit 9 (computed, not copied)
-    assert isbn10_to_13("9198559699") == STOLD_13
-    assert isbn10_to_13("0306406152") == "[personlig-data-purgad]"
+    # 9173710016 -> 978 + 917371001 + check digit 5 (computed, not copied)
+    assert isbn10_to_13("9173710016") == NATT_13
+    assert isbn10_to_13("9173711020") == "9789173711029"
     # the X check digit case-folds
-    assert isbn10_to_13("156881118X") == "[personlig-data-purgad]"
+    assert isbn10_to_13("917371108X") == "9789173711081"
 
 
 def test_bad_check_digit_falls_back_to_text():
@@ -42,12 +42,12 @@ def test_bad_check_digit_falls_back_to_text():
     ISBN search — the only checksum §7 pins as a rejection. The text value is
     what she typed, folded (§7 folds case and accents, nothing else), so the
     fallback is a plain word search that answers "Inga träffar"."""
-    assert parse_query("978-91-9855-969-8") == ("text", "978-91-9855-969-8")
-    assert parse_query("[personlig-data-purgad]") == ("text", "[personlig-data-purgad]")
+    assert parse_query("978-91-7371-001-4") == ("text", "978-91-7371-001-4")
+    assert parse_query("9789173710014") == ("text", "9789173710014")
 
 
 def test_normalize_isbn_returns_none_for_non_isbn():
-    assert normalize_isbn("[personlig-data-purgad]") is None
+    assert normalize_isbn("Nattfjärden") is None
     assert normalize_isbn("12345") is None
 
 
@@ -77,16 +77,16 @@ def test_without_known_genres_the_token_stays_text():
 
 # ── text folding ────────────────────────────────────────────────────────────
 def test_text_folds_diacritics_and_case():
-    assert parse_query("Sarenbrant") == ("text", "sarenbrant")
-    assert parse_query("Fågelkärr") == ("text", "fagelkarr")
-    assert parse_query("  [personlig-data-purgad]  ") == ("text", "naktergalen")
-    assert parse_query("[personlig-data-purgad]") == ("text", "stold")
+    assert parse_query("Ekelund") == ("text", "ekelund")
+    assert parse_query("Björkvik") == ("text", "bjorkvik")
+    assert parse_query("  Näckrosten  ") == ("text", "nackrosten")
+    assert parse_query("Nattfjärden") == ("text", "nattfjarden")
 
 
 def test_fold_matches_raw_and_folded_input():
     """§7's "match raw too": the SAME fold applied to both sides makes the
     accented and unaccented spellings land on one value."""
-    assert fold("Fågelkärr") == fold("Fagelkarr") == "fagelkarr"
+    assert fold("Björkvik") == fold("Bjorkvik") == "bjorkvik"
 
 
 def test_nfkc_before_the_isbn_test():

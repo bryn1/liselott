@@ -63,9 +63,9 @@ def test_public_pages_read_with_the_trailing_slash(configured, path):
     assert r.status_code == 200, path
     assert "Location" not in r.headers, path
     if path == "/liselott/bibliotek/":
-        assert "[personlig-data-purgad]" in r.text
+        assert "Nattfjärden" in r.text
     if path == "/liselott/bok/2/":
-        assert "Ann-Helén Laestadius" in r.text
+        assert "Elsa Lindqvist" in r.text
     if path == "/liselott/cover/2/":
         assert r.mimetype == "image/jpeg"
 

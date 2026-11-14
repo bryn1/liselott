@@ -111,7 +111,7 @@ def test_closed_window_serves_gate_everywhere_zero_data(env, monkeypatch):
     for path in ("/", "/bibliotek", "/logga-in", "/satt-loesenord", "/x"):
         r = client.get(path)
         assert "Inställningsfönstret är stängt." in r.text
-        assert "[personlig-data-purgad]" not in r.text  # zero app/seed bytes
+        assert "Nattfjärden" not in r.text  # zero app/seed bytes
     assert client.get("/healthz").status_code == 200
 
 

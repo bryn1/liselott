@@ -32,8 +32,8 @@ def iso(epoch):
 def test_hit_fixture_maps_isbn_year_thumbnail():
     payload = json.loads(FIXTURE.read_text(encoding="utf-8"))
     hit = enrich_gb.map_volume(payload["items"][0])
-    assert hit["isbn13"] == "[personlig-data-purgad]"
-    assert hit["isbn10"] == "9198559699"
+    assert hit["isbn13"] == "9789173710015"
+    assert hit["isbn10"] == "9173710016"
     assert hit["year"] == 2022
     assert hit["thumbnail"].startswith("https://books.google.com/books/content")
     assert hit["source"] == "googlebooks"
@@ -46,11 +46,11 @@ def test_search_over_fixture_transport(conn):
         calls.append(url)
         return json.loads(FIXTURE.read_text(encoding="utf-8"))
 
-    hits = enrich_gb.search("[personlig-data-purgad]", "Ann-Helén Laestadius", conn, get_json=get)
-    assert hits and hits[0]["isbn13"] == "[personlig-data-purgad]"
+    hits = enrich_gb.search("Nattfjärden", "Elsa Lindqvist", conn, get_json=get)
+    assert hits and hits[0]["isbn13"] == "9789173710015"
     assert calls[0].startswith("https://www.googleapis.com/books/v1/volumes?")
     assert "intitle" in calls[0] and "inauthor" in calls[0]
-    assert "St%C3%B6ld" in calls[0]          # Swedish chars travel encoded
+    assert "Nattfj%C3%A4rden" in calls[0]          # Swedish chars travel encoded
 
 
 def test_429_sets_six_hour_cooldown_and_returns_none(conn):
@@ -58,7 +58,7 @@ def test_429_sets_six_hour_cooldown_and_returns_none(conn):
         raise enrich.RateLimited("429 from https://www.googleapis.com/...")
 
     NOW = 1_750_000_000.0
-    assert enrich_gb.search("[personlig-data-purgad]", "Laestadius", conn,
+    assert enrich_gb.search("Nattfjärden", "Lindqvist", conn,
                             get_json=flaky, now=lambda: NOW) is None
     until = db_get(conn, "gb_cooldown_until")
     assert until == iso(NOW + 6 * 3600)

@@ -135,7 +135,7 @@ behövs — det finns inget användarnamn.
 **Alla kan läsa.** Sedan den 14 november 2026 är sajten publik: hyllan,
 boksidorna, sök, rekommendationer, omslag och stjärnor syns för alla utan
 lösenord — och det som står som anteckning på en bok sida visas då för alla.
-[personlig-data-purgad] kan skriva: betygsätta, önska, lägga till, redigera och ta bort
+Endast du kan skriva: betygsätta, önska, lägga till, redigera och ta bort
 kräver ditt lösenord.
 
 **Första lösenordet.** När appen startas för första gången är ett fönster öppet
@@ -151,7 +151,7 @@ betygsätta sina favoriter.
 **Sök.** Sökfältet hittar böcker på fem vägar: ISBN (10 eller 13 siffror,
 bindestreck är ok), titel, författare, årtal (t.ex. `2024`) och genre
 (t.ex. `kriminalitet`). Bokstäverna å, ä, ö räknas som a och o i sökningen, så
-`Sarenbrant` hittar `Sarenbrant` oavsett bockar.
+`Ahrstedt` hittar `Åhrstedt` oavsett bockar.
 
 **Lägg till en bok.** "Lägg till" räcker med titel (författare valfritt). Appen
 får boken att direkt försöka hitta omslag och ISBN från Libris, Open Library
@@ -335,34 +335,34 @@ seed file (`data-import/seed-books-raw.md`, sha256
 gitignored and have never been committed; the transfer bundle lives outside git
 at `/home/claudecode/liselott-bundle/`.
 
-**The exception that ships, named because the repo is PUBLIC.** Some real diary
-rows are tracked as test fixtures: the 18 T1.3 parse goldens in
-`tests/test_seed_rows.py` carry real titles and authors (two of them a read
-date, one a grade); `data-import/import_overrides.csv` carries one real row with
-its read date; five recorded provider fixtures name five more real titles in
-their filenames (`tests/fixtures/libris_xsearch_god-jul-agnes.json`,
-`_den-sarade-pianisten`, `_helenas-resa`, `_dar-vinden-dansar`, `_stold`); and
-three `app/` comments name one title, two of them its ISBN as well. Measured
-2026-11-14 on the build clone with the guard's own leg-2 parse — a whole-title
-*substring* instrument, so a hit can be a word-shape artifact (`[personlig-data-purgad]` inside
-"Disallow"): **36 tracked files hold ≥1 whole diary title** (18 in
-`test_seed_rows.py`, every other file 1–6; the count's own universe includes
-this README — its single hit is the artifact class it names, one word shape
-inside its own explanatory sentence, counted 2026-11-14 at `97911ce`).
+**The tracked fixtures are synthetic (MC 12523).** They used to carry real
+diary content — the 18 T1.3 parse goldens in `tests/test_seed_rows.py`, five
+recorded provider fixtures (real titles in their filenames too), a few
+`app/` comment lines and one CSV row — a state the LEDGER's c2/c4 rows and
+the P2-3 history in MC 12440 describe, measured 2026-11-14 at `97911ce` with
+the guard's own leg-2 parse: **36 tracked files then held ≥1 whole diary
+title** (18 in `test_seed_rows.py`, every other file 1–6). MC 12523 replaced
+all of it with Swedish-shaped synthetic titles, authors and check-valid
+synthetic ISBNs (e.g. the `978-91-7371-…` block): fixtures, goldens and the
+committed synthetic corpus `tests/fixtures/synthetic_seed.md` name nothing
+real, and every earlier row that quoted a real title now reads generically —
+"raden omnämner verliga titlar — borttagna ur publisert material av MC 12523;
+spåret på MC 12440" — the row's claim stands, only its quoted strings left.
+The two personal CSVs (`data-import/author_aliases.csv`,
+`data-import/import_overrides.csv`) still carry real content **as of this
+commit**; MC 12523's second commit moves them off-repo. Two honest caveats:
+**git history keeps the old blobs** — this repo is public, and a history
+rewrite is a separate OWNER decision, not taken here; new clones and the
+current tree are clean. And a whole-title *substring* instrument has a
+word-shape artifact class (`[personlig-data-purgad]` inside "Disallow") — MC 12523's second
+commit ships `scripts/exposure_check.py`, which takes over this measurement
+with whole-word matching.
 
-`tests/test_no_diary_in_git.py` is green beside those rows by calibration, not
-by cleanliness: leg 2 fails a file at ≥20 whole corpus titles (`MAX_TITLES = 20`,
-whose own comment reads "T1.3 goldens = 18") and leg 1 at ≥100 seed-shape lines
-(`MAX_SHAPE_LINES = 100`). What the guard does hold, in every checkout form, is
-the bulk: the raw export, `golden_parse.json` and any `seed-bundle*` appear in
-no commit, and the first two remain gitignored.
-
-Whether the tracked fixture rows belong in a public repo is an OPEN question,
-not a shipped decision: they await an **OWNER RULING** (P2-3, MC 12440 — the
-LEDGER's c2 and c4 rows carry it). The recommendation on the table is to
-synthetic-ize the goldens and the override row; ratifying them as shipped is the
-alternative. No ruling has landed. Until one does, this section states the
-exposure — it does not approve it.
+`tests/test_no_diary_in_git.py` guards this posture in every checkout form:
+leg 2 fails a tracked file at ≥20 whole PERSONAL-corpus titles, leg 1 at ≥100
+seed-entry shape lines, and leg 3 keeps the raw export, `golden_parse.json`
+and any `seed-bundle*` out of every entry of the tree — the bulk claim (the
+raw export never in git) has held since T1.8 and holds now.
 
 **Stale seed header:** the raw seed file's header prose (lines 1–7) is parsed
 nowhere and carries two false claims (it says no grades exist — 6 rating rows

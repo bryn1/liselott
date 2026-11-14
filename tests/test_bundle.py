@@ -36,7 +36,7 @@ def seeded(tmp_path, monkeypatch):
             "INSERT INTO book (id, title, book_key, format, date_read, read_year,"
             " rating, status, isbn13, isbn10, year, created, updated) VALUES"
             " (?, ?, ?, 'ljudbok', '2024-05-06', 2024, ?, 'read', ?, ?, ?, ?, ?)",
-            (i, f"Bok {i}", f"bok-{i}", i, "[personlig-data-purgad]", "9198559699", 2022,
+            (i, f"Bok {i}", f"bok-{i}", i, "9789173710015", "9173710016", 2022,
              "2026-01-01T00:00:00Z", "2026-01-01T00:00:00Z"))
         conn.execute("INSERT OR IGNORE INTO author (id, name) VALUES (?, ?)",
                      (i, f"Författare {i}"))
@@ -65,7 +65,7 @@ def test_export_emits_one_line_per_book_with_exactly_the_5_11_keys(seeded):
         assert line["book_key"] and line["status"] == "read"
         assert line["format"] == "ljudbok" and line["rating"] in (1, 2, 3)
         assert line["date_read"] == "2024-05-06" and line["read_year"] == 2024
-        assert line["isbn13"] == "[personlig-data-purgad]" and line["year"] == 2022
+        assert line["isbn13"] == "9789173710015" and line["year"] == 2022
 
 
 def test_export_carries_authors_and_genres_as_lists(seeded):

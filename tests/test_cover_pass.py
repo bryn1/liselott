@@ -21,8 +21,8 @@ def state(tmp_path, monkeypatch):
     db.init_db(conn)
     conn.execute("INSERT INTO book (id, title, book_key, format, read_year,"
                  " status, isbn13, created, updated) VALUES (1,"
-                 "'[personlig-data-purgad]','vild','bok',2024,'read',"
-                 "'[personlig-data-purgad]','2026-01-01T00:00:00Z','2026-01-01T00:00:00Z')")
+                 "'Där lingonrisen susar','vild','bok',2024,'read',"
+                 "'9789173710176','2026-01-01T00:00:00Z','2026-01-01T00:00:00Z')")
     conn.commit()
     yield conn
     conn.close()
@@ -34,8 +34,8 @@ def img_bytes(w=700, h=1000):
     return buf.getvalue()
 
 
-BOOK = {"id": 1, "title": "[personlig-data-purgad]", "author": "Louise Strömberg",
-        "isbn13": "[personlig-data-purgad]", "isbn10": None, "status": "read"}
+BOOK = {"id": 1, "title": "Där lingonrisen susar", "author": "Lovisa Strand",
+        "isbn13": "9789173710176", "isbn10": None, "status": "read"}
 
 # ---- the shared normalization form -------------------------------------------
 
@@ -50,7 +50,7 @@ def test_stopwords_never_solely_decide_a_title():
 
 # ---- the page gate ------------------------------------------------------------
 
-PAGE_GOOD = ("<html><head><title>[personlig-data-purgad] - Louise Strömberg"
+PAGE_GOOD = ("<html><head><title>Där lingonrisen susar - Lovisa Strand"
              " | Bazar</title></head><body>x</body></html>")
 
 def test_page_gate_accepts_title_and_author_in_heading():
@@ -65,8 +65,8 @@ def test_page_gate_refuses_a_page_without_the_book():
 
 
 def test_page_gate_accepts_the_books_own_isbn_despite_hyphenation():
-    page = "<p>ISBN 978-91-8006-717-1 — vildblommorna</p>"
-    ok, why = cp.page_relevant(page, "Vilda blommor", "", ["[personlig-data-purgad]"])
+    page = "<p>ISBN 978-91-7371-017-6 — vildblommorna</p>"
+    ok, why = cp.page_relevant(page, "Vilda blommor", "", ["9789173710176"])
     assert ok and "isbn" in why
 
 
@@ -83,8 +83,8 @@ def test_page_gate_reads_og_title_in_either_attribute_order():
 
 # ---- the image gate (the calibration probes, encoded as expectations) -------
 
-DESC_TRUE = ("Author name: LOUISE STRÖMBERG. Book title below: DÄR VILDBLOMMORNA "
-             "VÄXER. Publisher word bottom left: BAZAR. The image shows a bokomslag.")
+DESC_TRUE = ("Author name: LOVISA STRAND. Book title below: DÄR LINGONRISEN "
+             "SUSAR. Publisher word bottom left: FJÄLLNYAN. The image shows a bokomslag.")
 
 def test_image_gate_accepts_the_verified_true_cover():
     ok, why = cp.cover_confirms(DESC_TRUE, BOOK["title"], BOOK["author"])
@@ -100,12 +100,12 @@ def test_image_gate_refuses_an_author_portrait_with_no_printed_book():
 
 def test_image_gate_refuses_the_wrong_book_even_by_the_same_author():
     ok, _ = cp.cover_confirms(
-        "LOUISE STRÖMBERG — HELINAS RESA", BOOK["title"], BOOK["author"])
+        "LOVISA STRAND — KARIN I DALARNA", BOOK["title"], BOOK["author"])
     assert not ok
 
 
 def test_image_gate_refuses_when_only_the_author_is_printed():
-    ok, _ = cp.cover_confirms("BAZAR förlag, LOUISE STRÖMBERG",
+    ok, _ = cp.cover_confirms("FJÄLLNYAN förlag, LOVISA STRAND",
                               BOOK["title"], BOOK["author"])
     assert not ok
 
@@ -113,10 +113,10 @@ def test_image_gate_refuses_when_only_the_author_is_printed():
 # ---- ranking -----------------------------------------------------------------
 
 def test_isbn_in_url_outranks_everything_and_walls_never_appear():
-    hits = [{"url": "https://blogg.example/x", "title": "[personlig-data-purgad]"},
-            {"url": "https://adlibris.com/b/[personlig-data-purgad]", "title": "…"},
+    hits = [{"url": "https://blogg.example/x", "title": "Där lingonrisen susar"},
+            {"url": "https://adlibris.com/b/9789173710176", "title": "…"},
             {"url": "https://witaj.example/doc.pdf", "title": "…"}]
-    got = cp.rank_candidates(hits, BOOK["title"], ["[personlig-data-purgad]"],
+    got = cp.rank_candidates(hits, BOOK["title"], ["9789173710176"],
                              blocked={"adlibris.com"})
     assert got == ["https://blogg.example/x"]      # isbn host blocked, pdf dropped
 
@@ -141,13 +141,13 @@ def fake_search(hits):
 
 
 def test_attempt_stores_only_after_both_gates_and_writes_manual_url(state):
-    page = ('<html><head><title>[personlig-data-purgad] - Louise Strömberg</title>'
+    page = ('<html><head><title>Där lingonrisen susar - Lovisa Strand</title>'
             '<meta property="og:image" content="/bok.jpg"></head></html>')
     fetch = FakeFetch({"https://forlag.example/bok": page.encode(),
                        "https://forlag.example/bok.jpg": img_bytes()})
     row = cp.attempt_book(state, BOOK,
                           searcher=fake_search([{"url": "https://forlag.example/bok",
-                                                 "title": "[personlig-data-purgad]"}]),
+                                                 "title": "Där lingonrisen susar"}]),
                           fetch=fetch, describer=lambda b: DESC_TRUE)
     assert row["outcome"] == "covered" and row["cover_source"] == "manual-url"
     stored = state.execute("SELECT cover_path, cover_source FROM book WHERE id=1").fetchone()
@@ -156,13 +156,13 @@ def test_attempt_stores_only_after_both_gates_and_writes_manual_url(state):
 
 
 def test_attempt_refuses_a_portrait_og_image_and_stores_nothing(state, tmp_path):
-    page = ('<html><head><title>[personlig-data-purgad] - Louise Strömberg</title>'
+    page = ('<html><head><title>Där lingonrisen susar - Lovisa Strand</title>'
             '<meta property="og:image" content="/portrait.jpg"></head></html>')
     fetch = FakeFetch({"https://forfattare.example/bok": page.encode(),
                        "https://forfattare.example/portrait.jpg": img_bytes(1200, 800)})
     row = cp.attempt_book(state, BOOK,
                           searcher=fake_search([{"url": "https://forfattare.example/bok",
-                                                 "title": "[personlig-data-purgad]"}]),
+                                                 "title": "Där lingonrisen susar"}]),
                           fetch=fetch,
                           describer=lambda b: "En kvinna i soffa, ingen tryckt text.")
     assert row["outcome"] == "unresolved"
@@ -187,26 +187,26 @@ def test_search_engine_error_is_not_reported_as_no_hits(state):
 def test_raw_swedish_url_is_encoded_before_fetch():
     got = cp.rank_candidates(
         [{"url": "https://bokborsen.example/view/Ahlström-Kristina/Hanna",
-          "title": "[personlig-data-purgad]"}], "[personlig-data-purgad]", [], set())
+          "title": "Karin i Dalarna"}], "Karin i Dalarna", [], set())
     assert got == ["https://bokborsen.example/view/Ahlstr%C3%B6m-Kristina/Hanna"]
 
 
 def test_dark_vision_stores_nothing_and_reports_loudly(state):
-    page = ('<html><head><title>[personlig-data-purgad] - Louise Strömberg</title>'
+    page = ('<html><head><title>Där lingonrisen susar - Lovisa Strand</title>'
             '<meta property="og:image" content="/bok.jpg"></head></html>')
     fetch = FakeFetch({"https://forlag.example/bok": page.encode(),
                        "https://forlag.example/bok.jpg": img_bytes()})
     row = cp.attempt_book(state, BOOK,
                           searcher=fake_search([{"url": "https://forlag.example/bok",
-                                                 "title": "[personlig-data-purgad]"}]),
+                                                 "title": "Där lingonrisen susar"}]),
                           fetch=fetch, describer=lambda b: None)
     assert row["outcome"] == "unresolved" and "vision morkt" in row["detail"]
     assert state.execute("SELECT cover_path FROM book WHERE id=1").fetchone()[0] is None
 
 
 def test_a_429_host_is_blocked_and_never_retried_within_the_pass(state):
-    hits = [{"url": "https://adlibris.com/b/1", "title": "[personlig-data-purgad]"},
-            {"url": "https://adlibris.com/b/2", "title": "[personlig-data-purgad]"}]
+    hits = [{"url": "https://adlibris.com/b/1", "title": "Där lingonrisen susar"},
+            {"url": "https://adlibris.com/b/2", "title": "Där lingonrisen susar"}]
     fetch = FakeFetch({"https://adlibris.com/b/1": enrich.RateLimited("429")})
     blocked = set()
     row = cp.attempt_book(state, BOOK, searcher=fake_search(hits), fetch=fetch,

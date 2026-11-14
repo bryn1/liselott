@@ -58,7 +58,7 @@ def test_omslag_rapport_json_shape_and_counts(shelf):
     assert rep["manual"] == 1
     got = rep["unobtainable"]
     assert [u["id"] for u in got] == [1]          # only the all-THREE-names row
-    assert got[0]["title"] == "[personlig-data-purgad]"
+    assert got[0]["title"] == "Goda natten Agda"
     assert got[0]["tried_providers"] == "libris,ol,gb"
 
 
@@ -66,9 +66,9 @@ def test_html_page_lists_missing_with_the_three_real_doors(shelf):
     client = shelf[1]
     page = client.get("/liselott/rapa/omslag")
     assert page.status_code == 200
-    assert "[personlig-data-purgad]" in page.text           # missing rows listed
-    assert "[personlig-data-purgad]" in page.text
-    assert "[personlig-data-purgad]" not in page.text               # has a cover — NOT listed
+    assert "Goda natten Agda" in page.text           # missing rows listed
+    assert "Ekliden i Björkvik" in page.text
+    assert "Nattfjärden" not in page.text               # has a cover — NOT listed
     # per-row doors, all url_for-shaped:
     assert 'action="/liselott/omslag/1"' in page.text        # retry (provider)
     assert 'action="/liselott/redigera/1"' in page.text      # ISBN input (edit door)

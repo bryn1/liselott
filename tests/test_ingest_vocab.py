@@ -280,7 +280,7 @@ def test_served_pages_carry_no_control_bytes_after_an_import(authed):
         "## Lästa böcker 2024\n- 240101 Nollbok av Aino A\n").encode(),
         content_type="application/octet-stream").status_code == 200
     assert client.post("/liselott/bundle", data=bundle_bytes(
-        line(book_key="kSida", title="Nollbok", isbn13="[personlig-data-purgad]")),
+        line(book_key="kSida", title="Nollbok", isbn13="9789173712040")),
         content_type="application/octet-stream").status_code == 200
     for path in ("/liselott/bibliotek", "/liselott/", "/liselott/bok/1",
                  "/liselott/redigera/1", "/liselott/sok?q=Nollbok"):

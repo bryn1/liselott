@@ -130,7 +130,7 @@ def test_unknown_book_is_404_and_echoes_nothing(shelf):
     r = client.post("/liselott/betyg/9999",
                     data={"betyg": "4", "csrf": token(client)})
     assert r.status_code == 404
-    assert "[personlig-data-purgad]" not in r.text
+    assert "Nattfjärden" not in r.text
 
 
 # ── the grading UI (§1: five radio stars, Swedish labels) ────────────────────

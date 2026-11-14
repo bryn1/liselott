@@ -1,0 +1,88 @@
+{
+ "xsearch": {
+  "from": 1,
+  "to": 6,
+  "records": 6,
+  "list": [
+   {
+    "identifier": "http://libris.kb.se/bib/f1ake68cz811c006",
+    "title": "Där borelvinden viner",
+    "creator": "Strand, Lovisa",
+    "isbn": "9789173710138",
+    "type": "sound recording",
+    "publisher": "Fjällnyan Förlag",
+    "date": "2026",
+    "language": "swe"
+   },
+   {
+    "identifier": "http://libris.kb.se/bib/f1ake74skgqx1007",
+    "title": "Där borelvinden viner",
+    "creator": "Strand, Lovisa, 1992-",
+    "isbn": "9789173710152",
+    "type": "software, multimedia",
+    "publisher": [
+     "[Malmö] : Inläst av Tillgänglighetsmedia Centrum, TMC",
+     ""
+    ],
+    "date": [
+     "2026",
+     "[2026-08-14]"
+    ],
+    "language": "swe"
+   },
+   {
+    "identifier": "http://libris.kb.se/bib/f1ake8fjf721k008",
+    "title": "Där borelvinden viner",
+    "creator": "Strand, Lovisa, 1992-",
+    "type": "text",
+    "publisher": "[Malmö] : Inläst av Tillgänglighetsmedia Centrum, TMC",
+    "date": "2026",
+    "language": "swe"
+   },
+   {
+    "identifier": "http://libris.kb.se/bib/f1ake90p0zrnn009",
+    "title": "Där borelvinden viner",
+    "creator": "Strand, Lovisa, 1992-",
+    "isbn": "9789173710145",
+    "type": "text",
+    "publisher": "Fjällnyan Förlag",
+    "date": "2026",
+    "language": "swe"
+   },
+   {
+    "identifier": "http://libris.kb.se/bib/f1akeaxr1n9nk010",
+    "title": "Där borelvinden viner",
+    "creator": "Strand, Lovisa, 1992-",
+    "isbn": "9789173710169",
+    "type": "book",
+    "publisher": [
+     "Stockholm : Bazar",
+     ""
+    ],
+    "date": [
+     "[2026]",
+     "2026",
+     "2026"
+    ],
+    "language": "swe"
+   },
+   {
+    "identifier": "http://libris.kb.se/bib/bzl8xdsk8cjn1zlt",
+    "title": "När knäna säger hejdå - Lovisa Strand",
+    "type": "sound recording",
+    "publisher": [
+     "",
+     "Lejon Media Gruppen AB"
+    ],
+    "date": [
+     "2026",
+     "2026-05-14T14:35:10+02:00"
+    ],
+    "language": "und",
+    "free": [
+     "https://sphinx.acast.com/p/acast/s/prestationspodden-2/e/6a03869ccaa0b0ea31e85d52/media.mp3"
+    ]
+   }
+  ]
+ }
+}

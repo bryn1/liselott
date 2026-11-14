@@ -76,23 +76,26 @@ def test_author_search_top_ten_lands_ten_candidates(library):
 def test_build_author_url_requests_the_top_ten():
     """Cycle-1 §8 pins TOP 10 for the author search — the book-search
     LIMIT (5) must not silently decide the candidates' breadth too."""
-    url = enrich_ol.build_author_url("Ann-Helén Laestadius")
+    url = enrich_ol.build_author_url("Elsa Lindqvist")
     assert "limit=10" in url
 
 
-def test_author_name_is_alias_resolved_at_insert(library):
-    """An OL hit credited 'Simona Ahrnsredt' lands as the canonical
-    'Simona Ahrnstedt' (the §8 seam: T1.4's alias chain AT INSERT)."""
+def test_author_name_is_alias_resolved_at_insert(library, monkeypatch):
+    """An OL hit credited 'Sissela Åhrstedt' lands as the canonical
+    'Sissela Åhrnstedt' (the §8 seam: T1.4's alias chain AT INSERT). The pair
+    is the synthetic one (MC 12523): the leg pins the mechanism."""
     conn, _ = library
+    monkeypatch.setattr(seed, "_APP_ALIASES",
+                        {"Sissela Åhrstedt": "Sissela Åhrnstedt"})
     now, stale = enrich_loop.candidates_window()
     queue = enrich_loop.author_queue(conn)
     enrich_loop.candidates_pass(
         conn, queue,
         lambda name: [{"title": "Villa vid havet", "authors":
-                       ["Simona Ahrnsredt"], "isbn13": None, "year": 2020}],
+                       ["Sissela Åhrstedt"], "isbn13": None, "year": 2020}],
         now=now, stale_before=stale, aliases=seed.app_aliases())
     stored = candidates_of(conn)
-    assert ("Simona Ahrnstedt", "Villa vid havet") in stored
+    assert ("Sissela Åhrnstedt", "Villa vid havet") in stored
 
 
 def test_rerun_adds_zero_candidates(library):
@@ -146,8 +149,8 @@ def test_ninety_day_refresh_asks_stale_authors_again(library):
 def test_pen_named_freshness_travels_the_alias_chain(tmp_path, monkeypatch):
     """The residual s5 handed over: freshness keyed only on the canonical
     name re-asks an author whose candidates sit under a spelling the DB
-    KNOWS as hers. With an author_alias row 'Eva Swedenmark' → the author, a
-    fresh candidate credited 'Eva Swedenmark' IS fresh for 'Ewa Swedenmark'.
+    KNOWS as hers. With an author_alias row 'Eva Stenfeldt' → the author, a
+    fresh candidate credited 'Eva Stenfeldt' IS fresh for 'Ewa Stenfeldt'.
     """
     monkeypatch.setenv("LISELOTT_DATA_DIR", str(tmp_path))
     conn = db.connect()
@@ -157,12 +160,12 @@ def test_pen_named_freshness_travels_the_alias_chain(tmp_path, monkeypatch):
                  " book_key, created, updated) VALUES (1, 'Min bok', 'bok',"
                  " 2025, 'read', 'k1', ?, ?)", (now, now))
     conn.execute("INSERT INTO author (id, name) VALUES (1,"
-                 " 'Ewa Swedenmark')")
+                 " 'Ewa Stenfeldt')")
     conn.execute("INSERT INTO book_author (book_id, author_id) VALUES (1, 1)")
     conn.execute("INSERT INTO author_alias (alias, author_id)"
-                 " VALUES ('Eva Swedenmark', 1)")
+                 " VALUES ('Eva Stenfeldt', 1)")
     conn.execute("INSERT INTO candidate (title, author_name, fetched_at)"
-                 " VALUES ('Pennamsverk', 'Eva Swedenmark', ?)", (now,))
+                 " VALUES ('Pennamsverk', 'Eva Stenfeldt', ?)", (now,))
     conn.commit()
     now_iso, stale = enrich_loop.candidates_window()
     asked = []

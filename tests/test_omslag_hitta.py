@@ -30,7 +30,7 @@ COVER_FIXTURE = ROOT / "tests" / "fixtures" / "cover_sample.jpg"
 
 PAGE_WITH_OG = """<!doctype html><html><head>
 <meta property="og:image" content="/bilder/omslag.jpg">
-<meta property="og:title" content="[personlig-data-purgad]">
+<meta property="og:title" content="Nattfjärden">
 </head><body><img src="/litet.png" width="40" height="60">
 <img src="/stort.png" width="900" height="1200"></body></html>"""
 
@@ -46,7 +46,7 @@ def state(tmp_path, monkeypatch):
     conn = db.connect()
     db.init_db(conn)
     conn.execute("INSERT INTO book (id, title, book_key, format, read_year, status,"
-                 " created, updated) VALUES (1,'[personlig-data-purgad]','stold','bok',2022,'read',"
+                 " created, updated) VALUES (1,'Nattfjärden','nattfjarden','bok',2022,'read',"
                  "'2026-01-01T00:00:00Z','2026-01-01T00:00:00Z')")
     conn.commit()
     yield conn, tmp_path
@@ -69,7 +69,7 @@ class FakeFetch:
         return body
 
 
-def page_fetch(url="https://bokhandel.example/stold"):
+def page_fetch(url="https://bokhandel.example/nattfjarden"):
     return FakeFetch({url: PAGE_WITH_OG.encode(),
                       "https://bokhandel.example/bilder/omslag.jpg": COVER_FIXTURE.read_bytes()})
 
@@ -77,7 +77,7 @@ def page_fetch(url="https://bokhandel.example/stold"):
 # ---- the extraction util ----------------------------------------------------
 
 def test_og_image_wins_and_is_resolved_against_the_page():
-    got = omslag.extract_cover_url(PAGE_WITH_OG, "https://bokhandel.example/stold")
+    got = omslag.extract_cover_url(PAGE_WITH_OG, "https://bokhandel.example/nattfjarden")
     assert got == "https://bokhandel.example/bilder/omslag.jpg"
 
 
@@ -101,13 +101,13 @@ def test_a_data_uri_is_never_a_cover_source():
 def test_fetcher_stores_the_found_cover_as_manual_url(state):
     conn, tmp = state
     fetch = page_fetch()
-    outcome = omslag.hamta_omslag(conn, 1, "https://bokhandel.example/stold", get=fetch)
+    outcome = omslag.hamta_omslag(conn, 1, "https://bokhandel.example/nattfjarden", get=fetch)
     assert outcome["ok"] is True and outcome["cover_source"] == "manual-url"
     row = conn.execute("SELECT cover_path, cover_source FROM book").fetchone()
     assert row == ("covers/1.jpg", "manual-url")          # schema CHECK accepts it
     with Image.open(tmp / "covers" / "1.jpg") as img:
         assert img.format == "JPEG" and img.size[0] <= 340 and img.size[1] <= 510
-    assert fetch.calls == ["https://bokhandel.example/stold",
+    assert fetch.calls == ["https://bokhandel.example/nattfjarden",
                            "https://bokhandel.example/bilder/omslag.jpg"]
 
 
@@ -229,7 +229,7 @@ def test_the_route_stores_the_cover_and_says_so(client, monkeypatch):
     conn = db.connect()
     db.init_db(conn)
     conn.execute("INSERT INTO book (id, title, book_key, format, read_year, status,"
-                 " created, updated) VALUES (1,'[personlig-data-purgad]','stold','bok',2022,'read',"
+                 " created, updated) VALUES (1,'Nattfjärden','nattfjarden','bok',2022,'read',"
                  "'2026-01-01T00:00:00Z','2026-01-01T00:00:00Z')")
     conn.commit()
     conn.close()
@@ -238,7 +238,7 @@ def test_the_route_stores_the_cover_and_says_so(client, monkeypatch):
     with c.session_transaction("/liselott/logga-in") as sess:   # cookie is path-scoped
         token = sess["csrf"]
     r = c.post("/liselott/omslag/1/hitta",
-               data={"sida_url": "https://bokhandel.example/stold", "csrf": token})
+               data={"sida_url": "https://bokhandel.example/nattfjarden", "csrf": token})
     assert r.status_code == 200
     assert r.get_json() == {"ok": True, "cover_source": "manual-url", "book_id": 1}
     assert (tmp / "covers" / "1.jpg").exists()
@@ -249,7 +249,7 @@ def test_the_route_reports_a_refusal_as_a_swedish_message_not_a_500(client, monk
     conn = db.connect()
     db.init_db(conn)
     conn.execute("INSERT INTO book (id, title, book_key, format, read_year, status,"
-                 " created, updated) VALUES (1,'[personlig-data-purgad]','stold','bok',2022,'read',"
+                 " created, updated) VALUES (1,'Nattfjärden','nattfjarden','bok',2022,'read',"
                  "'2026-01-01T00:00:00Z','2026-01-01T00:00:00Z')")
     conn.commit()
     conn.close()

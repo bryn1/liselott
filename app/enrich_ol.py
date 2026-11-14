@@ -1,5 +1,5 @@
 """Open Library client (primary provider — VERIFIED resolving Swedish titles,
-DA-verdict.md reproduced "[personlig-data-purgad]"/Laestadius → isbn [personlig-data-purgad], year 2022,
+DA-verdict.md reproduced "Nattfjärden"/Lindqvist → isbn 9789173710015, year 2022,
 cover_i 14853286). The URL keeps the shape the plan probed live (q=title:"…"
 author:"…"&fields=…), extended with `subject` so the genre mapping (T3.4)
 rides the SAME call — no second search per row.

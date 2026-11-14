@@ -38,7 +38,7 @@ def covering_transport():
     def ol(title, authors):
         return [{"source": "openlibrary", "title": title,
                  "authors": list(authors) or ["Någon"],
-                 "isbn13": "[personlig-data-purgad]", "isbn10": None, "year": 2022,
+                 "isbn13": "9789173710015", "isbn10": None, "year": 2022,
                  "cover_id": 77,
                  "cover_url": "https://covers.openlibrary.org/b/id/77-M.jpg",
                  "subjects": []}]
@@ -170,34 +170,38 @@ def authors_of_read_books(tmp):
 
 
 def test_mode_candidates_uses_the_same_cursor_contract(shelf, monkeypatch):
-    """The authors of READ books (3 of them on the corpus) with ≤5 per pass;
+    """The authors of READ books (3 of them on the shelf) with ≤5 per pass;
     the fixture search answers EACH author with her own book plus a hit that
     repeats an EXISTING title plus one credited to a misspelling — the
     existing title may never enter, and the misspelling must be stored
-    canonical (alias chain at INSERT, T1.4)."""
+    canonical (alias chain at INSERT, T1.4). The alias pair is the synthetic
+    one (MC 12523): the leg pins the mechanism, not the personal CSV."""
     tmp, client, _ = shelf
+    from app import seed as _seed
+    monkeypatch.setattr(_seed, "_APP_ALIASES",
+                        {"Sissela Åhrstedt": "Sissela Åhrnstedt"})
 
     def search(name):
-        return [{"title": f"Ny bok om {name}", "isbn13": "[personlig-data-purgad]",
+        return [{"title": f"Ny bok om {name}", "isbn13": "9789173712019",
                  "year": 2023,
-                 "authors": ["Simona Ahrnsredt" if name.startswith("Kristin")
+                 "authors": ["Sissela Åhrstedt" if name.startswith("Kristin")
                              else name]},
-                {"title": "[personlig-data-purgad]", "authors": ["Ann-Helén Laestadius"],
-                 "isbn13": "[personlig-data-purgad]", "year": 2022}]
+                {"title": "Nattfjärden", "authors": ["Elsa Lindqvist"],
+                 "isbn13": "9789173710015", "year": 2022}]
 
     silence(monkeypatch, search=search)
     queue = authors_of_read_books(tmp)
     got = client.post("/liselott/backfill?mode=candidates&n=5").get_json()
     assert got["processed"] == len(queue) == 3
     assert got["last_id"] == max(queue)
-    assert got["new_candidates"] == 3              # own book per author; [personlig-data-purgad] never
+    assert got["new_candidates"] == 3              # own book per author; Nattfjärden never
     conn = sqlite3.connect(tmp / "liselott.db")
     stored = conn.execute("SELECT DISTINCT author_name FROM candidate"
                           " ORDER BY author_name").fetchall()
-    titles = conn.execute("SELECT COUNT(*) FROM candidate WHERE title='[personlig-data-purgad]'"
+    titles = conn.execute("SELECT COUNT(*) FROM candidate WHERE title='Nattfjärden'"
                           ).fetchone()[0]
     conn.close()
-    assert ("Simona Ahrnstedt",) in stored           # alias-resolved at INSERT
+    assert ("Sissela Åhrnstedt",) in stored           # alias-resolved at INSERT
     assert titles == 0                               # existing titles never enter
 
 

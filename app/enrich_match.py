@@ -74,7 +74,7 @@ def map_genres(subjects):
 
 def prefer_format(candidates, book_format):
     """Among the hits that PASSED the match policy, the row's own format picks
-    the edition. Measured on the recorded Libris page for [personlig-data-purgad]: one title
+    the edition. Measured on the recorded Libris page for Nattfjärden: one title
     answers as an analysis booklet, an article, a ljudbok and the book, the
     ljudbok listed first — and taking it for a print row writes an audiobook
     ISBN into the diary. Candidates from a provider that names no type

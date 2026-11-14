@@ -23,19 +23,19 @@ PASSWORD = "_test_losenord_"
 # (id, title, year, read_year, date_read, rating, format, status, isbn13,
 #  isbn10, cover_path, notes)
 BOOKS = [
-    (1, "[personlig-data-purgad]", 2026, 2026, "2026-10-29", 5, "bok", "read",
+    (1, "Goda natten Agda", 2026, 2026, "2026-10-29", 5, "bok", "read",
      None, None, None, "Sommarstugeklassikern, igen."),
-    (2, "[personlig-data-purgad]", 2022, 2025, "2025-11-05", 4, "bok", "read",
-     "[personlig-data-purgad]", "9198559699", "covers/2.jpg", None),
-    (3, "[personlig-data-purgad]", 2024, 2024, None, None, "ljudbok", "read",
+    (2, "Nattfjärden", 2022, 2025, "2025-11-05", 4, "bok", "read",
+     "9789173710015", "9173710016", "covers/2.jpg", None),
+    (3, "Ekliden i Björkvik", 2024, 2024, None, None, "ljudbok", "read",
      None, None, None, None),
-    (4, "[personlig-data-purgad]", None, 2024, "2024-03-01", 3, "bok", "read",
+    (4, "Floden minns", None, 2024, "2024-03-01", 3, "bok", "read",
      None, None, None, None),
-    (5, "[personlig-data-purgad]", 2024, 0, None, None, "bok", "wishlist",
+    (5, "En skatt av silver", 2024, 0, None, None, "bok", "wishlist",
      None, None, None, None),
 ]
-AUTHORS = {1: ["Kristin Emilsson"], 2: ["Ann-Helén Laestadius"],
-           3: ["Ann-Charlotte Persson"], 4: [], 5: ["Camilla Läckberg"]}
+AUTHORS = {1: ["Kristina Hemmar"], 2: ["Elsa Lindqvist"],
+           3: ["Ann-Sofi Berggren"], 4: [], 5: ["Carola Ljungbrink"]}
 GENRES = {2: ["Kriminalitet"], 5: ["Romantik"]}
 
 
@@ -103,7 +103,7 @@ def test_shelf_groups_read_year_newest_first(shelf):
     positions = {year: r.text.index(f">{year}<") for year in (2026, 2025, 2024)}
     assert positions[2026] < positions[2025] < positions[2024]
     # every seeded read title is on the page
-    for title in ("[personlig-data-purgad]", "[personlig-data-purgad]", "[personlig-data-purgad]", "[personlig-data-purgad]"):
+    for title in ("Goda natten Agda", "Nattfjärden", "Ekliden i Björkvik", "Floden minns"):
         assert title in r.text
 
 
@@ -111,8 +111,8 @@ def test_shelf_wishlist_section_is_last(shelf):
     r = shelf.get("/liselott/bibliotek")
     assert "Att läsa" in r.text
     assert r.text.index(">2024<") < r.text.index("Att läsa")
-    assert "[personlig-data-purgad]" in r.text
-    assert r.text.index("[personlig-data-purgad]") > r.text.index("Att läsa")
+    assert "En skatt av silver" in r.text
+    assert r.text.index("En skatt av silver") > r.text.index("Att läsa")
 
 
 def test_shelf_card_links_are_prefix_absolute(shelf):
@@ -140,8 +140,8 @@ def test_shelf_marks_the_ljudbok_format(shelf):
 def test_bok_page_shows_the_record(shelf):
     r = shelf.get("/liselott/bok/1")
     assert r.status_code == 200
-    assert "<h1>[personlig-data-purgad]</h1>" in r.text
-    assert "Kristin Emilsson" in r.text
+    assert "<h1>Goda natten Agda</h1>" in r.text
+    assert "Kristina Hemmar" in r.text
     assert "2026" in r.text
     assert "Bok" in r.text
     assert "29 oktober 2026" in r.text               # Swedish date, §9 voice
@@ -164,7 +164,7 @@ def test_bok_page_ljudbok_and_missing_author_are_honest(shelf):
 def test_bok_page_cover_img_uses_the_cover_route(shelf):
     r = shelf.get("/liselott/bok/2")
     assert 'src="/liselott/cover/2"' in r.text
-    assert 'alt="Omslag till [personlig-data-purgad]"' in r.text
+    assert 'alt="Omslag till Nattfjärden"' in r.text
 
 
 def test_bok_page_shows_the_fix_me_link_only_without_a_cover(shelf):
@@ -179,7 +179,7 @@ def test_unknown_id_is_404_and_echoes_nothing(shelf):
     r = shelf.get("/liselott/bok/9999")
     assert r.status_code == 404
     assert "hittas inte" in r.text
-    for title in ("[personlig-data-purgad]", "[personlig-data-purgad]", "[personlig-data-purgad]"):
+    for title in ("Nattfjärden", "Goda natten Agda", "En skatt av silver"):
         assert title not in r.text          # no diary bytes on an error page
 
 
@@ -197,9 +197,9 @@ def test_anonymous_reader_reads_the_public_shelf(shelf):
     anon = app.test_client()
     r = anon.get("/liselott/bibliotek")
     assert r.status_code == 200
-    assert "[personlig-data-purgad]" in r.text and "[personlig-data-purgad]" in r.text
-    assert "[personlig-data-purgad]" not in r.text       # the unrated row: nowhere
+    assert "Nattfjärden" in r.text and "Goda natten Agda" in r.text
+    assert "Ekliden i Björkvik" not in r.text       # the unrated row: nowhere
     r = anon.get("/liselott/bok/1")
     assert r.status_code == 200
-    assert "[personlig-data-purgad]" in r.text
+    assert "Goda natten Agda" in r.text
     assert anon.get("/liselott/bok/3").status_code == 302   # private -> wall

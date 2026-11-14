@@ -57,11 +57,11 @@ def old_seeded_db(path):
     conn.executescript(OLD_BOOK_DDL + OLD_CANDIDATE_DDL)
     conn.execute("INSERT INTO book (id, title, format, read_year, book_key,"
                  " cover_source, created, updated) VALUES"
-                 " (1, '[personlig-data-purgad]', 'bok', 2025, 'key-stold', 'openlibrary',"
+                 " (1, 'Nattfjärden', 'bok', 2025, 'key-nattfjarden', 'openlibrary',"
                  " '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')")
     conn.execute("INSERT INTO book (id, title, format, read_year, book_key,"
                  " created, updated) VALUES"
-                 " (2, '[personlig-data-purgad]', 'bok', 2026, 'key-agnes',"
+                 " (2, 'Goda natten Agda', 'bok', 2026, 'key-agnes',"
                  " '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')")
     conn.execute("INSERT INTO candidate (id, title, author_name, fetched_at)"
                  " VALUES (1, 'Kandidat', 'Författare', '2026-01-01T00:00:00Z')")
@@ -88,7 +88,7 @@ def test_widened_value_is_rejected_before_and_accepted_after(tmp_path):
 
 def test_every_row_and_link_survives_the_rebuild(tmp_path):
     conn = old_seeded_db(tmp_path / "liselott.db")
-    conn.execute("INSERT INTO author (id, name) VALUES (7, 'Ann-Helén Laestadius')")
+    conn.execute("INSERT INTO author (id, name) VALUES (7, 'Elsa Lindqvist')")
     conn.execute("INSERT INTO book_author (book_id, author_id) VALUES (1, 7)")
     conn.commit()
     before = conn.execute("SELECT id, title, book_key, cover_source FROM book"
@@ -122,7 +122,7 @@ def test_the_unique_book_key_contract_still_holds(tmp_path):
     with pytest.raises(sqlite3.IntegrityError):
         conn.execute("INSERT INTO book (title, format, read_year, book_key,"
                      " created, updated) VALUES ('x', 'bok', 2026,"
-                     " 'key-stold', 't', 't')")
+                     " 'key-nattfjarden', 't', 't')")
     conn.close()
 
 

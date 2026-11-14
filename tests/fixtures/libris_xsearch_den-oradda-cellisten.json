@@ -5,9 +5,9 @@
   "records": 8,
   "list": [
    {
-    "identifier": "http://libris.kb.se/bib/19257852",
-    "title": "[personlig-data-purgad]",
-    "creator": "Ernestam, Maria",
+    "identifier": "http://libris.kb.se/bib/45000001",
+    "title": "Den orädda cellisten",
+    "creator": "Ekerdal, Märta",
     "type": "sound recording",
     "publisher": [
      "Johanneshov : MTM",
@@ -20,22 +20,22 @@
     "language": "swe"
    },
    {
-    "identifier": "http://libris.kb.se/bib/f01ntzjqcskkwsqg",
-    "title": "[personlig-data-purgad]",
-    "creator": "Ernestam, Maria",
-    "isbn": "[personlig-data-purgad]",
+    "identifier": "http://libris.kb.se/bib/f1ake5zjqcskk005",
+    "title": "Den orädda cellisten",
+    "creator": "Ekerdal, Märta",
+    "isbn": "9789173710084",
     "type": "sound recording",
-    "publisher": "Bonnier Audio",
+    "publisher": "Björklunds Audio",
     "date": "2025",
     "language": "swe"
    },
    {
-    "identifier": "http://libris.kb.se/bib/18546365",
-    "title": "[personlig-data-purgad]",
-    "creator": "Ernestam, Maria, 1959-",
-    "isbn": "[personlig-data-purgad]",
+    "identifier": "http://libris.kb.se/bib/45000003",
+    "title": "Den orädda cellisten",
+    "creator": "Ekerdal, Märta, 1960-",
+    "isbn": "9789173710091",
     "type": "sound recording",
-    "publisher": "Stockholm : Bonnier Audio",
+    "publisher": "Stockholm : Björklunds Audio",
     "date": [
      "p 2016",
      "2016"
@@ -43,14 +43,14 @@
     "language": "swe"
    },
    {
-    "identifier": "http://libris.kb.se/bib/19738367",
-    "title": "[personlig-data-purgad]",
-    "creator": "Ernestam, Maria, 1959-",
-    "isbn": "[personlig-data-purgad]",
+    "identifier": "http://libris.kb.se/bib/45000002",
+    "title": "Den orädda cellisten",
+    "creator": "Ekerdal, Märta, 1960-",
+    "isbn": "9789173710077",
     "type": "book",
     "publisher": [
-     "Stockholm : Månpocket",
-     "[Stockholm] : Månpocket",
+     "Stockholm : Stjärnpocket",
+     "[Stockholm] : Stjärnpocket",
      "Litauen",
      ""
     ],
@@ -62,20 +62,20 @@
     "language": "swe"
    },
    {
-    "identifier": "http://libris.kb.se/bib/18708764",
-    "title": "[personlig-data-purgad]",
-    "creator": "Ernestam, Maria, 1959-",
-    "isbn": "[personlig-data-purgad]",
+    "identifier": "http://libris.kb.se/bib/45000005",
+    "title": "Den orädda cellisten",
+    "creator": "Ekerdal, Märta, 1960-",
+    "isbn": "9789173710060",
     "type": "E-book",
     "publisher": "Bokförlaget Forum",
     "date": "2016",
     "language": "swe"
    },
    {
-    "identifier": "http://libris.kb.se/bib/18542169",
-    "title": "[personlig-data-purgad]",
-    "creator": "Ernestam, Maria, 1959-",
-    "isbn": "[personlig-data-purgad]",
+    "identifier": "http://libris.kb.se/bib/45000004",
+    "title": "Den orädda cellisten",
+    "creator": "Ekerdal, Märta, 1960-",
+    "isbn": "9789173710053",
     "type": "book",
     "publisher": [
      "Stockholm : Forum",
@@ -90,9 +90,9 @@
    },
    {
     "identifier": "http://libris.kb.se/bib/0b8xx2j3xr50rq1p",
-    "title": "[personlig-data-purgad]",
-    "creator": "Ernestam, Maria, 1959-",
-    "isbn": "[personlig-data-purgad]",
+    "title": "Niezłomna wiolonczelistka",
+    "creator": "Ekerdal, Märta, 1960-",
+    "isbn": "9789173719018",
     "type": "book",
     "publisher": "Białystok : Wydawnictwo Kobiece Łukasz Kierus",
     "date": "2018",
@@ -100,9 +100,9 @@
    },
    {
     "identifier": "http://libris.kb.se/bib/22420989",
-    "title": "[personlig-data-purgad]",
-    "creator": "Ernestam, Maria, 1959-",
-    "isbn": "[personlig-data-purgad]",
+    "title": "La violoncelliste intrépide : roman",
+    "creator": "Ekerdal, Märta, 1960-",
+    "isbn": "9789173719025",
     "type": "text",
     "publisher": [
      "Montfort-en-Chalosse : Gaïa éditions",

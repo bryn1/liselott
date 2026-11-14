@@ -1,4 +1,4 @@
-"""The ONE seed-corpus locator and the corpus-leg skip gate (path F, MC 12451 c5).
+"""The seed-corpus cases (path F, MC 12451 c5; two-case cut, MC 12523).
 
 The raw seed export is personal data: it is gitignored and has NEVER been
 committed (T1.8/P0-1), so a clean checkout of this repo cannot hold it. That
@@ -6,11 +6,17 @@ SUPERSEDES PLAN-c3 §13 ("missing file → the corpus tests FAIL loudly, a
 pytest.skip is FORBIDDEN"): §13 could only ever run the suite where the
 personal file already sat, which no verifier outside this build clone can do.
 
-The posture now: a corpus-dependent test SKIPS with the reason below when the
-export is not resolvable, and RUNS its pinned assertions — sha256, parse
-counts, dedupe, leak matrix — where it is. Absence never turns an assertion
-green: it skips, visibly (`pytest -rs` prints the reason per skipped leg), and
-the pin never weakens on a host that holds the corpus.
+MC 12523 cuts the posture in two. Corpus-dependent legs are parametrized over
+a CASE, never skipped: `synthetic` always runs — on the committed
+`tests/fixtures/synthetic_seed.md`, Swedish-shaped invented rows carrying the
+same parse shapes as the export — and `personal` is ADDED as a second case
+wherever the export resolves (the pin doctrine keeps running its sha256 /
+whole-corpus-count / digest assertions on the real file on this host). A leg
+that today skips on a clean clone runs its synthetic case there instead; a
+leg pinned to personal bytes it may not name (the diary's own titles, the
+real CSVs) keeps a synthetic-only leg for the same mechanism and says so in
+its docstring. Absence never turns an assertion green: every assertion names
+the case it pins.
 """
 import os
 from pathlib import Path
@@ -24,8 +30,9 @@ ENV_VAR = "LISELOTT_SEED_FILE"
 # resolve the corpus through the same path. It is gitignored — path F.
 IN_REPO = ROOT / "data-import/seed-books-raw.md"
 
-SKIP_REASON = ("personal corpus absent — path F keeps it out of git; "
-               "run on a host holding the export or set LISELOTT_SEED_FILE")
+# The committed synthetic corpus (MC 12523): identical section/row shapes,
+# zero personal bytes, safe to run anywhere.
+SYNTH = ROOT / "tests/fixtures/synthetic_seed.md"
 
 
 def resolve_seed_file():
@@ -39,16 +46,46 @@ def resolve_seed_file():
         path = Path(env).expanduser()
         if not path.is_file():
             raise AssertionError(
-                f"{ENV_VAR}={env} names no file — the corpus gate skips only "
-                "when the export is unresolvable, never when it is misconfigured")
+                f"{ENV_VAR}={env} names no file — the corpus gate runs the "
+                "synthetic case when the export is unresolvable, never when "
+                "it is misconfigured")
         return path.resolve()
     return IN_REPO.resolve() if IN_REPO.is_file() else None
 
 
+def corpus_cases():
+    """`synthetic` always; `personal` only where the export resolves."""
+    return ["synthetic"] + (["personal"] if resolve_seed_file() else [])
+
+
+def pytest_generate_tests(metafunc):
+    if "corpus_case" in metafunc.fixturenames:
+        metafunc.parametrize("corpus_case", corpus_cases(), ids=corpus_cases())
+
+
+@pytest.fixture()
+def corpus_file(corpus_case):
+    """The raw seed for the parametrized case: synthetic (committed) or
+    personal (the export resolved through path F; never named in a leg)."""
+    if corpus_case == "personal":
+        return resolve_seed_file()
+    return SYNTH
+
+
+@pytest.fixture()
+def synth_seed():
+    """The committed synthetic corpus, for legs that need no case split."""
+    return SYNTH
+
+
 @pytest.fixture()
 def corpus():
-    """The pinned raw seed file as a Path, or a loud skip where there is none."""
+    """The PERSONAL export only — for the pins that are meaningless on
+    synthetic bytes (the diary-in-git title guard greps the real corpus; a
+    committed synthetic fixture's titles living in tracked files is by
+    design). Skips with a loud reason where the export is unresolvable."""
     path = resolve_seed_file()
     if path is None:
-        pytest.skip(SKIP_REASON)
+        pytest.skip("personal corpus absent — path F keeps it out of git; "
+                    "run on a host holding the export or set LISELOTT_SEED_FILE")
     return path

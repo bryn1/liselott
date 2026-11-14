@@ -100,7 +100,7 @@ def test_double_wish_is_400_not_two_rows(shelf):
 # ── /las: the ONE wishlist→read flip (besides grading) ───────────────────────
 def test_las_flips_to_read_with_todays_date(shelf):
     tmp, client = shelf
-    # book 5 of the corpus is the wishlist row ([personlig-data-purgad])
+    # book 5 of the corpus is the wishlist row (En skatt av silver)
     r = client.post("/liselott/onska/5/las", data={"csrf": token(client)})
     assert r.status_code == 302
     status, date_read, year = row(tmp / "liselott.db",
@@ -108,8 +108,8 @@ def test_las_flips_to_read_with_todays_date(shelf):
     assert status == "read"
     assert date_read == date.today().isoformat()
     assert year == date.today().year              # the 0 sentinel is replaced
-    assert "[personlig-data-purgad]" not in client.get("/liselott/onska").text
-    assert "[personlig-data-purgad]" in client.get("/liselott/bibliotek").text
+    assert "En skatt av silver" not in client.get("/liselott/onska").text
+    assert "En skatt av silver" in client.get("/liselott/bibliotek").text
 
 
 def test_las_on_an_already_read_book_is_400_no_history_rewritten(shelf):
@@ -146,7 +146,7 @@ def test_delete_a_wish_via_ta_bort(shelf):
                     data={"bekrafta": "ta bort", "csrf": token(client)})
     assert r.status_code == 302
     assert row(tmp / "liselott.db", ["id"], wish_id) is None
-    assert "[personlig-data-purgad]" not in client.get("/liselott/onska").text
+    assert "En skatt av silver" not in client.get("/liselott/onska").text
 
 
 def test_unauthenticated_is_redirected(shelf):

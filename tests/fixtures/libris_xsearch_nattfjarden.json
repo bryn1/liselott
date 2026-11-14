@@ -5,12 +5,12 @@
   "records": 81,
   "list": [
    {
-    "identifier": "http://libris.kb.se/bib/q9tmf3nwnj98xfd1",
-    "title": "[personlig-data-purgad]",
+    "identifier": "http://libris.kb.se/bib/f1akebf3nwnj9011",
+    "title": "16. Elsa Lindqvist: Nattfjärden",
     "type": "sound recording",
     "publisher": [
      "",
-     "Bauer Media AB"
+     "Barr Media AB"
     ],
     "date": [
      "2021",
@@ -18,36 +18,36 @@
     ],
     "language": "und",
     "free": [
-     "https://bauernordic-pods.sharp-stream.com/1490/sob_ep_016_adb18e00_normal.mp3?aw_0_1st.episodeid=100677&aw_0_1st.collectionid=1490&aw_0_1st.bauer_context_ag=e&aw_0_1st.bauer_context_g=b"
+     "https://pods.example-ljud.se/1490/sob_ep_016_adb18e00_normal.mp3?aw_0_1st.episodeid=100677&aw_0_1st.collectionid=1490&aw_0_1st.bauer_context_ag=e&aw_0_1st.bauer_context_g=b"
     ]
    },
    {
-    "identifier": "http://libris.kb.se/bib/dwgphr9vbd8q0vp4",
-    "title": "Sámi feminism and activism in Ann-Helén Laestadius’ novel \"[personlig-data-purgad]\"",
-    "creator": "Brovold, Madelen",
+    "identifier": "http://libris.kb.se/bib/f1akec9vbd8q0012",
+    "title": "Sámi feminism and activism in Elsa Lindqvist’ novel \"Nattfjärden\"",
+    "creator": "Brate, Madelene",
     "type": "article",
     "publisher": "",
     "date": "2023",
     "language": "eng"
    },
    {
-    "identifier": "http://libris.kb.se/bib/0km5tst4xlp1t19w",
-    "title": "[personlig-data-purgad]",
-    "creator": "Laestadius, Ann-Helén",
-    "isbn": "[personlig-data-purgad]",
+    "identifier": "http://libris.kb.se/bib/f1akedt4xlp1t013",
+    "title": "Nattfjärden",
+    "creator": "Lindqvist, Elsa",
+    "isbn": "9789173710022",
     "type": "sound recording",
-    "publisher": "Romanus & Selling",
+    "publisher": "Runberg & Sell",
     "date": "2021",
     "language": "swe"
    },
    {
-    "identifier": "http://libris.kb.se/bib/3knnvgm216838rrj",
-    "title": "[personlig-data-purgad]",
-    "creator": "Laestadius, Ann-Helén, 1971-",
-    "isbn": "[personlig-data-purgad]",
+    "identifier": "http://libris.kb.se/bib/f1akeem216838014",
+    "title": "Nattfjärden",
+    "creator": "Lindqvist, Elsa, 1972-",
+    "isbn": "9789173710039",
     "type": "software, multimedia",
     "publisher": [
-     "[Malmö] : Inläst för Myndigheten för tillgängliga medier, MTM",
+     "[Malmö] : Inläst av Tillgänglighetsmedia Centrum, TMC",
      ""
     ],
     "date": [
@@ -58,12 +58,12 @@
    },
    {
     "identifier": "http://libris.kb.se/bib/jx8mx20ng18j2q9x",
-    "title": "[personlig-data-purgad]",
-    "creator": "Laestadius, Ann-Helén, 1971-",
-    "isbn": "[personlig-data-purgad]",
+    "title": "Nattfjärden",
+    "creator": "Lindqvist, Elsa, 1972-",
+    "isbn": "9789173710015",
     "type": "book",
     "publisher": [
-     "[Stockholm] : Romanus & Selling",
+     "[Stockholm] : Runberg & Sell",
      ""
     ],
     "date": [
@@ -75,9 +75,9 @@
    },
    {
     "identifier": "http://libris.kb.se/bib/q9j5330tnbws6f4p",
-    "title": "[personlig-data-purgad] · Del 1",
-    "creator": "Laestadius, Ann-Helén, 1971-",
-    "isbn": "[personlig-data-purgad]",
+    "title": "Nattfjärden · Del 1",
+    "creator": "Lindqvist, Elsa, 1972-",
+    "isbn": "9789173710190",
     "type": "book",
     "publisher": [
      "[Lund] : Btj förlag",
@@ -92,9 +92,9 @@
    },
    {
     "identifier": "http://libris.kb.se/bib/tdmbpt0grxfdnnm1",
-    "title": "[personlig-data-purgad] · Del 2",
-    "creator": "Laestadius, Ann-Helén, 1971-",
-    "isbn": "[personlig-data-purgad]",
+    "title": "Nattfjärden · Del 2",
+    "creator": "Lindqvist, Elsa, 1972-",
+    "isbn": "9789173710206",
     "type": "book",
     "publisher": [
      "[Lund] : Btj förlag",
@@ -109,8 +109,8 @@
    },
    {
     "identifier": "http://libris.kb.se/bib/8n7r94bd6hlkm76g",
-    "title": "[personlig-data-purgad] : roman",
-    "creator": "Laestadius, Ann-Helén, 1971-",
+    "title": "Nattfjärden : roman",
+    "creator": "Lindqvist, Elsa, 1972-",
     "type": "",
     "publisher": [
      "Malmö : MTM",
@@ -124,9 +124,9 @@
    },
    {
     "identifier": "http://libris.kb.se/bib/j177xfg5gh4kr8t5",
-    "title": "[personlig-data-purgad]",
-    "creator": "Laestadius, Ann-Helén, 1971-",
-    "isbn": "[personlig-data-purgad]",
+    "title": "Nattfjärden",
+    "creator": "Lindqvist, Elsa, 1972-",
+    "isbn": "9789173710183",
     "type": "book",
     "publisher": [
      "Lund : Vilja förlag",
@@ -141,13 +141,13 @@
    },
    {
     "identifier": "http://libris.kb.se/bib/3ggnhlkw1n9036pz",
-    "title": "[personlig-data-purgad]",
-    "creator": "Laestadius, Ann-Helén, 1971-",
-    "isbn": "[personlig-data-purgad]",
+    "title": "Nattfjärden",
+    "creator": "Lindqvist, Elsa, 1972-",
+    "isbn": "9789173710046",
     "type": "E-book",
     "publisher": [
      "",
-     "Romanus & Selling"
+     "Runberg & Sell"
     ],
     "date": "nnnn",
     "language": "swe"

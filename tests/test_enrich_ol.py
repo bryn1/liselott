@@ -11,7 +11,7 @@ import pytest
 
 from app import enrich, enrich_ol
 
-FIXTURE = Path(__file__).resolve().parent / "fixtures" / "ol_stold.json"
+FIXTURE = Path(__file__).resolve().parent / "fixtures" / "ol_nattfjarden.json"
 
 
 def fixture_transport(payload):
@@ -28,17 +28,17 @@ def test_fixture_holds_at_least_one_doc():
     assert len(docs) >= 1, "fixture garbage — re-record (T3.1 step 1)"
 
 
-def test_stold_fixture_maps_isbn_year_cover():
+def test_nattfjarden_fixture_maps_isbn_year_cover():
     get = fixture_transport(json.loads(FIXTURE.read_text(encoding="utf-8")))
-    hits = enrich_ol.search("[personlig-data-purgad]", "Ann-Helén Laestadius", get_json=get)
+    hits = enrich_ol.search("Nattfjärden", "Elsa Lindqvist", get_json=get)
     assert len(hits) == 1
     hit = hits[0]
-    assert hit["title"] == "[personlig-data-purgad]"
-    assert hit["isbn13"] == "[personlig-data-purgad]"
+    assert hit["title"] == "Nattfjärden"
+    assert hit["isbn13"] == "9789173710015"
     assert hit["year"] == 2022
     assert hit["cover_id"] == 14853286
     assert hit["cover_url"] == "https://covers.openlibrary.org/b/id/14853286-M.jpg"
-    assert hit["authors"] == ["Ann-Helén Laestadius"]
+    assert hit["authors"] == ["Elsa Lindqvist"]
     assert hit["source"] == "openlibrary"
 
 
@@ -56,12 +56,12 @@ def test_search_query_keeps_the_probe_shape():
         seen.append(url)
         return {"docs": []}
 
-    enrich_ol.search("[personlig-data-purgad]", "Ann-Helén Laestadius", get_json=get)
+    enrich_ol.search("Nattfjärden", "Elsa Lindqvist", get_json=get)
     assert len(seen) == 1
     url = seen[0]
     assert url.startswith("https://openlibrary.org/search.json?")
-    assert "title%3A%22St%C3%B6ld%22" in url          # title:"[personlig-data-purgad]"
-    assert "author%3A%22Ann-Hel%C3%A9n+Laestadius%22" in url
+    assert "title%3A%22Nattfj%C3%A4rden%22" in url          # title:"Nattfjärden"
+    assert "author%3A%22Elsa+Lindqvist%22" in url
     assert "subject" in url                            # genres ride the same call
 
 

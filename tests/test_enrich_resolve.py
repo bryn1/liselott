@@ -19,10 +19,10 @@ from PIL import Image
 from app import create_app, db, enrich, enrich_ol
 
 ROOT = Path(__file__).resolve().parent.parent
-OL_FIXTURE = ROOT / "tests" / "fixtures" / "ol_stold.json"
+OL_FIXTURE = ROOT / "tests" / "fixtures" / "ol_nattfjarden.json"
 COVER_FIXTURE = ROOT / "tests" / "fixtures" / "cover_sample.jpg"
 
-STOLD = dict(title="[personlig-data-purgad]", authors=["Ann-Helén Laestadius"])
+NATT = dict(title="Nattfjärden", authors=["Elsa Lindqvist"])
 
 
 @pytest.fixture()
@@ -35,18 +35,18 @@ def conn(tmp_path, monkeypatch):
     c.close()
 
 
-def insert_book(c, key="stold-1", authors=None, **over):
+def insert_book(c, key="natt-1", authors=None, **over):
     """The old shape put an `authors` key into the book INSERT (a column that
     does not exist) and, on the default path, used a plain INSERT INTO author —
     so a second row by the same author died on the UNIQUE index. Both fixed:
     authors is a parameter, and the author row is upserted."""
-    row = dict(title=STOLD["title"], book_key=key, format="bok", read_year=2022,
+    row = dict(title=NATT["title"], book_key=key, format="bok", read_year=2022,
                status="read", created="2026-01-01T00:00:00Z",
                updated="2026-01-01T00:00:00Z")
     row.update(over)
     cols, marks = ", ".join(row), ", ".join("?" for _ in row)
     cur = c.execute(f"INSERT INTO book ({cols}) VALUES ({marks})", tuple(row.values()))
-    for name in (authors or STOLD["authors"]):
+    for name in (authors or NATT["authors"]):
         aid = c.execute("INSERT INTO author (name) VALUES (?) "
                         "ON CONFLICT(name) DO UPDATE SET name=name",
                         (name,)).lastrowid or c.execute(
@@ -104,7 +104,7 @@ def cover_fetch():
 
 # ---- provider order + match policy -----------------------------------------
 
-def test_stold_resolves_through_the_provider_order(conn):
+def test_nattfjarden_resolves_through_the_provider_order(conn):
     book_id = conn.execute("SELECT id FROM book").fetchone()[0]
     transports = {
         "libris": libris_transport([]),          # libris answers: nothing
@@ -115,8 +115,8 @@ def test_stold_resolves_through_the_provider_order(conn):
                                   fetch=cover_fetch())
     assert outcome["source"] == "openlibrary"
     row = book_row(conn, book_id)
-    assert row["isbn13"] == "[personlig-data-purgad]"
-    assert row["isbn10"] == "9198559699"
+    assert row["isbn13"] == "9789173710015"
+    assert row["isbn10"] == "9173710016"
     assert row["year"] == 2022
     assert row["cover_source"] == "openlibrary"
     assert row["cover_path"] == f"covers/{book_id}.jpg"
@@ -127,8 +127,8 @@ def test_stold_resolves_through_the_provider_order(conn):
 
 def test_libris_wins_when_it_matches_first(conn):
     book_id = conn.execute("SELECT id FROM book").fetchone()[0]
-    libris_hit = [{"source": "libris", "id": "librisdoc:b1", "title": "[personlig-data-purgad]",
-                   "authors": ["Ann-Helén Laestadius"], "isbn13": "[personlig-data-purgad]",
+    libris_hit = [{"source": "libris", "id": "librisdoc:b1", "title": "Nattfjärden",
+                   "authors": ["Elsa Lindqvist"], "isbn13": "9789173710015",
                    "isbn10": None, "year": 2022, "cover_id": None,
                    "cover_url": None, "subjects": ["Skönlitteratur", "Romaner"]}]
     seen = []
@@ -141,7 +141,7 @@ def test_libris_wins_when_it_matches_first(conn):
     assert outcome["source"] == "libris"
     assert genres_of(conn, book_id) == ["Övrigt"]  # Skönlitteratur/Romaner map nowhere
     row = book_row(conn, book_id)
-    assert (row["isbn13"], row["year"]) == ("[personlig-data-purgad]", 2022)
+    assert (row["isbn13"], row["year"]) == ("9789173710015", 2022)
     assert (row["cover_path"], row["cover_source"]) == (None, None)  # nothing covered
     # ORDER, as pinned: this match had no cover, so the later lanes were asked
     # under COVER_COMPLETION — for a cover only, and they answered with nothing
@@ -156,8 +156,8 @@ def test_a_match_that_carries_its_own_cover_asks_nobody_else(conn):
     (Libris' xsearch). When the matcher does have one, the pinned order still
     means later providers are never contacted at all."""
     book_id = conn.execute("SELECT id FROM book").fetchone()[0]
-    libris_hit = [{"source": "libris", "id": "19738367", "title": "[personlig-data-purgad]",
-                   "authors": ["Ann-Helén Laestadius"], "isbn13": "[personlig-data-purgad]",
+    libris_hit = [{"source": "libris", "id": "45000002", "title": "Nattfjärden",
+                   "authors": ["Elsa Lindqvist"], "isbn13": "9789173710015",
                    "isbn10": None, "year": 2022, "cover_id": None,
                    "cover_url": "https://covers.openlibrary.org/b/id/14853286-M.jpg",
                    "subjects": []}]
@@ -174,8 +174,8 @@ def test_a_match_that_carries_its_own_cover_asks_nobody_else(conn):
 
 def test_similarity_below_0_80_does_not_match(conn):
     book_id = conn.execute("SELECT id FROM book").fetchone()[0]
-    weak = [{"source": "openlibrary", "title": "[personlig-data-purgad] och andra noveller om natten",
-             "authors": ["Ann-Helén Laestadius"], "isbn13": "[personlig-data-purgad]",
+    weak = [{"source": "openlibrary", "title": "Nattfjärden och andra noveller om natten",
+             "authors": ["Elsa Lindqvist"], "isbn13": "9789173712033",
              "isbn10": None, "year": 1999, "cover_id": None, "cover_url": None,
              "subjects": []}]
     outcome = enrich.resolve_book(
@@ -193,8 +193,8 @@ def test_similarity_below_0_80_does_not_match(conn):
 
 def test_author_gate_blocks_a_title_only_match(conn):
     book_id = conn.execute("SELECT id FROM book").fetchone()[0]
-    impostor = [{"source": "openlibrary", "title": "[personlig-data-purgad]",
-                 "authors": ["Kalle Anka"], "isbn13": "[personlig-data-purgad]",
+    impostor = [{"source": "openlibrary", "title": "Nattfjärden",
+                 "authors": ["Kalle Anka"], "isbn13": "9789173712019",
                  "isbn10": None, "year": 1901, "cover_id": None,
                  "cover_url": None, "subjects": []}]
     outcome = enrich.resolve_book(
@@ -209,8 +209,8 @@ def test_author_gate_opens_when_the_book_has_no_author(conn):
     """§T3.4 gate reads "when BOTH sides have authors" — a diary row without an
     author is not blocked by a provider that names one."""
     book_id = insert_book_no_author(conn)
-    hit = [{"source": "openlibrary", "title": "[personlig-data-purgad]",
-            "authors": ["Någon Författare"], "isbn13": "[personlig-data-purgad]",
+    hit = [{"source": "openlibrary", "title": "Floden minns",
+            "authors": ["Någon Författare"], "isbn13": "9789173712026",
             "isbn10": None, "year": 2019, "cover_id": None, "cover_url": None,
             "subjects": []}]
     outcome = enrich.resolve_book(
@@ -219,13 +219,13 @@ def test_author_gate_opens_when_the_book_has_no_author(conn):
                     "ol": libris_transport(hit), "gb": libris_transport([])})
     assert outcome["resolved"] is True
     assert conn.execute("SELECT isbn13 FROM book WHERE id = ?",
-                        (book_id,)).fetchone()[0] == "[personlig-data-purgad]"
+                        (book_id,)).fetchone()[0] == "9789173712026"
 
 
 def insert_book_no_author(conn):
     cur = conn.execute(
         "INSERT INTO book (title, book_key, format, read_year, status, created, updated)"
-        " VALUES ('[personlig-data-purgad]','no-author-1','bok',2019,'read',"
+        " VALUES ('Floden minns','no-author-1','bok',2019,'read',"
         "'2026-01-01T00:00:00Z','2026-01-01T00:00:00Z')")
     conn.commit()
     return cur.lastrowid
@@ -390,26 +390,26 @@ def libris_page_hits(path):
 
 
 def test_a_print_row_never_gets_the_audiobooks_isbn(conn):
-    """The recorded [personlig-data-purgad] page answers one title with an analysis booklet, an
-    article, a ljudbok ([personlig-data-purgad]) and the book ([personlig-data-purgad]) — and the
+    """The recorded Nattfjärden page answers one title with an analysis booklet, an
+    article, a ljudbok (9789173710022) and the book (9789173710015) — and the
     ljudbok is listed FIRST. Taking the first passing hit would write an
     audiobook ISBN into the admin's paperback row: wrong data, silently. The
     row's own `format` says which edition was read, so it decides."""
     book_id = insert_book(conn, key="tie-bok")        # format='bok'
     enrich.resolve_book(conn, book_id, transports={
-        "libris": libris_transport(libris_page_hits("libris_xsearch_stold.json")),
+        "libris": libris_transport(libris_page_hits("libris_xsearch_nattfjarden.json")),
         "ol": libris_transport([]), "gb": libris_transport([])}, fetch=cover_fetch())
     row = conn.execute("SELECT isbn13 FROM book WHERE id = ?", (book_id,)).fetchone()
-    assert row[0] == "[personlig-data-purgad]", "the first listed hit won over the right format"
+    assert row[0] == "9789173710015", "the first listed hit won over the right format"
 
 
 def test_a_ljudbok_row_gets_the_audiobooks_isbn_instead(conn):
     book_id = insert_book(conn, key="tie-ljud", format="ljudbok")
     enrich.resolve_book(conn, book_id, transports={
-        "libris": libris_transport(libris_page_hits("libris_xsearch_stold.json")),
+        "libris": libris_transport(libris_page_hits("libris_xsearch_nattfjarden.json")),
         "ol": libris_transport([]), "gb": libris_transport([])}, fetch=cover_fetch())
     row = conn.execute("SELECT isbn13 FROM book WHERE id = ?", (book_id,)).fetchone()
-    assert row[0] == "[personlig-data-purgad]"
+    assert row[0] == "9789173710022"
 
 
 def test_a_provider_that_does_not_say_the_type_keeps_first_hit_order(conn):
@@ -417,19 +417,19 @@ def test_a_provider_that_does_not_say_the_type_keeps_first_hit_order(conn):
     first-hit-wins rule must be untouched, or this 'improvement' would have
     quietly rewritten the pinned policy."""
     book_id = insert_book(conn, key="tie-notype")
-    hit = {"source": "openlibrary", "title": "[personlig-data-purgad]", "authors": ["Ann-Helén Laestadius"],
-           "isbn13": "[personlig-data-purgad]", "isbn10": None, "year": 2022,
+    hit = {"source": "openlibrary", "title": "Nattfjärden", "authors": ["Elsa Lindqvist"],
+           "isbn13": "9789173710015", "isbn10": None, "year": 2022,
            "cover_id": None, "cover_url": None, "subjects": []}
     enrich.resolve_book(conn, book_id, transports={
         "libris": libris_transport([]), "ol": libris_transport([hit]),
         "gb": libris_transport([])}, fetch=cover_fetch())
     assert conn.execute("SELECT isbn13 FROM book WHERE id = ?",
-                        (book_id,)).fetchone()[0] == "[personlig-data-purgad]"
+                        (book_id,)).fetchone()[0] == "9789173710015"
 
 
 def ol_cover_hit(**over):
-    hit = {"source": "openlibrary", "title": "[personlig-data-purgad]", "authors": ["Ann-Helén Laestadius"],
-           "isbn13": "[personlig-data-purgad]", "isbn10": None, "year": 1999,
+    hit = {"source": "openlibrary", "title": "Nattfjärden", "authors": ["Elsa Lindqvist"],
+           "isbn13": "9789173712057", "isbn10": None, "year": 1999,
            "cover_id": "14853286",
            "cover_url": "https://covers.openlibrary.org/b/id/14853286-M.jpg",
            "subjects": ["mord", "thriller"]}
@@ -446,11 +446,11 @@ def test_cover_completion_a_later_provider_may_supply_only_the_cover(conn):
     pinned 'first provider wins' contract."""
     book_id = insert_book(conn, key="cc-1")
     outcome = enrich.resolve_book(conn, book_id, transports={
-        "libris": libris_transport(libris_page_hits("libris_xsearch_stold.json")),
+        "libris": libris_transport(libris_page_hits("libris_xsearch_nattfjarden.json")),
         "ol": libris_transport([ol_cover_hit()]), "gb": libris_transport([])},
         fetch=cover_fetch())
     row = book_row(conn, book_id)
-    assert row["isbn13"] == "[personlig-data-purgad]", "identity must stay the first matcher's"
+    assert row["isbn13"] == "9789173710015", "identity must stay the first matcher's"
     assert row["year"] == 2022, "the cover lane's year must not leak into the row"
     assert row["cover_source"] == "openlibrary", "cover_source names the COVER lane"
     assert row["cover_path"] == f"covers/{book_id}.jpg"
@@ -469,12 +469,12 @@ def test_a_cover_from_a_book_that_failed_the_policy_is_never_adopted(conn):
     illustrate the diary with someone else's book."""
     book_id = insert_book(conn, key="cc-2")
     enrich.resolve_book(conn, book_id, transports={
-        "libris": libris_transport(libris_page_hits("libris_xsearch_stold.json")),
-        "ol": libris_transport([ol_cover_hit(title="[personlig-data-purgad] i Vällingby",
+        "libris": libris_transport(libris_page_hits("libris_xsearch_nattfjarden.json")),
+        "ol": libris_transport([ol_cover_hit(title="Nattfjärden i Vällingby",
                                             authors=["Någon Helt Annan"])]),
         "gb": libris_transport([])}, fetch=cover_fetch())
     row = book_row(conn, book_id)
-    assert row["isbn13"] == "[personlig-data-purgad]"          # identity still landed
+    assert row["isbn13"] == "9789173710015"          # identity still landed
     assert row["cover_path"] is None and row["cover_source"] is None
 
 
@@ -484,11 +484,11 @@ def test_a_down_lane_is_not_consulted_for_completion_and_not_logged(conn):
     answer."""
     book_id = insert_book(conn, key="cc-3")
     enrich.resolve_book(conn, book_id, transports={
-        "libris": libris_transport(libris_page_hits("libris_xsearch_stold.json")),
+        "libris": libris_transport(libris_page_hits("libris_xsearch_nattfjarden.json")),
         "ol": libris_transport(None), "gb": libris_transport(None)},
         fetch=cover_fetch())
     row = book_row(conn, book_id)
-    assert row["isbn13"] == "[personlig-data-purgad]" and row["cover_path"] is None
+    assert row["isbn13"] == "9789173710015" and row["cover_path"] is None
     assert row["tried_providers"] == "libris"
 
 
@@ -499,7 +499,7 @@ def test_an_admin_cover_is_still_never_completed_over(conn):
     enrich.store_cover(conn, book_id, COVER_FIXTURE.read_bytes(), "manual")
     calls = []
     enrich.resolve_book(conn, book_id, transports={
-        "libris": libris_transport(libris_page_hits("libris_xsearch_stold.json")),
+        "libris": libris_transport(libris_page_hits("libris_xsearch_nattfjarden.json")),
         "ol": recording_transport([ol_cover_hit()], calls), "gb": libris_transport([])},
         fetch=cover_fetch())
     assert calls == [], "a manual cover means no completion ask at all"

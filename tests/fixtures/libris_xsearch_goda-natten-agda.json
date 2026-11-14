@@ -1,0 +1,42 @@
+{
+ "xsearch": {
+  "from": 1,
+  "to": 3,
+  "records": 3,
+  "list": [
+   {
+    "identifier": "http://libris.kb.se/bib/f1akefd67cwq4015",
+    "title": "Goda natten, Agda",
+    "creator": "Hemmar, Kristina",
+    "isbn": "9789173710107",
+    "type": "sound recording",
+    "publisher": "Prensson Media",
+    "date": "2026",
+    "language": "swe"
+   },
+   {
+    "identifier": "http://libris.kb.se/bib/f1akegvnftcfs016",
+    "title": "Goda natten, Agda",
+    "creator": "Hemmar, Kristina",
+    "isbn": "9789173710114",
+    "type": "text",
+    "publisher": "Prensson Media",
+    "date": "2026",
+    "language": "swe"
+   },
+   {
+    "identifier": "http://libris.kb.se/bib/f1akehb3h6t8h017",
+    "title": "Goda natten, Agda",
+    "creator": "Hemmar, Kristina, 1974-",
+    "isbn": "9789173710121",
+    "type": "book",
+    "publisher": [
+     "Stockholm : Prensson Media",
+     "Falun : Scandbook AB"
+    ],
+    "date": "2026",
+    "language": "swe"
+   }
+  ]
+ }
+}

@@ -17,10 +17,10 @@ from app import db, enrich_ol
 from scripts.enrich_backfill import main
 
 ROOT = Path(__file__).resolve().parent.parent
-OL_FIXTURE = ROOT / "tests" / "fixtures" / "ol_stold.json"
+OL_FIXTURE = ROOT / "tests" / "fixtures" / "ol_nattfjarden.json"
 COVER_FIXTURE = ROOT / "tests" / "fixtures" / "cover_sample.jpg"
 
-TITLES = ["[personlig-data-purgad]", "Den andra boken", "Tredje boken"]
+TITLES = ["Nattfjärden", "Den andra boken", "Tredje boken"]
 
 
 @pytest.fixture()
@@ -41,7 +41,7 @@ def build_db(tmp_path, monkeypatch):
 
 def fixture_transports(conn=None, **kw):
     """libris answers nothing, gb is not consulted (cooldown), and ol answers:
-    for "[personlig-data-purgad]" with the RECORDED fixture (the real mapping path), for the
+    for "Nattfjärden" with the RECORDED fixture (the real mapping path), for the
     other titles with an exactly-matching synthetic hit — the match policy
     (T3.4) is live here too, and a wrong-title answer must NOT resolve a row."""
     docs = json.loads(OL_FIXTURE.read_text(encoding="utf-8"))
@@ -50,10 +50,10 @@ def fixture_transports(conn=None, **kw):
         return []
 
     def ol(title, authors):
-        if title == "[personlig-data-purgad]":
+        if title == "Nattfjärden":
             return enrich_ol.map_docs(docs)
         return [{"source": "openlibrary", "title": title, "authors": list(authors),
-                 "isbn13": "[personlig-data-purgad]", "isbn10": "9198559699", "year": 2024,
+                 "isbn13": "9789173710015", "isbn10": "9173710016", "year": 2024,
                  "cover_id": 77, "cover_url": "https://covers.openlibrary.org/b/id/77-M.jpg",
                  "subjects": ["Crime, Detective stories"]}]
 
@@ -234,8 +234,8 @@ def identity_then_cover_transports():
     """Libris identifies the row (its xsearch page has no cover), OpenLibrary
     supplies only the cover — the shape cover completion produces."""
     def libris(title, authors):
-        return [{"source": "libris", "id": "19738367", "title": title,
-                 "authors": list(authors), "isbn13": "[personlig-data-purgad]",
+        return [{"source": "libris", "id": "45000002", "title": title,
+                 "authors": list(authors), "isbn13": "9789173710015",
                  "isbn10": None, "year": 2022, "cover_id": None,
                  "cover_url": None, "subjects": []}]
 

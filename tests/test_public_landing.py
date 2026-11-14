@@ -54,8 +54,8 @@ PRIVATE_AUTHORS = tuple(row[8] for row in PRIVATE_ROWS)
 PRIVATE_IDS = tuple(row[0] for row in PRIVATE_ROWS)
 PRIVATE_ONLY_YEAR = 2013          # no public fixture was read this year
 
-PUBLIC_TITLES = ("[personlig-data-purgad]", "[personlig-data-purgad]", "[personlig-data-purgad]")   # rated fixtures
-WISHLIST_TITLE = "[personlig-data-purgad]"                          # the wishlist row
+PUBLIC_TITLES = ("Goda natten Agda", "Nattfjärden", "Floden minns")   # rated fixtures
+WISHLIST_TITLE = "En skatt av silver"                          # the wishlist row
 
 
 def _seed_private(db_path):
@@ -217,18 +217,27 @@ def test_configured_but_empty_landing_renders(tmp_path, monkeypatch):
     assert app.test_client().get("/liselott/bibliotek").status_code == 200
 
 
-# ── corpus scale: the SAME absence proof over the real export (path F) ──────
-def test_anonymous_landing_carries_zero_private_corpus_rows(corpus, tmp_path,
+# ── corpus scale: the SAME absence proof over EITHER corpus (MC 12523) ──────
+PRIVATE_FLOOR = {"personal": 100, "synthetic": 20}
+SEED_RC = {"personal": 0, "synthetic": 1}
+
+
+def test_anonymous_landing_carries_zero_private_corpus_rows(corpus_case,
+                                                            corpus_file,
+                                                            tmp_path,
                                                             monkeypatch):
-    """The owner's real shelf, 700-odd rows, most of them private: EVERY
-    unrated read row is gone from the landing BY NAME and its id is linked
-    NOWHERE, while the public rows are present (the non-vacuity leg reads its
-    title straight off the DB). Corpus leg: skips where the export is
-    unresolvable (tests/conftest, path F)."""
-    subprocess.run(
+    """A whole seeded shelf — 700-odd rows on the personal export, 40-odd on
+    the committed synthetic one, most private: EVERY unrated read row is gone
+    from the landing BY NAME and its id is linked NOWHERE, while the public
+    rows are present (the non-vacuity leg reads its title straight off the
+    DB). Case split per MC 12523: the synthetic case runs this sweep in every
+    clean clone; the personal case keeps the corpus-scale floor where the
+    export resolves."""
+    proc = subprocess.run(
         [sys.executable, str(ROOT / "data-import/import_seed.py"),
-         "--db", str(tmp_path / "liselott.db"), "--raw", str(corpus)],
-        check=True, capture_output=True, text=True, cwd=str(ROOT))
+         "--db", str(tmp_path / "liselott.db"), "--raw", str(corpus_file)],
+        capture_output=True, text=True, cwd=str(ROOT))
+    assert proc.returncode == SEED_RC[corpus_case], proc.stderr  # synthetic drifts by design
     monkeypatch.setenv("LISELOTT_DATA_DIR", str(tmp_path))
     monkeypatch.delenv("LISELOTT_PREFIX", raising=False)
     monkeypatch.delenv("LISELOTT_ENV", raising=False)
@@ -242,7 +251,7 @@ def test_anonymous_landing_carries_zero_private_corpus_rows(corpus, tmp_path,
     rated_title = conn.execute("SELECT title FROM book WHERE rating IS NOT"
                                " NULL ORDER BY id LIMIT 1").fetchone()[0]
     conn.close()
-    assert len(private) >= 100, len(private)     # anti-vacuity: the sweep is real
+    assert len(private) >= PRIVATE_FLOOR[corpus_case], len(private)  # anti-vacuity
     body = app.test_client().get("/liselott/").text
     assert rated_title in body                   # the public half really painted
     for pid, title in private:

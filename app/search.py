@@ -48,7 +48,7 @@ def normalize_isbn(text):
     a bad one means the token was not an ISBN after all, and §7 sends it to
     the text path — a typo becomes a word, never an empty result set. The
     10-digit form is NOT gated on mod-11, deliberately and measured: the
-    diary's own [personlig-data-purgad] ISBN-10 9198559699 (the recorded OL fixture) is not
+    diary's own Nattfjärden ISBN-10 9173710016 (the recorded OL fixture) is not
     mod-11-valid (weighted sum 355, 355 mod 11 = 3), so requiring it would
     answer "no hits" on a real ISBN she owns."""
     token = re.sub(r"[\s-]", "", str(text or "")).upper()

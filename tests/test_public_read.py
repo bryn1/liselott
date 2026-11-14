@@ -57,14 +57,14 @@ from tests.test_browse import PASSWORD, seed_shelf
 # in a year NO public book populated — the leg "sections/years with zero
 # public books render as if absent" needs a private-ONLY year to mean
 # anything, and the shared synthetic shelf stays untouched for its owners.
-PRIVATE_ROW = (6, "Hemlig Höst", 2019, 2023, "2023-05-04", None, "bok",
+PRIVATE_ROW = (6, "Tyst i Tived", 2019, 2023, "2023-05-04", None, "bok",
                "read", None, None, None, None)
 PRIVATE_AUTHOR = "Anna Anonym"
 
 # Titles/authors the anonymous reader may never meet (fixture 3 and the
 # row above: unrated read rows — the private half of the synthetic shelf).
-PRIVATE_TITLES = ("[personlig-data-purgad]", "Hemlig Höst")
-PRIVATE_AUTHORS = ("Ann-Charlotte Persson", PRIVATE_AUTHOR)
+PRIVATE_TITLES = ("Ekliden i Björkvik", "Tyst i Tived")
+PRIVATE_AUTHORS = ("Ann-Sofi Berggren", PRIVATE_AUTHOR)
 
 # (method, path, expected refuse) — the full write surface of the app.
 # /satt-loesenord refuses as 404 because a configured site retires it (§6.1),
@@ -140,10 +140,10 @@ def test_anonymous_shelf_shows_the_public_set_with_stars(configured):
     anon = _app().test_client()
     r = anon.get("/liselott/bibliotek")
     assert r.status_code == 200
-    for title in ("[personlig-data-purgad]", "[personlig-data-purgad]", "[personlig-data-purgad]"):   # rated only
+    for title in ("Goda natten Agda", "Nattfjärden", "Floden minns"):   # rated only
         assert title in r.text
     assert 'aria-label="Betyg 4 av 5"' in r.text   # stars READ public, as seen
-    assert "Att läsa" in r.text and "[personlig-data-purgad]" in r.text  # wishlist too
+    assert "Att läsa" in r.text and "En skatt av silver" in r.text  # wishlist too
 
 
 def test_anonymous_shelf_hides_every_unrated_title_by_name(configured):
@@ -169,12 +169,12 @@ def test_public_ids_answer_anonymous_with_their_data(configured):
     anon = _app().test_client()
     r = anon.get("/liselott/bok/2")
     assert r.status_code == 200
-    assert "[personlig-data-purgad]" in r.text and "Ann-Helén Laestadius" in r.text
+    assert "Nattfjärden" in r.text and "Elsa Lindqvist" in r.text
     r = anon.get("/liselott/bok/1")             # the BOOK is public; the
     assert r.status_code == 200                 # note is not (the F-1 legs
-    assert "[personlig-data-purgad]" in r.text            # pin the note below)
+    assert "Goda natten Agda" in r.text            # pin the note below)
     r = anon.get("/liselott/bok/5")             # the wishlist row is public too
-    assert r.status_code == 200 and "[personlig-data-purgad]" in r.text
+    assert r.status_code == 200 and "En skatt av silver" in r.text
     r = anon.get("/liselott/cover/2")           # the stored cover, real bytes
     assert r.status_code == 200 and r.mimetype == "image/jpeg"
     r = anon.get("/liselott/cover/1")   # public book, no cover: the honest SVG
@@ -197,7 +197,7 @@ def test_private_id_answers_exactly_what_a_nonexistent_id_answers(configured):
         assert (a.status_code, b.status_code) == (302, 302), route
         assert a.headers["Location"] == b.headers["Location"] == \
             "/liselott/logga-in", (route, priv)
-        assert "[personlig-data-purgad]" not in a.text   # the refuse carries no data
+        assert "Ekliden i Björkvik" not in a.text   # the refuse carries no data
     r = anon.get("/liselott/cover/3")
     assert r.mimetype != "image/svg+xml"   # a private id never gets the SVG
 
@@ -210,7 +210,7 @@ def test_search_and_recs_refuse_anonymous_and_answer_the_owner(configured):
         r = anon.get(path)
         assert r.status_code == 302, path
         assert r.headers["Location"] == "/liselott/logga-in", path
-        assert "[personlig-data-purgad]" not in r.text, path     # a redirect carries no data
+        assert "Nattfjärden" not in r.text, path     # a redirect carries no data
     assert client.get("/liselott/sok?q=x").status_code == 200
     assert client.get("/liselott/rekommendationer").status_code == 200
 
@@ -232,7 +232,7 @@ def test_anonymous_reads_set_no_session_cookie(configured):
     anon = _app().test_client()
     for path in ("/liselott/", "/liselott/bibliotek", "/liselott/bok/1",
                  "/liselott/bok/3",            # the refuse sets nothing either
-                 "/liselott/cover/3", "/liselott/sok?q=[personlig-data-purgad]",
+                 "/liselott/cover/3", "/liselott/sok?q=Nattfjärden",
                  "/liselott/rekommendationer"):
         r = anon.get(path)
         assert "Set-Cookie" not in r.headers, path
@@ -279,12 +279,12 @@ def test_note_text_never_reaches_an_anonymous_body(configured):
     conn.close()
     anon = _app().test_client()
     bok1 = anon.get("/liselott/bok/1")
-    assert bok1.status_code == 200 and "[personlig-data-purgad]" in bok1.text
+    assert bok1.status_code == 200 and "Goda natten Agda" in bok1.text
     assert note not in bok1.text                   # exact string absent
     assert 'class="anteckningar"' not in bok1.text  # render branch stays shut
     assert "29 oktober 2026" in bok1.text           # Läst stays public
     wish = anon.get("/liselott/bok/5")
-    assert wish.status_code == 200 and "[personlig-data-purgad]" in wish.text
+    assert wish.status_code == 200 and "En skatt av silver" in wish.text
     assert wish_note not in wish.text
     shelf = anon.get("/liselott/bibliotek").text   # anon shelf note-free too
     assert note not in shelf and wish_note not in shelf
@@ -303,7 +303,7 @@ def test_fresh_state_wraps_the_whole_site(fresh):
         r = anon.get("/liselott" + path)
         assert r.status_code == 302, path
         assert r.headers["Location"] == "/liselott/satt-loesenord", path
-        assert "[personlig-data-purgad]" not in r.text, path       # a redirect carries no data
+        assert "Nattfjärden" not in r.text, path       # a redirect carries no data
     assert anon.post("/liselott/betyg/1",
                      data={"betyg": "5"}).status_code == 302
     root = anon.get("/liselott/")                # the landing leg as pinned
@@ -329,8 +329,8 @@ def test_robots_allows_the_public_configured_site(configured):
 def test_owner_sees_the_full_shelf_including_the_private_half(configured):
     _, client = configured
     body = client.get("/liselott/bibliotek").text
-    for title in ("[personlig-data-purgad]", "[personlig-data-purgad]", "[personlig-data-purgad]",
-                  "[personlig-data-purgad]") + PRIVATE_TITLES:
+    for title in ("Goda natten Agda", "Nattfjärden", "Floden minns",
+                  "En skatt av silver") + PRIVATE_TITLES:
         assert title in body, title
     assert ">2023<" in body          # her private-only year section stands
     assert client.get("/liselott/bok/3").status_code == 200
