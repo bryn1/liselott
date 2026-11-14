@@ -143,6 +143,9 @@ silent skip there would be the vacuous-green defect class §13 named.
 | `LISELOTT_BACKUP_DIR` | where `scripts/backup.sh` writes its pairs; default `$HOME/liselott-backups` (§11). `GET /backup` never writes here — it streams from a temp dir |
 | `LISELOTT_ENV=dev` | local/test only — turns the session cookie's `Secure` flag off; UNSET means production (Secure ON, debug OFF) |
 | `LISELOTT_SEED_FILE` | test suite ONLY (MC 12451 c5) — points at the personal seed export so the corpus legs RUN; unset, the locator falls back to `data-import/seed-books-raw.md` and the legs skip where neither exists. The app never reads it |
+| `FIRECRAWL_SEARCH_URL` | the S12 cover pass ONLY (`scripts/cover_pass.py`, MC 12466) — the search endpoint it asks for candidate pages; default `http://192.168.5.20:3002/v1/search` (firecrawl on noa). The app never reads it |
+| `DESCRIBE_IMAGE_ENDPOINT` | the S12 cover pass ONLY — the chat-completions endpoint its vision gate (verbatim transcription check) calls; default `http://192.168.5.223:8888/v1/chat/completions`. The app never reads it |
+| `DESCRIBE_IMAGE_MODEL` | the S12 cover pass ONLY — the model the vision gate asks to report the cover's printed words; default `qwen3.8-flash-next`. The app never reads it |
 
 **Production needs zero custom env.** The lane unit sets only `HOME` and `PORT`;
 everything else falls out of the defaults above.

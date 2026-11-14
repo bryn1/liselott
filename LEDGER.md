@@ -255,4 +255,13 @@ postdating a line make that line STALE — de-stale before quoting it.
   legs 1+3 need a real `.git` — they fail in a git-ARCHIVE tree with no `.git`,
   VERIFIED pre-existing at base `1e65919` (`c5-archive-nogit-BASE-1e65919.txt`),
   so a rerun host that unpacks an archive instead of cloning needs an OWNER/
-  verifier call: clone-based rerun, or a separate wave for that guard.
+  verifier call: clone-based rerun, or a separate wave for that guard. (c)
+  CORRECTION, measured 2026-11-14 (c7): the same no-`.git` `git archive` tree
+  answered **3 failed + 1 skipped** across the two guard files together —
+  (b)'s diary legs 1+3 plus the leg (b) never named, `test_static::
+  test_app_version_is_the_current_head` (no `.git`: `APP_VERSION` answers the
+  tree's VERSION file while the HEAD probe answers empty), the skip being leg
+  2's corpus absence, not git; c6 (00a85e0) fixed the DIARY-guard class (the
+  guard now walks the tree — measured green in the archive), while the
+  version leg measures red in a 00a85e0 archive too (clone-only by
+  construction) and rides the same clone-vs-archive rerun-host decision.
