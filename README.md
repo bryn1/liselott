@@ -10,24 +10,29 @@ this line). It is built to be served at
 `https://sibbamala.com/liselott` on the fleet's auto lane. The build contract
 is `PLAN-c3` (the pinned plan); this README states what the tree actually is.
 
-## Status snapshot — republished true 2026-11-13 (gate fix wave c2, MC 12451)
+## Status snapshot — re-measured 2026-11-14 against HEAD c0246b1 (docs wave c10, MC 12451)
 
 - Build milestones M0–M7 are done and committed, and **the publish (plan
   milestone M8) HAS RUN**: `bryn1/liselott` exists on GitHub with visibility
-  **PUBLIC** (`gh repo view`, measured this session) and the app **serves at
-  `https://sibbamala.com/liselott`** — `/` 200, `/logga-in` 200, `/healthz`
-  200 `ok`, `/satt-loesenord` 404 (the owner's password is set, as designed),
-  quarantined names 404 (all re-measured by GET this session). What the
+  **PUBLIC** (`gh repo view`, re-measured 2026-11-14) and the app **serves at
+  `https://sibbamala.com/liselott`** — `/` 200 (re-checked by curl GET
+  2026-11-14); `/logga-in` 200, `/healthz` 200 `ok`, `/satt-loesenord` 404
+  (the owner's password is set, as designed), quarantined names 404 (the
+  full GET matrix measured at the publish, 2026-11-13 — the site is in use,
+  so a later wave re-fetches `/` only). What the
   publish took — staging-gate landing, static in the closed state,
   quarantine 404s, the live-500 cachebust fix, the setup-window reopens —
   is LEDGER rows, not this snapshot's fine print.
 - The full offline test suite passes: **494 passed, exit 0**
-  (`.venv/bin/pytest -q`, VM350 build clone, this commit) and **462 passed,
+  (`.venv/bin/pytest -q`, VM350 build clone, re-run 2026-11-14 at c0246b1 —
+  the c10 wave is docs-only) and **462 passed,
   32 skipped, exit 0** in a clean clone without her personal export — the 32
   are the corpus legs, skipping by name, never silently (MC 12451 c5).
 - The build database holds **724 books** (706 read + 18 wishlist), **671** with
-  an ISBN, **6** rated, **52** ljudbok, and a recommendation candidate pool of
-  **284** authors' works (`sqlite3 /home/claudecode/liselott-build/liselott.db`).
+  an ISBN (parse: `isbn13` non-empty), **6** rated, **52** ljudbok, and a
+  recommendation candidate pool of **284** authors' works
+  (`sqlite3 /home/claudecode/liselott-build/liselott.db`, re-measured
+  2026-11-14 — unchanged from 2026-11-13).
 - Covers: the build DB held **74 of 724** at T9.1 time (27 owner-chosen via
   upload/URL; 47 marked `enrich_fail=1` — no provider had one; the count
   moved 72→74 while that snapshot was written, a second bounded cover wave
@@ -69,7 +74,7 @@ Alla böcker utan omslag samlas i en lista under "Saknade omslag" där du kan
 fixa dem ett åt gången. (Eget uppladdat eller inskickat omslag skrivs aldrig
 över av systemet.)
 
-**Önskelistan.** Böcker du vill läsa ligger under "Önska". När du läser en
+**Önskelistan.** Böcker du vill läsa ligger under "Önskelista". När du läser en
 önskbok markerar du den som läst, då hamnar den i hyllan.
 
 **Rekommendationer.** "Rekommendationer" visar de 12 bästa förslagen utifrån
