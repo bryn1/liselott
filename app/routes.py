@@ -1,10 +1,14 @@
 """Page routes (§6.7 password lifecycle; M4 adds browse/search; T5.1
 adds grading). Guard + CSRF already ran before any view here: reads ride
-the §6.4 allow-list as widened by the public-read contract (MC 12497 —
-shelf, bok, search, recs and covers answer an anonymous GET on a
-configured site; the root keeps the fixed-copy landing the M8 staging
-gate pinned, see rot() and templates/start.html), and every state change
-is owner-authenticated and token- and origin-checked (T2.3/T2.5)."""
+the §6.4 allow-list as narrowed by the public-set contract (MC 12501, owner
+ruling 2026-11-14, superseding MC 12497 the same day: "Rated books and
+their ratings as well as whishlist shall be public. The rest behind
+password" — the shelf answers an anonymous GET FILTERED to the public set,
+bok/cover answer it for public-set ids only, and search and the rec
+surface are back behind the session; the root keeps the fixed-copy landing
+the M8 staging gate pinned, see rot() and templates/start.html), and every
+state change is owner-authenticated and token- and origin-checked
+(T2.3/T2.5)."""
 import re
 import shutil
 import tempfile
@@ -44,6 +48,25 @@ def _stream_and_delete(path: Path, tmp_dir: Path, mimetype: str, filename: str):
                              f'attachment; filename="{filename}"'})
 
 
+def _publikt_endast():
+    """MC 12501: the anonymous reader's data fetches carry the public-set
+    filter (books.PUBLIC_SET_SQL); the owner's never do — her own view
+    shows everything, everywhere, exactly as before the narrowing."""
+    return not session.get(auth.SESSION_FLAG)
+
+
+def _refuse_read():
+    """MC 12501: the answer to a READ outside the reader's view — for the
+    anonymous visitor it IS the guard's own login refuse (redirect_prefixed
+    to /logga-in), byte-for-byte the answer a private path gives, so a
+    private id and a nonexistent id are indistinguishable and id-
+    enumeration learns nothing. For the owner, who has no outside, it is
+    the route's own 404 — the §9 page that echoes nothing."""
+    if session.get(auth.SESSION_FLAG):
+        abort(404)
+    return auth.redirect_prefixed("/logga-in")
+
+
 def init_routes(app):
     # Templates get the mount helper and the formatters as globals — one place,
     # so no template ever hand-builds a URL or a Swedish date. `mount_url`
@@ -65,8 +88,13 @@ def init_routes(app):
         lambda n, one, many: f"{n} {one if n == 1 else many}")
 
     def _hylla():
-        """One read, one render — shared by the two rules below."""
-        grupper = books.group_for_shelf(books.load_books(db.get_db()))
+        """One read, one render — shared by the two rules below. MC 12501:
+        the anonymous read is narrowed to the public set (books.PUBLIC_SET_
+        SQL) right here at the fetch — the ONE filter, so no section, year
+        or count a private-only book populated can render around it. The
+        owner's render is the full shelf, unchanged."""
+        grupper = books.group_for_shelf(books.load_books(
+            db.get_db(), public_only=_publikt_endast()))
         return render_template("bibliotek.html", grupper=grupper,
                                current="hylla")
 
@@ -100,13 +128,18 @@ def init_routes(app):
     @app.get("/bok/<int:id>")
     def bok(id):
         """One book, honestly: the fields she kept, the format and date in
-        Swedish words, and the §9 fix-me hint when the cover is missing."""
+        Swedish words, and the §9 fix-me hint when the cover is missing.
+        MC 12501: an anonymous reader gets the public set only — a private
+        id and a nonexistent id answer the SAME login refuse (and the
+        unbindable id range joins them: F-2's range check still runs before
+        any bind, the traceback stays dead, but its out-of-domain answer is
+        no longer a distinguishable 404 for an anonymous reader)."""
         if not SQLITE_INT_MIN <= id <= SQLITE_INT_MAX:
-            abort(404)          # F-2: unbindable id — this route's own 404,
-                                # never the bind's OverflowError
-        rows = books.load_books(db.get_db(), ids=[id])
+            return _refuse_read()       # F-2: never the bind's OverflowError
+        rows = books.load_books(db.get_db(), ids=[id],
+                                public_only=_publikt_endast())
         if not rows:
-            abort(404)          # the §9 404 page echoes nothing back
+            return _refuse_read()       # the §9 404 page echoes nothing back
         return render_template("bok.html", bok=rows[0], current="hylla")
 
     @app.get("/sok")
@@ -198,16 +231,21 @@ def init_routes(app):
     @app.get("/cover/<int:book_id>")
     def cover(book_id):
         """T3.4 — the stored cover, or the placeholder SVG when the row has
-        none (public-read per MC 12497: the cover image belongs to the
-        public shelf; the placeholder is served as data, never as a
-        redirect to anything)."""
+        none. MC 12501: an anonymous read answers the public set only —
+        the SAME books.PUBLIC_SET_SQL the shelf and bok page apply,
+        composed into this probe, so private ids never serve anything
+        (not even the placeholder — that stays a public-book behaviour)
+        and answer the identical login refuse as a nonexistent id. The
+        owner's answer is unchanged."""
         if not SQLITE_INT_MIN <= book_id <= SQLITE_INT_MAX:
-            abort(404)          # F-2 (SEC-verdict-12497): as in bok()
+            return _refuse_read()       # F-2 (SEC-verdict-12497): as in bok()
         conn = db.get_db()
-        row = conn.execute("SELECT cover_path FROM book WHERE id = ?",
-                           (book_id,)).fetchone()
+        sql = "SELECT cover_path FROM book WHERE id = ?"
+        if _publikt_endast():
+            sql += f" AND {books.PUBLIC_SET_SQL}"
+        row = conn.execute(sql, (book_id,)).fetchone()
         if row is None:
-            abort(404)
+            return _refuse_read()
         # The path comes from a DB column, so its SHAPE is checked before it
         # touches the filesystem: store_cover only ever writes
         # "covers/<that very book's id>.jpg", and anything else — a hand-edited
@@ -292,13 +330,16 @@ def init_routes(app):
         auth.rotate_secret(app)  # all sessions die -> re-login (§6.7)
         return auth.redirect_prefixed("/logga-in")
 
-    # F-3 (SEC-verdict-12497): the slash spellings of the public reads are
-    # the SAME pages — explicit rules for the same endpoints, because the
+    # F-3 (SEC-verdict-12497): the slash spellings of these pages are the
+    # SAME pages — explicit rules for the same endpoints, because the
     # werkzeug 3.1 pin has no strict-slash redirect to canonicalize them
     # and none is added beside Flask's: the guard's tolerated match
-    # (auth.py _is_public_read) opens the way, these rules answer it with
-    # the page itself, in place, 200. url_for still builds the canonical
-    # (shorter) rule, so no template, redirect or asset URL changes.
+    # (auth.py _is_public_read) opens the way for what MC 12501 left public,
+    # these rules answer the page itself, in place, 200 — and they stand
+    # for the owner's slash spelling of the now-private /sok and
+    # /rekommendationer too, which the guard answers anonymous with its
+    # uniform 302. url_for still builds the canonical (shorter) rule, so
+    # no template, redirect or asset URL changes.
     for slash_rule, endpoint in (("/bibliotek/", "bibliotek"),
                                  ("/sok/", "sok"),
                                  ("/rekommendationer/", "rekommendationer"),

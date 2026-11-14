@@ -41,25 +41,27 @@ TOO_MANY_COPY = "För många försök — försök igen om en kvart."
 # root joins as a READS-ONLY leg (_is_public_root below); its page is fixed
 # copy with zero app data (app/templates/start.html), and /satt-loesenord
 # within the list is further gated by state. Data routes joined this posture
-# through _is_public_read (MC 12497) when the site got its public-read
-# contract — see the constants below.
+# through _is_public_read (MC 12497, narrowed to the public set by MC 12501
+# the same day) — see the constants below.
 UNAUTHENTICATED_ALLOW = ("/healthz", "/logga-in", "/satt-loesenord", "/robots.txt")
 STATIC_PREFIX = "/static/"
 PUBLIC_ROOT = "/"
 READ_METHODS = ("GET", "HEAD")
 
-# MC 12497 (owner ruling 2026-11-14, verbatim): "The website
-# sibbamala.com/liselott should be public. All rate books should be public.
-# Rating and whishing is blocked behind liselotts password" => reading is
-# public, writing stays behind the one owner session. The list IS the DoD
-# matrix: shelf, bok page, search, the rec surface and covers answer an
-# anonymous READ (plus the root landing + static, which the M8 gate already
-# widened). The owner surfaces are deliberately NOT here — /onska,
-# /lagg-till, /redigera, /rapa, /backup, /byter-losenord stay behind the
-# session exactly as every POST does. Setup-state exception: this rule is
-# consulted in the CONFIGURED branch of _auth_gate only — while no password
-# is set the choose-password gate wraps the whole site as before.
-PUBLIC_READ_PATHS = ("/", "/bibliotek", "/sok", "/rekommendationer")
+# MC 12497 widened reads to the whole site (SUPERSEDED same day by MC 12501,
+# owner ruling 2026-11-14 web chat, verbatim): "Rated books and their ratings
+# as well as whishlist shall be public. The rest behind password" => the
+# anonymous READ surface is the PUBLIC SET only: the shelf (filtered to it,
+# at the data layer — books.PUBLIC_SET_SQL, applied by the views) and the
+# book/cover routes, which answer it ONLY for public-set ids. Search and the
+# rec surface are back behind the session: NOT in the lists below, so the
+# guard's uniform 302 answers them for anonymous exactly as before MC 12497.
+# Writing was and stays behind the one owner session; /onska, /lagg-till,
+# /redigera, /rapa, /backup, /byter-losenord never joined the read set.
+# Setup-state exception unchanged: these rules are consulted in the
+# CONFIGURED branch of _auth_gate only — while no password is set the
+# choose-password gate wraps the whole site as before.
+PUBLIC_READ_PATHS = ("/", "/bibliotek")
 PUBLIC_READ_PREFIXES = ("/bok/", "/cover/")
 
 # F-F2 (DA-verdict-c2, MC 12451): the _file_shaped() dot heuristic has
@@ -217,11 +219,18 @@ def _is_public_root() -> bool:
 
 
 def _is_public_read() -> bool:
-    """MC 12497 (owner ruling 2026-11-14): the public-read contract of a
-    CONFIGURED site — shelf, bok page, search, rec surface, covers and the
-    root answer an anonymous READ. READ_METHODS only: a POST to a read path
-    stays the guard's refuse, the same non-2xx the route contract pins for
-    every anonymous write.
+    """MC 12497, narrowed the same day by MC 12501 (owner ruling verbatim):
+    "Rated books and their ratings as well as whishlist shall be public. The
+    rest behind password" — on a CONFIGURED site the shelf, the bok page,
+    the covers and the root answer an anonymous READ; /sok and
+    /rekommendationer no longer do. For the prefix routes this rule opens
+    the WAY only: the ONE public-set filter (books.PUBLIC_SET_SQL, applied
+    by the views' data fetches) decides which books answer, and anything
+    outside the public set answers _refuse_read() — the same login 302 this
+    guard itself emits for a private path, so a private id and a nonexistent
+    id are indistinguishable to an anonymous reader. READ_METHODS only: a
+    POST to a read path stays the guard's refuse, the same non-2xx the route
+    contract pins for every anonymous write.
     F-3 (SEC-verdict-12497): the match tolerates the ONE trailing slash.
     werkzeug 3.1 REMOVED the strict-slash redirect (this pin has no
     RequestRedirect — probed), so nothing else normalizes the spelling
@@ -369,13 +378,16 @@ def init_auth(app):
 
     @app.get("/robots.txt")
     def robots():
-        # §6.4/MC 12497 (owner ruling 2026-11-14): a CONFIGURED site is
-        # public to read, so crawlers are allowed in. The write paths keep
-        # their refuse no matter what a crawler is served here. While no
-        # password is set the choose-password gate still wraps the site
-        # (the setup-state exception), and the honest answer stays
-        # Disallow. The closed window never reaches this view: the guard
-        # 404s this name in every state (F-F, MC 12451).
+        # §6.4, state-dependent (MC 12497, posture kept by MC 12501): a
+        # CONFIGURED site publishes its public set (rated books + the
+        # wishlist) to read, so crawlers are allowed in — the surfaces
+        # behind the password are unreachable to a crawler regardless of
+        # what this file says. The write paths keep their refuse no matter
+        # what a crawler is served here. While no password is set the
+        # choose-password gate still wraps the site (the setup-state
+        # exception), and the honest answer stays Disallow. The closed
+        # window never reaches this view: the guard 404s this name in
+        # every state (F-F, MC 12451).
         body = "Allow: /\n" if is_configured(db.get_db()) else "Disallow: /\n"
         return body, 200, {"Content-Type": "text/plain; charset=utf-8"}
 

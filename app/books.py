@@ -17,23 +17,41 @@ NO_YEAR = "Utan år"               # one trailing group for yearless read rows
 WISHLIST_SECTION = "Att läsa"     # §9: the wishlist section's own name
 _DATE_RE = re.compile(r"^(\d{4})-(\d{1,2})-(\d{1,2})")
 
+# MC 12501 (owner ruling 2026-11-14, verbatim): "Rated books and their
+# ratings as well as whishlist shall be public. The rest behind password" —
+# the ONE definition of the PUBLIC SET. The read/wish split is `status`,
+# exactly the one group_for_shelf draws (never the read_year 0 sentinel:
+# yearless READ rows carry it too and belong to the private half when
+# unrated). load_books applies it when a caller asks for `public_only`;
+# routes.cover composes the SAME predicate into its own row probe — one
+# rule, no second gate beside it.
+PUBLIC_SET_SQL = "(rating IS NOT NULL OR status <> 'read')"
 
-def load_books(conn, ids=None):
+
+def load_books(conn, ids=None, public_only=False):
     """Every book (or just `ids`) as one dict each: the row's own fields plus
     `authors`/`genres` name lists and a `has_cover` flag. Returned in id
     order — presentation order is sort_by_read_date's job.
+
+    `public_only` narrows the fetch to PUBLIC_SET_SQL — the anonymous read
+    posture (MC 12501). The owner's reads never pass it: her view is the
+    full shelf, unchanged.
 
     The two vocabularies arrive in two queries total (not one per card: a
     700-card page would otherwise be 1 400 queries)."""
     sql = ("SELECT id, title, year, read_year, date_read, rating, format,"
            " status, isbn13, isbn10, cover_path, notes FROM book")
+    clauses = []
     params = ()
     if ids is not None:
         if not ids:
             return []
-        placeholders = ", ".join("?" for _ in ids)
-        sql += f" WHERE id IN ({placeholders})"
+        clauses.append(f"id IN ({', '.join('?' for _ in ids)})")
         params = tuple(ids)
+    if public_only:
+        clauses.append(PUBLIC_SET_SQL)
+    if clauses:
+        sql += " WHERE " + " AND ".join(clauses)
     books = {row[0]: {
         "id": row[0], "title": row[1], "year": row[2], "read_year": row[3],
         "date_read": row[4], "rating": row[5], "format": row[6],
