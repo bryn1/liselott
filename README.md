@@ -76,7 +76,9 @@ dina egna betyg — varje kort förklarar varför ("För att du gav …").
 **Byt lösenord.** Under "Byt lösenord" (kräver nuvarande lösenord). OBS: alla
 inloggningar, även din egen, loggas ut vid bytet — logga in med det nya.
 
-**Radera en bok.** "Ta bort" på boksidan frågar en gång till innan den försvinner.
+**Radera en bok.** "Ta bort" finns inte på boksidan. Öppna boken → Redigera →
+längst ner på redigeringssidan står "Ta bort boken". Själva resan dit är den
+andra frågan — ett klick på den knappen tar bort boken direkt.
 
 ## For maintainers
 
