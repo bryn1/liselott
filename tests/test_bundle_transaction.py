@@ -139,8 +139,9 @@ def test_bundle_surrogate_line_after_a_cover_writes_no_orphan(pre_stored):
 def test_db_family_error_mid_loop_still_unwinds(pre_stored, monkeypatch,
                                                 boom):
     """The M7 plant's target, now PAIRED (the c3 mutation pass: narrowing
-    `except sqlite3.Error` to `except sqlite3.IntegrityError` left all 466
-    tests green — no test ever let a non-Integrity sqlite error, least of all
+    `except sqlite3.Error` to `except sqlite3.IntegrityError` left that tree's
+    whole 466-test suite green — no test ever let a non-Integrity sqlite
+    error, least of all
     the UnicodeEncodeError F-L2 proved reachable, into the loop). Three plants
     arrive INSIDE the loop at a real call site: line 1 has ALREADY written its
     JPEG, so every one of them must still answer the named-line 400, wind the
