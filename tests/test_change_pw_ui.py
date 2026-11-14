@@ -149,9 +149,11 @@ def test_owner_changes_password_through_the_rendered_pages(tmp_path):
         assert status == 302, status
         assert headers["Location"] == "/liselott/logga-in", headers
 
-        # old cookies die: a data route is back behind the guard
+        # old cookies die: the OWNER surface is back behind the guard (the
+        # public shelf reads 200 to a dead cookie by MC 12497 — it is the
+        # write-side surfaces that must refuse, and paint no owner nav)
         status, headers, _ = open_no_redirect(owner, base, "GET",
-                                              "/liselott/bibliotek")
+                                              "/liselott/onska")
         assert status == 302 and headers["Location"] == "/liselott/logga-in"
 
         # …and the NEW password logs in through the same jar

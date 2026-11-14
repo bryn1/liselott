@@ -73,9 +73,14 @@ def test_change_password_rotates_hash_secret_kills_sessions(env):
     assert new_hash != old_hash and new_hash.startswith("$argon2id$")
     assert setting(tmp_path, "password_set_at")
     assert (tmp_path / "secret.key").read_text() != prev_signing_key
-    # every old cookie dies (§6.7): a data route is back behind the guard…
-    r = client.get("/liselott/bibliotek")
+    # every old cookie dies (§6.7): the owner surfaces are back behind the
+    # guard (writing is private — MC 12497)…
+    r = client.get("/liselott/onska")
     assert (r.status_code, r.headers["Location"]) == (302, "/liselott/logga-in")
+    # …the public shelf READS 200 to the dead cookie like any stranger's,
+    # and paints no owner UI…
+    r = client.get("/liselott/bibliotek")
+    assert r.status_code == 200 and "Logga ut" not in r.text
     # …and the root answers its public landing again, not the shelf (MC 12451)
     r = client.get("/liselott/")
     assert r.status_code == 200 and "Din hylla" not in r.text
