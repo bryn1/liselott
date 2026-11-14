@@ -266,6 +266,41 @@ def load(conn, raw_path, aliases_path, overrides_path, commit=True) -> dict:
             "flagged": flagged}
 
 
+def unstoreable(value: str, keep: str = "") -> str | None:
+    """Why this text cannot reach the database, or None when it can — THE
+    rule, shared by both ingest doors (MC 12451 c4, F-L2 + F-L3/F-M).
+
+    F-L2: a lone surrogate is json-LEGAL (`"\\ud800"` parses), so it used to
+    sail through the vocabulary pass and die at the strict-UTF-8 TEXT bind —
+    a UnicodeEncodeError that is NOT a sqlite3.Error, so the /bundle door
+    answered 500 past its own rollback and left the cover it had written
+    behind (the plant that SURVIVED c3's mutation pass). F-L3/F-M: NUL and the
+    other C0/C1 control characters are legal in JSON and in SQLite's TEXT
+    alike, so a seeded author name `Test\\x00sson` imported with 200 and the
+    byte rode into the markup of five served pages.
+
+    A field-shaped value — a title, an author, an ISBN, a date, a key — has no
+    control character in its vocabulary and no surrogate half in its alphabet,
+    so both shapes are refused HERE, where the line/row can still be named.
+    `keep` is the caller's own format: the seed ROW is a line of markdown whose
+    §5.4 tab-form separator is a real field boundary the row validator owns
+    (it 400s naming import_overrides.csv), so /seed passes "\\t" and /bundle
+    passes nothing. The answer prints the CODE POINT, never the character: a
+    refusal that echoed the byte would serve the very thing it refuses (and a
+    surrogate would make the response body itself unencodable)."""
+    for c in value:
+        if unicodedata.category(c) == "Cc" and c not in keep:
+            return (f"innehåller kontrolltecknet U+{ord(c):04X} — ett fält får "
+                    "bara innehålla skrivbar text")
+    try:
+        value.encode("utf-8")
+    except UnicodeEncodeError as refused:
+        return (f"innehåller en enlig surrogate (U+"
+                f"{ord(value[refused.start]):04X}) som varken databasen eller "
+                "sidan kan visa")
+    return None
+
+
 def parse_file(path) -> list[dict]:
     """Raw seed md -> list of entry dicts (kind, year, format, status, raw).
 
@@ -291,6 +326,12 @@ def parse_file(path) -> list[dict]:
             continue
         if section is None or not line.startswith("- "):
             continue  # header region, ### sub-headers and blanks: parsed nowhere
+        if why := unstoreable(line[2:], keep="\t"):
+            # F-L3/F-M (MC 12451 c4): a NUL in an author name imported with
+            # 200 and reached five served pages as a raw byte. The ROW is
+            # refused here — the one place its line number is still in hand —
+            # and the caller's transaction makes the refusal atomic.
+            raise ValueError(f"rad {lineno}: {why}")
         entries.append({"kind": section[0], "year": section[1],
                         "format": section[2], "status": section[3],
                         "raw": line[2:]})
