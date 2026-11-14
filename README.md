@@ -19,7 +19,9 @@ is `PLAN-c3` (the pinned plan); this README states what the tree actually is.
   quarantine 404s, the live-500 cachebust fix, the setup-window reopens —
   is LEDGER rows, not this snapshot's fine print.
 - The full offline test suite passes: **494 passed, exit 0**
-  (`.venv/bin/pytest -q`, VM350 build clone, this commit).
+  (`.venv/bin/pytest -q`, VM350 build clone, this commit) and **462 passed,
+  32 skipped, exit 0** in a clean clone without her personal export — the 32
+  are the corpus legs, skipping by name, never silently (MC 12451 c5).
 - The build database holds **724 books** (706 read + 18 wishlist), **671** with
   an ISBN, **6** rated, **52** ljudbok, and a recommendation candidate pool of
   **284** authors' works (`sqlite3 /home/claudecode/liselott-build/liselott.db`).
@@ -95,16 +97,38 @@ Debian box with `python3.10-venv` installed, `python3 -m venv` works too.
 Then `http://127.0.0.1:8166/liselott/` — first boot within 20 min shows the
 set-password page; both request shapes (bare `/…` and `/liselott/…`) route.
 Tests: `cd /home/claudecode/liselott && .venv/bin/pytest -q` (offline, no
-provider network; 494 tests green at this commit).
+provider network; 494 tests green at this commit with the personal corpus
+resolvable, 462 passed + 32 corpus legs skipped in a clean clone — see
+Suite-location rule).
 
-### Suite-location rule (PLAN-c3 §13, verbatim in force)
+### Suite-location rule (corpus legs, path F — MC 12451 c5)
 
-The corpus-dependent tests (T1.2/T1.5/T1.6/T1.7/T1.8-leg2/T2.6) read
-`/home/claudecode/liselott/data-import/seed-books-raw.md` (present, sha-pinned,
-in the VM350 build clone; NEVER in git). Missing file → those tests FAIL (assert
-loudly) — a `pytest.skip` is FORBIDDEN. "Full suite green" is legitimately run
-ONLY on the VM350 build clone. Every other test is corpus-independent and runs
-in any fresh clone.
+The corpus-dependent tests (T1.2/T1.5/T1.6/T1.7/T1.8-leg2/T2.6/T4.3) need the
+raw personal export `data-import/seed-books-raw.md` (sha-pinned, gitignored —
+path F keeps it OUT of git). `tests/conftest.py` holds the ONE locator:
+`LISELOTT_SEED_FILE` wins, else that in-repo location, else the leg **SKIPS**
+with the reason `personal corpus absent — path F keeps it out of git; run on a
+host holding the export or set LISELOTT_SEED_FILE` (`pytest -rs` prints one
+line per skipped leg — 32 of them). Where the export resolves, those legs RUN
+and every pin holds unchanged: file sha256, 725/724/1, the dedupe tie-break,
+the drift digest, the leak matrix. Absence skips loudly; it never greens an
+assertion. A `LISELOTT_SEED_FILE` naming no file ERRORS (misconfiguration is
+not absence), and a corpus with the wrong sha FAILS the pinned-sha leg.
+
+Measured at this commit, both sides: **494 passed, exit 0** on the VM350 build
+clone (export present), **462 passed, 32 skipped, exit 0** in a fresh clone
+without it. Every other test is corpus-independent and runs in any clone.
+
+`tests/test_backup.sh` keeps its fail-loudly posture on purpose: it is the §11
+round-trip runbook a human runs by hand, not a collected pytest leg, and a
+silent skip there would be the vacuous-green defect class §13 named.
+
+> **SUPERSEDED (2026-11-14, MC 12451 c5) — the old PLAN-c3 §13 rule, verbatim,
+> DO NOT USE:** "Missing file → those tests FAIL (assert loudly) — a
+> `pytest.skip` is FORBIDDEN. 'Full suite green' is legitimately run ONLY on the
+> VM350 build clone." It made the suite runnable only on the one host already
+> holding her personal data, which fails the clean-environment contract and
+> blocked any verifier (knut) from ever PASSing a commit-bound card on this repo.
 
 ### Environment (exhaustive)
 
@@ -116,6 +140,7 @@ in any fresh clone.
 | `LISELOTT_DATA_DIR` | data-dir override — dev/test/build use only |
 | `LISELOTT_BACKUP_DIR` | where `scripts/backup.sh` writes its pairs; default `$HOME/liselott-backups` (§11). `GET /backup` never writes here — it streams from a temp dir |
 | `LISELOTT_ENV=dev` | local/test only — turns the session cookie's `Secure` flag off; UNSET means production (Secure ON, debug OFF) |
+| `LISELOTT_SEED_FILE` | test suite ONLY (MC 12451 c5) — points at the personal seed export so the corpus legs RUN; unset, the locator falls back to `data-import/seed-books-raw.md` and the legs skip where neither exists. The app never reads it |
 
 **Production needs zero custom env.** The lane unit sets only `HOME` and `PORT`;
 everything else falls out of the defaults above.
