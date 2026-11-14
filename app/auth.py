@@ -317,9 +317,15 @@ def init_auth(app):
 
     @app.get("/robots.txt")
     def robots():
-        # §6.4: the only content an anonymous visitor may fetch; tells
-        # crawlers away from the login-gated surface.
-        return "Disallow: /\n", 200, {"Content-Type": "text/plain; charset=utf-8"}
+        # §6.4/MC 12497 (owner ruling 2026-11-14): a CONFIGURED site is
+        # public to read, so crawlers are allowed in. The write paths keep
+        # their refuse no matter what a crawler is served here. While no
+        # password is set the choose-password gate still wraps the site
+        # (the setup-state exception), and the honest answer stays
+        # Disallow. The closed window never reaches this view: the guard
+        # 404s this name in every state (F-F, MC 12451).
+        body = "Allow: /\n" if is_configured(db.get_db()) else "Disallow: /\n"
+        return body, 200, {"Content-Type": "text/plain; charset=utf-8"}
 
     @app.route("/logga-in", methods=["GET", "POST"])
     def logga_in():

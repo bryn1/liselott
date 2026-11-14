@@ -129,9 +129,9 @@ def test_sitemap_absent_robots_present(seeded):
     """No sitemap route exists (§6.4): the LOGGED-IN leg sees the honest 404.
     Unauthenticated /sitemap.xml is the guard's own 404 too — the dot makes
     it file-shaped (M8-hotfix-2); an extension-less unknown stays the T2.6
-    302. Neither shape serves bytes. /robots.txt answers 200; the ALLOW flip
-    for the public site is the robots concern (MC 12497 c3) and flips this
-    leg's expectation in that commit."""
+    302. Neither shape serves bytes. /robots.txt answers 200 and ALLOWS the
+    configured site (MC 12497 — the site is public to read; the fresh-state
+    Disallow leg lives in tests/test_public_read)."""
     _, client = configured_client(seeded)
     r = client.get("/liselott/sitemap.xml")
     assert r.status_code == 404  # authed: the route exists not
@@ -141,7 +141,8 @@ def test_sitemap_absent_robots_present(seeded):
     assert_no_seed_bytes(r)
     r = client.get("/robots.txt")
     assert r.status_code == 200
-    assert "Disallow: /" in r.text
+    assert "Allow: /" in r.text
+    assert "Disallow" not in r.text
 
 
 def test_closed_window_over_seeded_db(seeded, monkeypatch):
