@@ -205,10 +205,22 @@ def _is_public_read() -> bool:
     CONFIGURED site — shelf, bok page, search, rec surface, covers and the
     root answer an anonymous READ. READ_METHODS only: a POST to a read path
     stays the guard's refuse, the same non-2xx the route contract pins for
-    every anonymous write."""
+    every anonymous write.
+    F-3 (SEC-verdict-12497): the match tolerates the ONE trailing slash.
+    werkzeug 3.1 REMOVED the strict-slash redirect (this pin has no
+    RequestRedirect — probed), so nothing else normalizes the spelling
+    either: guarding the bare string sent a shared /bibliotek/ to the
+    login wall, and guarding it alone would trade that for the router's
+    404. The public views therefore registered their slash-spelling rule
+    beside the canonical one (routes.py, F-3) — an explicit rule, not a
+    redirect mechanism beside Flask's — and the tolerated spelling answers
+    the page itself, 200. The method rule runs FIRST, so a POST /bibliotek/
+    keeps the guard's refuse."""
     if request.method not in READ_METHODS:
         return False
     path = request.path
+    if len(path) > 1 and path.endswith("/"):
+        path = path[:-1]
     return path in PUBLIC_READ_PATHS or path.startswith(PUBLIC_READ_PREFIXES)
 
 
