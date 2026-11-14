@@ -198,8 +198,10 @@ their filenames (`tests/fixtures/libris_xsearch_god-jul-agnes.json`,
 three `app/` comments name one title, two of them its ISBN as well. Measured
 2026-11-14 on the build clone with the guard's own leg-2 parse — a whole-title
 *substring* instrument, so a hit can be a word-shape artifact (`Disa` inside
-"Disallow"): **35 tracked files hold ≥1 whole diary title** (18 in
-`test_seed_rows.py`, every other file 1–6).
+"Disallow"): **36 tracked files hold ≥1 whole diary title** (18 in
+`test_seed_rows.py`, every other file 1–6; the count's own universe includes
+this README — its single hit is the artifact class it names, one word shape
+inside its own explanatory sentence, counted 2026-11-14 at `97911ce`).
 
 `tests/test_no_diary_in_git.py` is green beside those rows by calibration, not
 by cleanliness: leg 2 fails a file at ≥20 whole corpus titles (`MAX_TITLES = 20`,
@@ -223,7 +225,9 @@ LEADING `YYMMDD` token, 45 rows). Trust the plan's §5 rules, never the header.
 ### Machine routes (all behind the owner session)
 
 - `POST /seed` — the raw markdown in, `parsed=725 stored=724 duplicates=1` out
-  (asserted by the suite). Idempotent. `stored=` is the rows **that POST**
+  (the loader/CLI pins the `parsed`/`duplicates` triple; the door's own legs
+  assert shape and the `stored=` delta, not this whole-table triple).
+  Idempotent. `stored=` is the rows **that POST**
   stored, so a re-POST of the same file answers `stored=0` (nothing new landed —
   that is the idempotence proof, not a failure); the CLI's counts line keeps
   §5.9's audited meaning, the WHOLE table (724 on a fresh import, 724 again on
