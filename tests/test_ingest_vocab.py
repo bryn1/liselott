@@ -27,6 +27,7 @@ Length Required instead of guessing.
 """
 import base64
 import io
+import json
 import sqlite3
 import struct
 import zlib
@@ -139,6 +140,53 @@ def test_bundle_refuses_a_bare_string_where_a_list_belong(authed, field):
     assert r.status_code == 400, r.get_data(as_text=True)
     assert "rad 1" in r.get_data(as_text=True)
     assert stored_count(tmp) == 0
+
+
+# ── F-L2 (c4): the lone surrogate — json-LEGAL text the utf-8 bind refuses ──
+def sur_line(**kw) -> str:
+    """A §5.11 line whose text carries a lone surrogate, dumped with the
+    default ensure_ascii=True: the SURROGATE ESCAPE is what makes the line
+    json-legal, so this is verbatim the shape the verifier POSTED (the plain
+    `line()` helper dumps ensure_ascii=False, whose bytes cannot even be
+    encoded — the repro is about the wire form the door actually accepted)."""
+    base = {"book_key": "kSur", "title": "Surrogat \ud800 bok",
+            "authors": ["Aino A"], "read_year": 2024, "status": "read"}
+    base.update(kw)
+    return json.dumps(base)
+
+
+@pytest.mark.parametrize("kw", [
+    {"title": "Surrogat \ud800 bok"},
+    {"book_key": "k\ud800"},
+    {"date_read": "2024\ud800-01"},
+    {"isbn13": "97891\ud800"},
+    {"authors": ["Aina \ud800"]},
+    {"genres": ["skönlitteratur \ud800"]},
+], ids=["title", "book_key", "date_read", "isbn13", "author", "genre"])
+def test_bundle_refuses_a_lone_surrogate_naming_the_line(authed, kw):
+    """F-L2 (DA-verdict-c3, the surviving M7 plant): "\\ud800" is legal JSON,
+    parse_bundle accepted it and the sqlite TEXT bind died with
+    UnicodeEncodeError — NOT a sqlite3.Error, so it escaped the catch list as
+    an HTTP 500, skipped conn.rollback() AND the cover unlink (verifier
+    transcript .tmp/c3/FL2-repro-run1.log: 500 + orphan covers/1.jpg). The
+    bind is strict utf-8, so the bind's vocabulary is the door's: the line
+    400s naming itself and NOTHING stores."""
+    tmp, client = authed
+    r = client.post("/liselott/bundle", data=bundle_bytes(sur_line(**kw)),
+                    content_type="application/octet-stream")
+    assert r.status_code == 400, r.get_data(as_text=True)
+    assert "rad 1" in r.get_data(as_text=True)
+    assert stored_count(tmp) == 0
+
+
+def test_the_lone_surrogate_repro_is_the_shape_it_claims(authed):
+    """The guard must refuse the WIRE shape, not a Python convenience: the
+    line really does carry a \\ud800 escape, really is valid JSON and really
+    decodes to a lone surrogate — so a loosened guard dies here first."""
+    raw = bundle_bytes(sur_line())
+    assert b"\\ud800" in raw
+    obj = json.loads(raw.decode("utf-8"))
+    assert any(0xD800 <= ord(c) <= 0xDFFF for c in obj["title"])
 
 
 def bomb_png() -> bytes:
