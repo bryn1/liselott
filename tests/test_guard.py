@@ -1,30 +1,48 @@
-"""T2.3 — guard sweep over the §6.4 exhaustive allow-list in ALL THREE §6.1
-states (P2-7 + P2-c): configured → every non-allow-listed route 302 /logga-in;
-unconfigured+open → 302 /satt-loesenord; unconfigured+closed → gate page
-everywhere EXCEPT /healthz, which answers 200 `ok` in every state (three
-separate healthz assertions below) and /static/, which answers as an asset in
-every state (M8-hotfix-3, MC 12451: the closed gate page served under a .css
-URL is what Cloudflare cached for 4 h). The ROOT is the one public page in the
-first two states and the pinned gate page in the third (M8 staging gate,
-MC 12451): each state test below asserts GET / -> 200, never a 302. The
-mirror-DROPPED root names (QUARANTINED below) answer the guard's own 404 to
-anonymous in every state that 302s (M8-hotfix-2, MC 12451). Stub
-routes answer 501 until the real routes land (M4+); reaching a stub would
-mean the guard leaked."""
+"""T2.3 — guard sweep over the §6.4 allow-list in ALL THREE §6.1 states
+(P2-7 + P2-c), RE-CUT by MC 12497 (owner ruling 2026-11-14): on a
+CONFIGURED site the READ set (shelf, bok page, search, recs, covers)
+answers an anonymous GET with the real page — never the guard's redirect
+and never the gate page — while every OWNER surface (work pages and the
+state-change doors) still 302s to /logga-in. The unconfigured+open state
+keeps the §6.1 sweep whole: the setup-state exception wraps EVERY data
+route in the choose-password redirect — public-read is a property of the
+configured site only. The closed state keeps the gate page everywhere
+EXCEPT /healthz, which answers 200 `ok` in every state (three separate
+healthz assertions below) and /static/, which answers as an asset in
+every state (M8-hotfix-3, MC 12451: the closed gate page served under a
+.css URL is what Cloudflare cached for 4 h). The ROOT is the one public
+page in the first two states and the pinned gate page in the third (M8
+staging gate, MC 12451): each state test below asserts GET / -> 200,
+never a 302. The mirror-DROPPED root names (QUARANTINED below) answer the
+guard's own 404 to anonymous in every state that 302s (M8-hotfix-2,
+MC 12451). Stub routes answer 501 until the real routes land (M4+);
+reaching a stub would mean the guard leaked."""
 import pytest
 
 from app import create_app
 
 PASSWORD = "_test_losenord_"
 
-# §6.4: every one of these must be behind the guard. Paths without a rule yet
-# get registered as 501 stubs — the guard fires before any view.
-PROTECTED = (
-    "/bibliotek", "/bok/1", "/sok?q=x", "/lagg-till", "/onska",
-    "/rekommendationer", "/cover/1", "/rapa/omslag", "/rapa/omslag-rapport",
-    "/rekommendation-rapport", "/seed", "/bundle", "/backfill",
-    "/byter-losenord", "/backup",
+# MC 12497: the READ set — answered anonymously on a configured site. On
+# this EMPTY sweep DB some paths legitimately 404 (no row), which is still
+# the real route answering; what they may never answer is a redirect or
+# the gate page. The with-data assertions live in tests/test_public_read.
+PUBLIC_READS = ("/bibliotek", "/bok/1", "/sok?q=x", "/rekommendationer",
+                "/cover/1")
+
+# The owner surfaces: work pages and state-change doors, every one of them
+# behind the guard on a configured site (writing is private). Paths without
+# a GET-bearing rule yet get registered as 501 stubs — the guard fires
+# before any view.
+OWNER_ONLY = (
+    "/lagg-till", "/onska", "/redigera/1", "/rapa/omslag",
+    "/rapa/omslag-rapport", "/rapa/rekommendation-rapport", "/seed",
+    "/bundle", "/backfill", "/byter-losenord", "/backup",
 )
+
+# Both lists wrap behind /satt-loesenord while no password is set — the
+# setup-state exception IS this sweep in the fresh states.
+ALL_DATA = PUBLIC_READS + OWNER_ONLY
 
 # M8-hotfix-2 (MC 12451): mirror-DROPPED root names the lane staging gate
 # (vm106-staging-gate.sh §6) probes — a quarantined name passes only on
@@ -43,21 +61,32 @@ QUARANTINED = (
 
 
 def unimplemented(app):
-    """The PROTECTED paths with no GET-bearing rule of their own — i.e. where
-    T2.3's 501 stub is still the thing a GET reaches. M4 adaptation: as
-    milestones land real GET routes (`/bibliotek`, `/sok` …), `make_app` must
-    NOT shadow them with a stub — Werkzeug resolves an identical rule by
-    registration order, and a test stub registered after create_app would
-    otherwise answer instead of the page under test. The guard claims are
-    unchanged either way: a stubbed path still has to answer 501 to the owner,
-    an implemented path has to answer with the real page, and neither may ever
-    see a guard redirect or the gate page. (The stub endpoints are excluded so
-    this stays correct after the stubs are registered; a path with a real GET
-    rule — /byter-losenord since P1-1, MC 12451 — is swept as the real page,
-    never stubbed.)"""
-    get_paths = {rule.rule for rule in app.url_map.iter_rules()
-                 if "GET" in rule.methods and not rule.endpoint.startswith("stub")}
-    return {e.split("?")[0] for e in PROTECTED if e.split("?")[0] not in get_paths}
+    """The ALL_DATA paths a GET reaches no real view on — where T2.3's 501
+    stub is still the thing a GET reaches (today: the /seed /bundle /backfill
+    trio, rules without a GET method). Determined through the url_map
+    matcher, not a string compare of concrete paths against rule templates:
+    the old membership test could never know that `/bok/1` is covered by
+    the `/bok/<int:id>` rule, and since MC 12497 answers public reads
+    anonymously that phantom stub would surface INSTEAD of the route under
+    test (pre-flip, the guard redirected those paths before routing, which
+    hid it). `make_app` must never shadow a real route: a stub registered
+    after create_app would answer as the identical literal rule. The guard
+    claims are unchanged either way: a stubbed path still has to answer 501
+    to the owner and neither stub nor real view may ever be reached past a
+    guard redirect or the gate page."""
+    from werkzeug.exceptions import MethodNotAllowed, NotFound
+    adapter = app.url_map.bind("")
+    out = set()
+    for entry in ALL_DATA:
+        path = entry.split("?")[0]
+        try:
+            endpoint = adapter.match(path, method="GET")[0]
+        except (MethodNotAllowed, NotFound):
+            out.add(path)      # no GET-bearing rule behind this path
+        else:
+            if endpoint.startswith("stub"):
+                out.add(path)  # a real route matches on its own name
+    return out
 
 
 def make_app(tmp_path, monkeypatch):
@@ -84,14 +113,27 @@ def configured_client(tmp_path, monkeypatch):
 
 
 def test_configured_state_sweep(tmp_path, monkeypatch):
-    """§6.4 allow-list sweep with the password set: data routes all 302 to
-    the login page; /healthz and /robots.txt answer; a stub is NEVER reached."""
+    """§6.4 as re-cut by MC 12497, password set: OWNER surfaces 302 to the
+    login page and a stub is NEVER reached; the PUBLIC READS answer the
+    real route to an anonymous GET — 200 with data or the route's own 404
+    when no row stands behind it, never a redirect, never the gate page.
+    The method rule pins the refuse an anonymous WRITE aimed at a read
+    path gets: the guard's 302, exactly as for any other write."""
     _, client = configured_client(tmp_path, monkeypatch)
-    for entry in PROTECTED:
+    for entry in OWNER_ONLY:
         r = client.get(entry)
         assert r.status_code == 302, entry
         assert r.headers["Location"] == "/liselott/logga-in", entry
         assert b"stub" not in r.data, entry  # the 501 view never ran
+    for entry in PUBLIC_READS:
+        r = client.get(entry)
+        assert r.status_code in (200, 404), entry   # the route itself answers
+        assert "Location" not in r.headers, entry
+        assert "Inställningsfönstret" not in r.text, entry
+    for path in ("/bibliotek", "/bok/1", "/sok", "/rekommendationer"):
+        r = client.post(path, data="x")             # writes stay refused
+        assert r.status_code == 302, path
+        assert r.headers["Location"] == "/liselott/logga-in", path
     assert client.get("/healthz").status_code == 200
     assert client.get("/healthz").data == b"ok"  # healthz assertion 1/3
     r = client.get("/static/nonexistent.css")
@@ -109,15 +151,18 @@ def test_configured_state_sweep(tmp_path, monkeypatch):
 
 def test_logged_in_client_reaches_the_stubs(tmp_path, monkeypatch):
     """Guard is not a wall: with the owner session the SAME paths reach the
-    views (501 stubs where a route has not landed yet, the real page where it
-    has — T4.2 landed /bibliotek). What may NEVER happen is the guard answering
-    an owner-authenticated request with a redirect or the gate page."""
+    views (501 stubs where a GET-bearing route has not landed yet, the real
+    page where it has — T4.2 landed /bibliotek). On this EMPTY sweep DB the
+    real row-shaped routes (bok, cover, redigera) honestly 404, so the
+    non-stubbed answer is 200 or 404 — what may NEVER happen is the guard
+    answering an owner-authenticated request with a redirect or the gate
+    page."""
     app = make_app(tmp_path, monkeypatch)
     still_stubbed = unimplemented(app)
     client = app.test_client()
     client.post("/liselott/satt-loesenord",
                 data={"loesenord": PASSWORD, "bekrafta": PASSWORD})
-    for entry in PROTECTED:
+    for entry in ALL_DATA:
         path = entry.split("?")[0]
         # Prefixed shape: the browser's real request URL (nginx strips the
         # prefix in production, but the cookie travels with the FULL URL).
@@ -125,7 +170,7 @@ def test_logged_in_client_reaches_the_stubs(tmp_path, monkeypatch):
         if path in still_stubbed:
             assert (r.status_code, r.data) == (501, path.encode()), entry
         else:
-            assert r.status_code == 200, entry
+            assert r.status_code in (200, 404), entry
             # get_data + a lenient decode, not .text: T9.2's /backup answers
             # with a sqlite file, and a binary owner download must not be able
             # to break the sweep that checks the GATE never answered it.
@@ -134,9 +179,12 @@ def test_logged_in_client_reaches_the_stubs(tmp_path, monkeypatch):
 
 
 def test_unconfigured_open_state_sweep(tmp_path, monkeypatch):
+    """The setup-state exception, whole: while no password is set the
+    choose-password gate wraps EVERY data route — the MC 12497 public reads
+    included — and the landing's ONE door is the setup flow."""
     app = make_app(tmp_path, monkeypatch)
     client = app.test_client()
-    for entry in PROTECTED:
+    for entry in ALL_DATA:
         r = client.get(entry)
         assert r.status_code == 302, entry
         assert r.headers["Location"] == "/liselott/satt-loesenord", entry
@@ -157,7 +205,7 @@ def test_closed_window_gate_except_healthz(tmp_path, monkeypatch):
     app = make_app(tmp_path, monkeypatch)
     monkeypatch.setattr(auth, "START_TIME", time.time() - auth.SETUP_WINDOW_S - 1)
     client = app.test_client()
-    for entry in PROTECTED:
+    for entry in ALL_DATA:
         r = client.get(entry)
         assert "Inställningsfönstret är stängt." in r.text, entry
         assert b"stub" not in r.data, entry

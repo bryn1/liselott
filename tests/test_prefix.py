@@ -38,9 +38,11 @@ SWEEP = ("/", "/bibliotek", "/bok/1", "/bok/2", "/bok/9999", "/sok?q=a",
          # P1-1 (MC 12451): the door that was missing — its form action must
          # ride the mount like every other emitted URL.
          "/byter-losenord") + NOT_YET_LANDED
-# everything else must 302 an anonymous visitor; the allow-listed four may not
-ANON_PROTECTED = ("/bibliotek", "/bok/1", "/sok?q=a", "/logga-ut", "/cover/1",
-                  "/byter-losenord", "/redigera/1") + NOT_YET_LANDED
+# everything else must 302 an anonymous visitor; the allow-listed four may
+# not. MC 12497 moved the READ set out of this list — an anonymous visitor
+# now READS those pages 200 (their prefixed-URL sweep got its own leg below
+# precisely because they are what a stranger's browser renders).
+ANON_PROTECTED = ("/logga-ut", "/byter-losenord", "/redigera/1")
 _ATTR_RE = re.compile(r'\b(src|href|action)\s*=\s*"([^"]*)"', re.I)
 _OK_NON_URL = ("#", "mailto:")
 
@@ -138,6 +140,21 @@ def test_redirect_locations_are_prefix_absolute(authed):
         assert r.status_code == 302, path
         assert r.headers["Location"].startswith("/liselott/"), (
             path, r.headers["Location"])
+
+
+def test_anonymous_public_pages_emit_prefixed_urls(authed):
+    """MC 12497 moved these pages in front of strangers — the F-3 claim now
+    belongs to them too: every URL the anonymous shelf, bok page, search
+    and rec page emits must ride the mount (a bare `src="/cover/1"` here
+    paints a broken cover for the whole public)."""
+    app, _, _ = authed
+    anon = app.test_client()
+    checked = 0
+    for path in ("/bibliotek", "/bok/1", "/sok?q=a", "/rekommendationer"):
+        r = anon.get("/liselott" + path)
+        assert r.status_code == 200, path      # anonymous: reads answer
+        checked += assert_prefixed(anon, "/liselott" + path)
+    assert checked >= 10, checked              # anti-vacuity: cards are there
 
 
 def test_both_request_shapes_return_identical_prefixed_markup(authed):

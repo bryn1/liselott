@@ -20,6 +20,7 @@ from pathlib import Path
 import pytest
 
 from app import create_app
+from tests.test_browse import seed_shelf   # the synthetic, corpus-free shelf
 
 ROOT = Path(__file__).resolve().parent.parent
 PASSWORD = "_test_losenord_"
@@ -164,12 +165,23 @@ def test_results_are_cards_with_prefixed_urls(client):
     assert 'name="q"' in r.text
 
 
-def test_search_is_behind_the_guard(tmp_path, monkeypatch):
-    """§6.4: an anonymous /sok never reaches the corpus — the guard answers
-    first, and the body carries zero seed bytes."""
+def test_search_public_read_and_wrapped_until_setup(tmp_path, monkeypatch):
+    """MC 12497: on a configured site an anonymous /sok answers the corpus —
+    the §6.4 refuse survives ONLY as the setup-state exception: while no
+    password is set the choose-password gate still wraps search."""
     monkeypatch.setenv("LISELOTT_DATA_DIR", str(tmp_path))
+    monkeypatch.delenv("LISELOTT_PREFIX", raising=False)
+    monkeypatch.delenv("LISELOTT_ENV", raising=False)
+    seed_shelf(tmp_path / "liselott.db")
     app = create_app()
     app.testing = True
-    r = app.test_client().get("/liselott/sok", query_string={"q": "Sarenbrant"})
-    assert r.status_code == 302
-    assert "Sarenbrant" not in r.text
+    r = app.test_client().get("/liselott/sok", query_string={"q": "Stöld"})
+    assert r.status_code == 302                       # fresh: the setup gate
+    assert r.headers["Location"] == "/liselott/satt-loesenord"
+    assert "Stöld" not in r.text                      # a redirect, no data
+    owner = app.test_client()
+    assert owner.post("/liselott/satt-loesenord", data={
+        "loesenord": PASSWORD, "bekrafta": PASSWORD}).status_code == 302
+    r = app.test_client().get("/liselott/sok", query_string={"q": "Stöld"})
+    assert r.status_code == 200                       # configured: public
+    assert 'href="/liselott/bok/2"' in r.text         # a real hit, not an echo

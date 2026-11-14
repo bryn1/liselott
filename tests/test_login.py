@@ -110,10 +110,16 @@ def test_logout_clears_session(env):
     assert "Din hylla" in client.get("/liselott/").text  # authed: the shelf
     r = client.get("/liselott/logga-ut")
     assert r.status_code == 302  # back to login
-    # a dead session is back behind the guard on every data route (§6.4)…
-    r = client.get("/liselott/bibliotek")
+    # a dead session is back behind the guard on the OWNER surfaces (§6.4,
+    # writing is private — MC 12497)…
+    r = client.get("/liselott/onska")
     assert r.status_code == 302
     assert r.headers["Location"] == "/liselott/logga-in"
+    # …the public shelf READS 200 to the dead cookie exactly as to any
+    # stranger, and paints NONE of her UI (no owner nav)…
+    r = client.get("/liselott/bibliotek")
+    assert r.status_code == 200
+    assert "Logga ut" not in r.text
     # …while the root answers its public landing again, never the shelf
     # (the landing leg MC 12451 — a 302 here is exactly what the vm106
     # staging gate refused, so the root must stay 200 and data-free).
