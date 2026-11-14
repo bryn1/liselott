@@ -81,6 +81,26 @@ class BundleError(Exception):
         self.line, self.reason = line, reason
 
 
+def _unstoreable(value: str) -> str | None:
+    """F-L2 (DA-verdict-c3, the plant that SURVIVED c3, MC 12451 c4): a lone
+    surrogate is json-LEGAL — `"\\ud800"` parses — so the vocabulary pass let
+    it through and the sqlite TEXT bind died with UnicodeEncodeError, which is
+    NOT a sqlite3.Error: the door answered 500, past its own rollback AND past
+    the cover unlink (the verifier left `covers/1.jpg` behind, FL2-repro-run1
+    shape 2). The bind is strict UTF-8, so the door refuses exactly what the
+    bind refuses, HERE, in the pass that already owns every other value shape
+    — and names the 1-based line, the only address the owner gets. The answer
+    body itself must stay encodable, so the refusal prints the code point,
+    never the character."""
+    try:
+        value.encode("utf-8")
+    except UnicodeEncodeError as refused:
+        return (f"innehåller en enlig surrogate (U+"
+                f"{ord(value[refused.start]):04X}) som varken databasen eller "
+                "sidan kan visa")
+    return None
+
+
 def parse_bundle(raw: bytes) -> list[dict]:
     """ndjson bytes -> validated dicts, EVERY line before anything writes
     (leg g's rollback guarantee). Raises BundleError on the first refusal."""
@@ -134,6 +154,8 @@ def parse_bundle(raw: bytes) -> list[dict]:
             if value is not None and not isinstance(value, str):
                 raise BundleError(n, f"fältet {field} ska vara text eller "
                                      f"tomt, inte {type(value).__name__}")
+            if value is not None and (why := _unstoreable(value)):
+                raise BundleError(n, f"fältet {field} {why}")
         for field in ("year",):
             value = obj.get(field)
             if value is not None and (isinstance(value, bool)
@@ -149,6 +171,10 @@ def parse_bundle(raw: bytes) -> list[dict]:
                     or not all(isinstance(v, str) for v in value)):
                 raise BundleError(n, f"fältet {field} ska vara en lista av "
                                      f"texter, inte {value!r}")
+            if value is not None:
+                for item in value:
+                    if why := _unstoreable(item):
+                        raise BundleError(n, f"fältet {field} {why}")
         if obj.get("cover_source") not in (
                 None, "libris", "googlebooks", "openlibrary", "manual",
                 "manual-url"):
@@ -316,12 +342,18 @@ def upsert_bundle(conn, state_dir, lines) -> dict:
                 # the parse phase cannot see, answered like every other.
                 raise BundleError(n, f"omslaget kunde inte skrivas: "
                                      f"{refused}") from refused
-            except sqlite3.Error as refused:
+            except (sqlite3.Error, UnicodeEncodeError) as refused:
                 # F-D2 leg 2 (MC 12451): the catch used to know only
                 # IntegrityError — a bind this file's vocabulary cannot
                 # see (InterfaceError and the rest of the family) escaped
                 # as a 500. THE family belongs to this path, not one
-                # subclass at a time.
+                # subclass at a time. F-L2 (c4) adds UnicodeEncodeError
+                # beside it: F-L2's guard refuses the lone surrogate up
+                # front, but the bind is where it actually died, and a
+                # door whose cleanup depends on the shape being recognised
+                # up front is a door with one way to leak. Caught HERE the
+                # outer arm still rolls the transaction back and unlinks
+                # whatever the rejected lines wrote.
                 raise BundleError(n, f"raden duger inte för databasen: "
                                      f"{refused}") from refused
             if conflict:

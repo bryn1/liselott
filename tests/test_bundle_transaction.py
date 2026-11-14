@@ -21,10 +21,14 @@ finding closes with it). A MERGE-path cover rewrite deliberately keeps its
 file: after the rollback the row's own cover_path still points at it, so
 unlinking would break a live reference rather than clean an orphan.
 """
+import sqlite3
+
 import pytest
 
-from app import enrich
-from tests.test_seed_routes import B64, authed, bundle_bytes, line, stored_count
+from app import enrich, seed
+from tests.test_seed_routes import (B64, authed, bundle_bytes, line,
+                                    stored_count)
+from tests.test_ingest_vocab import sur_line
 
 
 def cover_files(tmp):
@@ -105,3 +109,58 @@ def test_bundle_cover_survives_on_a_later_clean_post(pre_stored):
     assert r.status_code == 200
     assert r.get_json()["covers"] == 3 and r.get_json()["books"] == 5
     assert len(cover_files(tmp)) == 3
+
+
+# ── F-L2 (c4, MC 12451): the arm that the 500 escaped, and its orphan file ──
+def test_bundle_surrogate_line_after_a_cover_writes_no_orphan(pre_stored):
+    """THE F-L2 repro (verifier .tmp/c3/FL2-repro-run1.log shape 2): a valid
+    line WITH cover bytes, then a lone-surrogate line. Shipped: HTTP 500, the
+    door's rollback+unlink never ran and `covers/1.jpg` stayed on disk —
+    bytes no row points at. Now the guard refuses at parse, so the POST
+    answers the named-line 400 and never reaches the write at all: rows back
+    to 2 AND zero files (both halves asserted, refusal shape and residue)."""
+    tmp, client = pre_stored
+    r = client.post("/liselott/bundle", data=bundle_bytes(
+        line(book_key="kS1", title="Omslag före", cover_b64=B64,
+             cover_source="openlibrary"),
+        sur_line(book_key="kSur", title="Surrogat \ud800 bok")),
+        content_type="application/octet-stream")
+    assert r.status_code == 400, r.get_data(as_text=True)
+    assert "rad 2" in r.get_data(as_text=True)
+    assert stored_count(tmp) == 2
+    assert cover_files(tmp) == []
+
+
+@pytest.mark.parametrize("boom", [
+    sqlite3.IntegrityError("plantering: UNIQUE constraint failed"),
+    sqlite3.OperationalError("plantering: disk vägrar skriva"),
+    UnicodeEncodeError("utf-8", "x\ud800", 1, 2, "surrogates not allowed"),
+], ids=["integrity", "operational", "unicode-bind"])
+def test_db_family_error_mid_loop_still_unwinds(pre_stored, monkeypatch,
+                                                boom):
+    """The M7 plant's target, now PAIRED (the c3 mutation pass: narrowing
+    `except sqlite3.Error` to `except sqlite3.IntegrityError` left all 466
+    tests green — no test ever let a non-Integrity sqlite error, least of all
+    the UnicodeEncodeError F-L2 proved reachable, into the loop). Three plants
+    arrive INSIDE the loop at a real call site: line 1 has ALREADY written its
+    JPEG, so every one of them must still answer the named-line 400, wind the
+    transaction back to 2 rows and unlink line 1's file."""
+    tmp, client = pre_stored
+    real = enrich.store_cover
+    calls = []
+
+    def planting(conn, book_id, data, source, commit=True):
+        calls.append(book_id)
+        if len(calls) == 2:
+            raise boom
+        return real(conn, book_id, data, source, commit=commit)
+
+    monkeypatch.setattr(enrich, "store_cover", planting)
+    r = client.post("/liselott/bundle", data=bundle_bytes(*(
+        line(book_key=f"kD{i}", title=f"Databasbok {i}", cover_b64=B64,
+             cover_source="openlibrary") for i in range(1, 4))),
+        content_type="application/octet-stream")
+    assert r.status_code == 400, r.get_data(as_text=True)
+    assert "rad 2" in r.get_data(as_text=True)
+    assert stored_count(tmp) == 2
+    assert cover_files(tmp) == []
