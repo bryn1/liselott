@@ -265,3 +265,32 @@ postdating a line make that line STALE — de-stale before quoting it.
   guard now walks the tree — measured green in the archive), while the
   version leg measures red in a 00a85e0 archive too (clone-only by
   construction) and rides the same clone-vs-archive rerun-host decision.
+
+- **Docs fix wave c9 (MC 12451)** — DONE (four docs commits, one per concern,
+  C-3+C-4 sharing one): the findings of the two S9 docs gates on MC 12448
+  that the c6 test-only and c7 docs waves left standing — `DA-verdict.md` (FIX,
+  CONFIDENCE 0.90, `# JUDGED: 1120d19e…`) and `DA-verdict-c2.md` (FIX,
+  CONFIDENCE 0.86, `# JUDGED: 99417b7c…`), both under
+  `~/.local/state/knut-dispatch/card-12448.out/` (c7's own corrections already
+  ride inside the c5 row above; c6 and c8 were test-only). C-1: §CODE-ONLY now
+  states the rule AND the exception that ships in the PUBLIC tree — the 18
+  T1.3 goldens, `data-import/import_overrides.csv`, five title-named provider
+  fixtures, three `app/` comments, 35 tracked files holding ≥1 whole diary
+  title by the guard's own leg-2 parse — with the guard's thresholds
+  (K = 20 titles / 100 shape lines) and the OWNER RULING still PENDING (P2-3,
+  MC 12440; recommendation synthetic-ize, no consent manufactured). C-2: the
+  manual no longer sends her through a "Redigera" link `bok.html` emits only
+  inside `{% if not bok.has_cover %}`; it says where editing/deleting actually
+  runs, which link exists, that a covered book reaches the page by typed
+  address, and the Known limits carry the gap plus MC 12493 (the card for the
+  missing door — a PRODUCT finding, not a docs one). C-3: the lead line sells
+  "real cover where one was found, calm fix-me placeholder where it was not"
+  instead of 100 % covers. C-4: budgets are named by their owner — the export
+  scripts' `LINE_BUDGET = 400_000` (refuses to write, pinned by
+  `tests/test_bundle.py`) versus the doors' body caps 900 000 (/bundle) and
+  1 048 576 (/seed); re-measured in-process: an 800 080-byte single line POSTs
+  200 with `inserted=1`. README + LEDGER ONLY — no app, template, script or
+  test touched, full suite on this tree **494 passed, exit 0**, byte-for-byte
+  the base `5c6b420`'s count: ZERO test delta. Live site untouched (anonymous
+  GETs were not even needed). Transcripts:
+  `.audits/20261112-phase2/.tmp/c9-fix-evidence.md`.
