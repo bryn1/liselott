@@ -15,6 +15,14 @@ from flask import (Response, abort, jsonify, render_template, request,
 
 from app import auth, backup, books, db, omslag, recommend, search, seed
 
+# F-2 (SEC-verdict-12497): werkzeug's int converter matches \d+ WITHOUT
+# bound, and binding an id >= 2**63 into sqlite OverflowErrors — the
+# anonymous traceback generator (generic 500 + server-log traceback) the
+# verdict measured on the freshly-public /bok and /cover, live through the
+# edge. sqlite INTEGER is signed 64-bit: outside its domain no row CAN
+# stand, so the honest answer is the route's own 404, before the bind.
+SQLITE_INT_MIN, SQLITE_INT_MAX = -(2 ** 63), 2 ** 63 - 1
+
 
 def _stream_and_delete(path: Path, tmp_dir: Path, mimetype: str, filename: str):
     """Stream a snapshot away and remove it when the response ends: a backup
@@ -93,6 +101,9 @@ def init_routes(app):
     def bok(id):
         """One book, honestly: the fields she kept, the format and date in
         Swedish words, and the §9 fix-me hint when the cover is missing."""
+        if not SQLITE_INT_MIN <= id <= SQLITE_INT_MAX:
+            abort(404)          # F-2: unbindable id — this route's own 404,
+                                # never the bind's OverflowError
         rows = books.load_books(db.get_db(), ids=[id])
         if not rows:
             abort(404)          # the §9 404 page echoes nothing back
@@ -190,6 +201,8 @@ def init_routes(app):
         none (public-read per MC 12497: the cover image belongs to the
         public shelf; the placeholder is served as data, never as a
         redirect to anything)."""
+        if not SQLITE_INT_MIN <= book_id <= SQLITE_INT_MAX:
+            abort(404)          # F-2 (SEC-verdict-12497): as in bok()
         conn = db.get_db()
         row = conn.execute("SELECT cover_path FROM book WHERE id = ?",
                            (book_id,)).fetchone()
