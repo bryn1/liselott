@@ -291,3 +291,17 @@ def init_routes(app):
         auth.set_setting(conn, "password_set_at", auth.utcnow_iso())
         auth.rotate_secret(app)  # all sessions die -> re-login (§6.7)
         return auth.redirect_prefixed("/logga-in")
+
+    # F-3 (SEC-verdict-12497): the slash spellings of the public reads are
+    # the SAME pages — explicit rules for the same endpoints, because the
+    # werkzeug 3.1 pin has no strict-slash redirect to canonicalize them
+    # and none is added beside Flask's: the guard's tolerated match
+    # (auth.py _is_public_read) opens the way, these rules answer it with
+    # the page itself, in place, 200. url_for still builds the canonical
+    # (shorter) rule, so no template, redirect or asset URL changes.
+    for slash_rule, endpoint in (("/bibliotek/", "bibliotek"),
+                                 ("/sok/", "sok"),
+                                 ("/rekommendationer/", "rekommendationer"),
+                                 ("/bok/<int:id>/", "bok"),
+                                 ("/cover/<int:book_id>/", "cover")):
+        app.add_url_rule(slash_rule, endpoint=endpoint)
