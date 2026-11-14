@@ -36,8 +36,25 @@ def head_sha():
 
 
 # ── APP_VERSION ─────────────────────────────────────────────────────────────
-def test_app_version_is_the_current_head():
-    assert APP_VERSION == head_sha()
+def test_app_version_is_the_current_head(client):
+    """Sync claim (repo↔build) — scoped to where git can actually answer.
+    `git rev-parse HEAD` in a git-free tree (the sealed-rerun `git archive`
+    shape, the vm106 mirror) exits non-zero with empty/"HEAD" on stdout, so
+    there is no HEAD to sync against: there the BOOT claim stands instead
+    (M8-hotfix-3) — a well-formed VERSION stamp, not "dev", and it reaches
+    the emitted asset URL. The branch mirrors _read_version's own predicate:
+    git counts only when it printed a sha; anything else is the fallback
+    shape the sibling legs below pin down."""
+    sha = head_sha()
+    if re.fullmatch(r"[0-9a-f]{40}", sha):
+        assert APP_VERSION == sha
+        return
+    assert re.fullmatch(r"\d{4}\.\d{1,2}-\d+", APP_VERSION), APP_VERSION
+    r = client.post("/liselott/satt-loesenord",
+                    data={"loesenord": PASSWORD, "bekrafta": PASSWORD})
+    page = client.get("/liselott/bibliotek")
+    assert r.status_code == 302
+    assert f'{CSS_HREF}{APP_VERSION}">' in page.text
 
 
 def test_app_version_falls_back_to_dev_outside_a_checkout(tmp_path):
