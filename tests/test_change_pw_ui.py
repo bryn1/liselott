@@ -16,6 +16,7 @@ POST (token read OUT OF THE PAGE, never out of the session) rotates: 302 to
 logs in again through the same jar.
 """
 import contextlib
+import os
 import re
 import socket
 import subprocess
@@ -81,9 +82,17 @@ def running_server(tmp_path):
     base = f"http://127.0.0.1:{port}"
     log_path = tmp_path / "server.log"
     with log_path.open("wb") as log:
+        # The jail env is deliberate (F-H2: pinned HOME keeps ~/.local off
+        # the child's sys.path) — but it must still CARRY the parent's
+        # PYTHONPATH: the sealed knut lane installs flask/uvicorn there, not
+        # into the interpreter, so without it every server child dies at
+        # import (MC 12497). Absent/empty parent PYTHONPATH -> key absent,
+        # the plain-venv shape unchanged.
         env = {"PATH": "/usr/bin:/bin", "HOME": str(tmp_path),
                "PORT": str(port), "LISELOTT_ENV": "dev",
                "LISELOTT_DATA_DIR": str(tmp_path)}
+        if os.environ.get("PYTHONPATH"):
+            env["PYTHONPATH"] = os.environ["PYTHONPATH"]
         proc = subprocess.Popen([sys.executable, "server.py"], cwd=REPO_ROOT,
                                 env=env, stdout=log, stderr=subprocess.STDOUT)
         try:
