@@ -327,3 +327,49 @@ postdating a line make that line STALE — de-stale before quoting it.
   claim manufactured). Transcripts:
   `.audits/20261112-phase2/.tmp/public-read-evidence.md` + `planted-red.md`
   (host-local, MC-linked).
+- **SEC-WAVE p2 — security fixes (MC 12497)** — DONE (six commits: one per
+  finding F-1..F-5 + this docs row), curing the security gate
+  `.audits/20261112-phase2/out/SEC-verdict-12497.md` (SHIP 0.86 with
+  F-1 P2 + F-2/F-3/F-4 P3 + F-5 P4-cluster; every finding re-run red before
+  the wave, green after). F-1: the three dual-method views (`/logga-in`,
+  `/satt-loesenord`, `/byter-losenord`) branch on `method == POST` — the
+  GET-renders/else-processes split let HEAD execute every state change (5
+  wrong HEADs drained §6.2 and 429-locked her NEXT real login; a HEAD+body
+  logged in and changed the password with both CSRF defences bypassed) — and
+  `_csrf_gate` no longer skips HEAD: the ORIGIN rule checks it as it checks
+  POST; the token rule deliberately stays a CSRF_METHODS rule (HEAD is
+  READ_METHODS; token-checking it would 400 the anonymous public reads — the
+  reading used, stated in the evidence). F-2: `/bok` and `/cover` bound-check
+  the id against sqlite's signed-64-bit INTEGER domain before the bind — an
+  id `>= 2**63` matches werkzeug's unbounded `\d+` and answered the anonymous
+  500 + traceback measured LIVE through the edge; the route's own 404 answers
+  instead. F-3: `_is_public_read` tolerates the ONE trailing slash and the
+  five public views register their slash spelling as an explicit rule on the
+  SAME endpoint — werkzeug 3.1.9 REMOVED the strict-slash redirect (probed: no
+  RequestRedirect on this pin), so guard-tolerance alone would trade the login
+  wall for the router's 404; writes keep the 302 refuse, all three states keep
+  their wall shape, `url_for` unchanged. F-4: `client_ip` = CF-Connecting-IP
+  (edge-overwritten on the proxied zone) else the SOCKET PEER, XFF never —
+  AND `server.py` runs uvicorn with `proxy_headers=False`, because the
+  default rewrote REMOTE_ADDR from the spoofer's own XFF BELOW the app (the
+  app-half alone stayed green on test_client while the raw stack still
+  answered 302 — the raw-suite leg pins both halves; residual documented:
+  port-direct CF-header rotation, accepted by the wave's trust order). F-5:
+  `QUARANTINED_NAMESPACES` answers the bare `.git`'s 404 for its
+  extension-less children in every state (sweep legs ride the QUARANTINED
+  matrix), and the factory pins `Cache-Control: no-store` on owner-session
+  text/html beside its `Vary: Cookie` — anonymous public HTML unpinned, the
+  static immutable pin asserted untouched. Carried P4s DOCUMENTED not fixed:
+  the CSRF-400 fingerprint on anonymous PUT/DELETE/PATCH at allow-listed
+  paths, and the app-level body cap behind the edge caps. auth.py grew to 444
+  lines — header carries the one-line reason; the one-concern split is
+  SCHEDULED for the next hygiene pass, not smuggled into security work.
+  Suite 504 → **537 passed, exit 0** (build clone) / **504 passed, 33
+  skipped, exit 0** (clean `git archive` clone — corpus legs skip by name; the
+  33 new legs are corpus-free and every finding carries a red-before
+  transcript, raw-socket ones included). LIVE site untouched — one anonymous
+  read-only overflow GET (still 500: live runs the pre-wave code until the
+  orchestrator re-publishes); ZERO POSTs off loopback; production state
+  untouched (scratch `LISELOTT_DATA_DIR` only); nothing pushed. Transcripts:
+  `.audits/20261112-phase2/.tmp/secwave-p2-evidence.md` (host-local,
+  MC-linked).
