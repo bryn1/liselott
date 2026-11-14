@@ -54,9 +54,15 @@ ALL_DATA = PUBLIC_READS + OWNER_ONLY
 # LIVE (GET /liselott/VERSION → 302; closed state → 200 gate page). The
 # lane mirror carries it (the no-git cache key), so it joins the probed
 # names and the guard must 404 it in EVERY state.
+# F-5 (SEC-verdict-12497): the .git NAMESPACE, extension-less children —
+# the bare /.git always 404'd (dot rule), but /.git/HEAD and /.git/config
+# answered the uniform 302 (in the closed state the gate page). Nothing
+# under .git is ever routeable, so the namespace answers the SAME 404 as
+# its bare name, in every state.
 QUARANTINED = (
     "/DESIGN.md", "/LEDGER.md", "/README.md", "/hosting.yaml",
     "/data-import/import_overrides.csv", "/server.py", "/VERSION",
+    "/.git/HEAD", "/.git/config",
 )
 
 

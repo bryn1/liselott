@@ -4,7 +4,7 @@ import os
 import subprocess
 from pathlib import Path
 
-from flask import Flask, request
+from flask import Flask, request, session
 
 DEFAULT_PREFIX = "/liselott"
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -105,6 +105,22 @@ def create_app():
     from app import (auth, backfill, bundle, onska, redigera, report,
                          routes, tillagg)
     auth.init_auth(app)
+
+    @app.after_request
+    def _no_store_personalised(response):
+        """F-5 (SEC-verdict-12497): every response already carries Vary:
+        Cookie (the guard reads the session on every request) — an owner-
+        painted HTML page must not have that Vary without the other half,
+        Cache-Control: no-store. Anonymous public HTML (the MC 12497
+        contract) is NOT pinned — the app forbids no caching it does not
+        need to forbid; static keeps _pin_static_cache's immutable pin
+        (after_request hooks run in registration-reverse, so the pin gets
+        the LAST word, and no HTML is ever served under a static URL —
+        the two cannot collide)."""
+        if session.get(auth.SESSION_FLAG) and response.mimetype == "text/html":
+            response.headers["Cache-Control"] = "no-store"
+        return response
+
     routes.init_routes(app)
     redigera.init_redigera(app)
     tillagg.init_tillagg(app)
