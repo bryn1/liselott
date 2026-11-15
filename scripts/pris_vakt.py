@@ -39,7 +39,15 @@ NOT-CARRIED/FORMAT for 5 of its 6 books PERMANENTLY, and a counter that
 counted those would cool the watch down every single day — the same
 misfire §3 F-D names for the chronic escalator, applied to its twin),
 per-book outcome lines, ONE summary line (class counts, posted rows, own-
-tree peak RSS) and exit 0 only for a done or a resting tick.
+tree peak RSS) and exit 0 for a done or a resting tick.
+
+ALARMKLASSER (owner ruling 2026-11-15, option 1 verbatim "alarm only for
+real failures"): ALARM + non-zero ONLY for true failures — scope errors,
+pin/version mismatch, door 503/rejected, N=3 stop, chronic parse-fails,
+crash. A HEALTHY COMPLETE TICK that stored nothing (the shelf legitimately
+holds ~0 readable Bokus prices) is a SUMMARY fact, not an alarm: the line
+carries `stored 0 av N kollade` visibly, journald reads INFO, exit 0 — a
+nightly zero alarm trains everyone to ignore real alarms (MC 12549).
 """
 import json
 import os
@@ -157,8 +165,9 @@ def run_tick(*, state_dir=STATE_DIR, now=None, clock=time.monotonic,
              sleep=time.sleep, get=http_get, post=door_post,
              launch=launch_pinned, rng=random.random, rss=st.tree_rss_kib,
              say=None):
-    """One daily tick end-to-end; returns the process exit code (§6b: 0 =
-    done or RESTING — cooldown/owner-stop; non-zero = every alarm class).
+    """One daily tick end-to-end; returns the process exit code (§6b as
+    re-ruled 2026-11-15: 0 = done — also a healthy stored-0 run — or RESTING
+    (cooldown/owner-stop); non-zero = every true-failure alarm class).
     Every external touch is a keyword seam (now/clock/sleep/get/post/launch/
     rng/rss/say) so the whole runner contract is testable with zero network —
     the REAL first tick (and §6a's cgroup row) is M9a-2b's, not this card's.
@@ -182,12 +191,14 @@ def run_tick(*, state_dir=STATE_DIR, now=None, clock=time.monotonic,
         return peak
 
     def finish(code):
-        say(f"PRIS SAMMANFATTNING scanned={scanned} asked={sum(counts.values())}"
+        asked = sum(counts.values())
+        say(f"PRIS SAMMANFATTNING scanned={scanned} asked={asked}"
             f" price={counts[pp.PRICE]} ambiguous={counts[pp.AMBIGUOUS]}"
             f" format={counts[pp.FORMAT]} not_carried={counts[pp.NOT_CARRIED]}"
             f" parse_fail={counts[pp.NO_PRICE]} no_isbn={no_isbn} gone={gone}"
             f" carried={len(carried)} rest={len(rest)} flushes={flushes}"
-            f" posted={posted} stored={stored} rejected={rejected}"
+            f" posted={posted} stored {stored} av {asked} kollade"
+            f" rejected={rejected}"
             f" blocked={blocked} stop={stop} chronic={','.join(chronic) or '-'}"
             f" scope_error={scope_error} peak_rss_kib={sample_peak()}"
             f" browser={version} exit={code}")
@@ -341,18 +352,20 @@ def run_tick(*, state_dir=STATE_DIR, now=None, clock=time.monotonic,
     chronic = st.chronic_offenders(state_dir, now())
 
     # 10. The verdict (§2/§3/§6e's named red classes; PARTIAL stays data).
+    #     The zero-store sentinel is GONE here (owner ruling 2026-11-15,
+    #     MC 12549): a healthy complete tick with stored 0 is a SUMMARY fact
+    #     — the `stored 0 av N kollade` clause, journald INFO, exit 0. A
+    #     flush that delivered nothing against real rows stays red through
+    #     the door's own counters: every non-accepted row lands in a
+    #     rejected_* class (§6e), so `rejected > 0` still bites.
     code = 0
     if stop in ("time-budget", "consecutive_no_price", "door") \
-            or rejected > 0 or chronic \
-            or (sum(counts.values()) > 0 and stored == 0):
+            or rejected > 0 or chronic:
         code = 1
     if stop == "consecutive_no_price":
         say(f"ALARM blocker={blocked} stop={stop} — 24 h nedkylning satt")
     if chronic:
         say(f"ALARM chronic parse-fail 7 dagar: {','.join(chronic)}")
-    if code and sum(counts.values()) > 0 and stored == 0 \
-            and stop == "-" and not chronic:
-        say("ALARM noll prisrad — askade > 0 men 0 levererade (§3 vakt)")
     return finish(code)
 
 

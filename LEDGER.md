@@ -773,3 +773,30 @@ postdating a line make that line STALE — de-stale before quoting it.
   untouched. `scripts/exposure_check.py` run STAGED: 0, exit 0 (tracked
   universe; every fixture isbn is 979-prefix synthetic). Nothing pushed;
   the sweep DOMs under `.audits/` never entered the repo or a fixture.
+
+
+- **MC 12549 M9a-2a-fix — the healthy zero-price run is a SUMMARY fact, not
+  an ALARM (owner ruling 2026-11-15, option 1 verbatim: "alarm only for
+  real failures").** The shelf legitimately holds ~0 readable Bokus prices
+  and a nightly alarm trains everyone to ignore real alarms, so
+  `scripts/pris_vakt.py` drops the zero-store red clause and the
+  `ALARM noll prisrad` line: a healthy complete tick exits 0 (journald
+  INFO) and the summary carries the fact visibly — `stored 0 av N kollade`
+  replaces the `stored=N` token. EVERY true-failure ALARM stays VERBATIM:
+  scope errors (section_missing/empty/fetch_failed/isbn_shape), pin and
+  version mismatch, door 503 + the rejected_* counters (a flush that
+  delivered real rows without acceptance stays red — §6e counts every
+  non-accepted row), the N=3 stop and the chronic escalator; an uncaught
+  crash is still a traceback + non-zero exit. Tests: the zero-store leg
+  re-written as `test_healthy_zero_price_run_is_summary_not_alarm`
+  (summary shows `stored 0 av 2 kollade`, no ALARM line, exit 0), the
+  chronic-blind-proof leg now asserts the whole tick green, the two
+  `stored=` token pins re-aimed at the Swedish clause — every other alarm
+  leg untouched. PLANTED REDS 3/3 (.tmp/m9a2a-fix-planted-red.md, one
+  mutant at a time, sha-verified restore): muting the stored clause from
+  the summary ⇒ healthy-zero RED; empty_section slipping the scope check ⇒
+  its alarm leg RED; the rejected_* accumulation muted ⇒ door-rejected
+  RED. Suite **696 passed** exit 0. `scripts/exposure_check.py` run
+  STAGED: 0, exit 0; secret_scan --range clean. Nothing pushed; docs/ §3
+  zero-price line + rule-4 pointer carry the dated ruling marker
+  (host-local, untracked); conftest untouched, no real data, no network.

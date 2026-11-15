@@ -3,7 +3,8 @@ network, zero real browser — the first REAL Bokus visit is M9a-2b's). The
 parser legs these depend on, with the synthetic fragments they feed, are in
 tests/test_pris_parse.py; the class semantics are restated below. Planted-red
 per gate (one mutant at a time, sha-verified restore):
-`.tmp/m9a2a-planted-red.md`.
+`.tmp/m9a2a-planted-red.md`; the MC 12549 fix re-proves (stored-clause mute,
+scope-empty, door-reject) in `.tmp/m9a2a-fix-planted-red.md`.
 (continued from the card contract: five classes — PRICE one token 1..20000 in
 the first token-bearing ancestor of the cart leaf; AMBIGUOUS two+ tokens, the
 named campaign expected-miss, never a posted price; FORMAT identity-OK but no
@@ -46,8 +47,10 @@ RUNNER legs (seams faked end-to-end: get/post/launch/clock/sleep/rng/rss):
   chronic-blind-proof     3 days of NOT-CARRIED (a permanently unlisted isbn,
                           measured 2/6 of the shelf!) => chronic stays EMPTY
                           (the weekly-cry case is dead, not untested)
-  zero-store-alarm        asked > 0 and stored == 0 => non-zero (§3's
-                          zero-price sentinel), stop stays "-"
+  healthy-zero-summary    asked > 0, stored == 0, no failure => exit 0 INFO:
+                          the summary carries `stored 0 av N kollade` and NO
+                          ALARM line (owner ruling 2026-11-15, MC 12549 —
+                          replaces §3's zero-store sentinel ALARM)
   door-503                the door answers 503: ONE try, no retry loop, stop
                           =door, non-zero
   door-rejected           counters with rejected_* > 0 => non-zero (§6e)
@@ -231,7 +234,7 @@ def test_flush_at_25(tmp_path, monkeypatch):
     code, lines, _, _, _, _, door = run(tmp_path, monkeypatch, site=site)
     assert [len(p) for p in door.posts] == [25, 5]
     assert code == 0
-    assert "stored=30" in summary(lines)
+    assert "stored 30 av 30 kollade" in summary(lines)
 
 
 def test_row_shape_is_the_five_door_fields(tmp_path, monkeypatch):
@@ -407,8 +410,9 @@ def test_chronic_escalates_on_three_no_price_days(tmp_path, monkeypatch):
 def test_chronic_never_fires_on_permanently_not_carried(tmp_path, monkeypatch):
     """The measured shelf carries TWO isbn Bokus does not list — permanently.
     Three ticks of NOT-CARRIED must keep chronic EMPTY (the alarm that cried
-    weekly is this leg's red case). The zero-store alarm still makes the
-    tick red, but the chronic escalator stays out of it."""
+    weekly is this leg's red case). The healthy-zero ruling (2026-11-15)
+    leaves the whole tick GREEN — stored 0 rides the summary, not the alarm
+    channel."""
     for day in range(3):
         code, lines, *_ = run(
             tmp_path, monkeypatch, site=FakeSite(["1"]),
@@ -416,14 +420,22 @@ def test_chronic_never_fires_on_permanently_not_carried(tmp_path, monkeypatch):
             now=FakeNow(NU + timedelta(days=day)))
     line = summary(lines)
     assert "chronic=-" in line and "parse_fail=0" in line
-    assert code == 1 and "stop=-" in line
+    assert code == 0 and "stop=-" in line
+    assert not any(ln.startswith("ALARM") for ln in lines)
 
 
-def test_zero_store_sentinel_alarms(tmp_path, monkeypatch):
+def test_healthy_zero_price_run_is_summary_not_alarm(tmp_path, monkeypatch):
+    """Owner ruling 2026-11-15 (option 1, "alarm only for real failures"):
+    every book checked fine, just no readable prices yet — a healthy
+    complete tick exits 0, carries `stored 0 av N kollade` visibly in the
+    summary and prints NO ALARM line. Replaces the old zero-store
+    sentinel ALARM leg (MC 12549)."""
     code, lines, *_ = run(tmp_path, monkeypatch, site=FakeSite(["1", "2"]),
-                         browser=FakeBrowser(default="format"))
-    assert code == 1 and "stop=-" in summary(lines)
-    assert any("noll prisrad" in ln for ln in lines)
+                          browser=FakeBrowser(default="format"))
+    line = summary(lines)
+    assert code == 0 and "stop=-" in line
+    assert "stored 0 av 2 kollade" in line
+    assert not any(ln.startswith("ALARM") for ln in lines)
 
 
 def test_door_503_one_try_no_retry_loop(tmp_path, monkeypatch):
@@ -456,7 +468,7 @@ def test_no_isbn_and_gone_are_counted_green(tmp_path, monkeypatch):
     code, lines, *_ = run(tmp_path, monkeypatch, site=site)
     line = summary(lines)
     assert code == 0 and "no_isbn=1" in line and "gone=1" in line
-    assert "stored=1" in line
+    assert "stored 1 av 1 kollade" in line
 
 
 def test_summary_is_one_line_with_counts_and_peak(tmp_path, monkeypatch):
