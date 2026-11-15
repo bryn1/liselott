@@ -716,3 +716,60 @@ postdating a line make that line STALE — de-stale before quoting it.
   (tracked universe; the instrument-checked 979-prefix rule held — no new
   13-digit fixture value entered the tree). Nothing pushed; live DB and
   `liselott-data` untouched.
+
+- **MC 12547 M9a-2a — the daily pris-vakt RUNNER (Bokus-only, the tick's
+  mechanics) — DONE (this commit):** `scripts/pris_vakt.py` (stdlib +
+  playwright only) drives the tick exactly as the MC 12540 sweep MEASURED it:
+  scope from the app's OWN public `/bibliotek` "Att läsa" section (§2, ALARM
+  + non-zero on `section_missing`/`empty_section`/`isbn_shape`/`fetch_failed`
+  — a failed scope read is never a silent green), per-id ISBN GETs at the
+  0.5 s own-origin courtesy (302/404 = the benign `gone`, no dt = the legit
+  `no_isbn`), ≤ 250 asks with the excess FIFO-CARRIED by wish age (§3 v2.4),
+  then per book one reused browser: goto ≤ 15 000 ms, the SELECTOR WAIT
+  `text=Lägg i varukorg` ≤ 15 s (never a sleep), the serialized hydrated DOM
+  through the PURE parser, ≥ 5 s + jitter before EVERY Bokus visit, and the
+  door POST flushes every `PRIS_FLUSH_EVERY = 25` rows AND once at tick end
+  (§6e's 500 cap never approached; door 503/401/unreachable = ONE try then
+  loud, no retry loop). `PRIS_DOOR_TOKEN` + `LISELOTT_URL` are the ONLY env
+  names (values never here — MC 12546: her password is copied nowhere), the
+  pin boots `~/.cache/ms-playwright/chromium-1243/chrome-linux64/chrome` by
+  explicit `executable_path` and a launched version not starting `153.` is
+  ALARM + non-zero with ZERO asks, and the elapsed-budget stop exits
+  non-zero at 6 600 s — 10 min BEFORE §6a's TimeoutStartSec=7200, whose
+  printed math (250 × (5 s + 15 s) ≈ 5 100 s) rides in the header.
+  `scripts/pris_parse.py` is the pure five-class parser (bytes in, class +
+  price out, no I/O): PRICE = identity-OK + cart leaf + EXACTLY one token
+  1..20000 in the FIRST token-bearing ancestor (measured `div.mt-5.flex.
+  flex-col.gap-5`; NBSP normalized BEFORE tokenizing; script/style text
+  never visible), TWO+ tokens = AMBIGUOUS (the named campaign expected-miss,
+  never a posted price), no leaf + identity OK = FORMAT (e-bok/ljudbok — no
+  fallback-to-another-number path), identity fails = NOT-CARRIED (the title
+  tail `| Bokus` + `/bok/` URL are the ONLY gates — measured: not-found
+  answers HTTP 200, a status branch is dead code), and NO-PRICE is the one
+  unexpected-parse class. THE READING THIS CARD FIXED (from the sweep's 0/6):
+  the N=3 consecutive stop AND the 7-day chronic escalator key on NO-PRICE
+  ONLY — the measured shelf answers NOT-CARRIED/FORMAT for 5 of its 6 books
+  PERMANENTLY, and any wider key cools the watch down every single day.
+  `scripts/pris_state.py` owns the four StateDirectory files: `watch_state`
+  (N=3 auto-stop reason self-clears when its cooldown passes; §6c's
+  owner-stop stands until she resumes), `cooldown_until` = now + 24 h
+  (a resting tick asks NOTHING, exits 0, `vilar=` in the summary), the
+  FIFO `carry_over`, and `parse_fails.json` (3 distinct NO-PRICE days in 7
+  ⇒ ESCALATE naming the isbn); `tree_rss_kib` is the runner's own-tree peak
+  line — §6a's first-tick CGROUP row stays OWED by the real tick (M9a-2b).
+  `tests/test_pris_vakt.py` adds 43 legs over synthetic fragments and faked
+  seams (zero network — the first REAL Bokus visit is M9a-2b's): the five
+  classes each named + NBSP + bounds (0 / 20001 reject, 20 000 accept with
+  the thousands space) + title-tail-only gate catching a planted 200-page,
+  and flush-at-25, budget stop (banks + carries), N=3 writes+honors+
+  self-clears the cooldown, scope-empty ALARMs with ZERO boots, FIFO carry
+  past 250 (carried 10 asked FIRST next tick), version-ALARM (fake 148 ⇒
+  zero asks), pacing ≥ 5 s on the injected clock. PLANTED RED: 28/28 gates
+  went red on their own named leg, one mutant at a time with sha-verified
+  restore (`.tmp/m9a2a-planted-red.md`; one belt-not-a-gate annotated GREEN
+  honestly). Suite **696 passed** exit 0 (VM350 `.venv`,
+  `-p no:cacheprovider`, 146 s): 653 kept + 43 new. The real network leg
+  is NOT this card — conftest.py untouched, no live DB, `liselott-data`
+  untouched. `scripts/exposure_check.py` run STAGED: 0, exit 0 (tracked
+  universe; every fixture isbn is 979-prefix synthetic). Nothing pushed;
+  the sweep DOMs under `.audits/` never entered the repo or a fixture.
