@@ -562,3 +562,31 @@ postdating a line make that line STALE — de-stale before quoting it.
   line starts with `#`, zero logic lines, zero test files, `tests/conftest.py`
   untouched. Suite: **579 passed, exit 0** (base unchanged, VM350 `.venv`,
   `-p no:cacheprovider`, 110.45 s). Live untouched; nothing pushed.
+- **MC 12532 sealed-env absence posture + suite CSV pins — DONE (this
+  commit):** knut's sealed rerun died `48 failed, 18 errors` where the host
+  run is green (verdict `.audits/20261114-sealedflake/`). Two causes, both
+  runner-posture, no product behaviour change: (1) `app/seed.py` read CSV
+  ABSENCE with `Path.is_file()`, which under a sealed runner (ProtectHome
+  masks /home mode-000) RAISES OSError(EACCES) instead of answering False —
+  `load_aliases` and the `read_overrides` twin now treat OSError as the
+  absence their docstrings always promised (no-op `{}`); readable files
+  behave identically. (2) `tests/conftest.py` pinned only `LISELOTT_DATA_DIR`
+  — `LISELOTT_ALIASES_FILE`/`LISELOTT_OVERRIDE_FILE` rode UNPINNED, so on
+  this host the REAL personal CSVs silently backed legs labelled synthetic;
+  a session autouse fixture now pins BOTH to non-existent paths in pytest's
+  tmp space (the synthetic posture), legs that build their own CSV keep
+  setting their env per-test, and the personal-CSV pin leg lifts the suite
+  pin to fall back to DATA_HOME — the pin doctrine still runs the real CSVs
+  wherever they resolve (the 21 `[personal]` corpus legs unchanged, the
+  15-row CSV leg still PASSES here). The `test_seed_aliases.py` skip-guard
+  took the same unsafe `is_file()` (the sealed RED showed 1 skip where
+  GREEN shows 2 — the guard itself raised); it answers skip, never error.
+  Two new legs: the mode-000 EACCES-absence pin (real producer, uid-1000
+  traversal, no mock — loaders answer `{}` AND /bundle still 200) and the
+  synthetic-purity path-shape pin (both envs outside the personal home,
+  name-free). Planted red proven: reverting the seed.py hunks makes the
+  EACCES leg FAIL `PermissionError [Errno 13]` — both transcripts in
+  `.audits/20261114-sealedflake/fix-red.md` (host-local). Suite: **581
+  passed, exit 0** (579 base + the two new legs, 0 skipped both ways on
+  this host; VM350 `.venv`, `-p no:cacheprovider`, 111.66 s). Live
+  untouched; nothing pushed.

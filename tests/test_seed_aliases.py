@@ -4,11 +4,13 @@ card) — the mechanism legs run on synthetic CSV rows the test writes itself,
 and the real file is pinned NAME-FREE (row count + every row resolving),
 wherever its resolver path resolves it."""
 import csv
+import os
 from pathlib import Path
 
 import pytest
 
 from app import db, seed
+from tests.test_seed_routes import authed, bundle_bytes, line  # noqa: F401
 
 # The synthetic alias table: canonical,alias rows with the shapes the real
 # one has (misspelling, diacritic variant, space/punctuation variant).
@@ -73,14 +75,22 @@ def test_strip_then_alias_chain(conn, aliases_csv):
     assert author_names(conn) == ["Sissela Åhrnstedt"]
 
 
-def test_real_csv_still_resolves_name_free():
+def test_real_csv_still_resolves_name_free(monkeypatch):
     """The personal CSV, pinned without naming it: row count 15 (§5.9's
     audit) and EVERY row resolving alias->canonical. The CSV is off-repo
     state data after MC 12523 — resolved through seed.aliases_file() (env
     first, else the off-repo home); skips with a loud reason where the host
-    has no copy, the synthetic mechanism legs above run everywhere."""
+    has no copy, the synthetic mechanism legs above run everywhere.
+    MC 12532: the suite-wide synthetic pin is lifted HERE (this is the leg
+    that pins the personal CSV) so the resolver falls back to DATA_HOME and
+    the pin doctrine keeps running the real file wherever it resolves."""
+    monkeypatch.delenv("LISELOTT_ALIASES_FILE", raising=False)
     path = seed.aliases_file()
-    if not path.is_file():
+    try:
+        present = path.is_file()
+    except OSError:
+        present = False  # stat-blocked = absent: answer skip, never error (MC 12532)
+    if not present:
         pytest.skip("personal aliases CSV absent — path F; the mechanism legs "
                     "above run on synthetic rows in every checkout")
     amap = seed.load_aliases(path)
@@ -107,3 +117,48 @@ def test_env_file_wins_over_the_default_home(tmp_path, monkeypatch):
     monkeypatch.delenv("LISELOTT_OVERRIDE_FILE")
     assert seed.aliases_file() == seed.DATA_HOME / "author_aliases.csv"
     assert seed.overrides_file() == seed.DATA_HOME / "import_overrides.csv"
+
+
+def test_eacces_paths_read_as_absence_to_the_door(tmp_path, monkeypatch,
+                                                  authed):
+    """MC 12532 (sealed flake): a sealed runner masks /home with a mode-000
+    mount, so stat THROUGH it raises OSError(EACCES) and is_file() answers
+    nothing — the absent=no-op promise died there with 48 failed + 18
+    errors. A mode-000 dir is the same producer for an unprivileged owner
+    (no CAP_DAC_OVERRIDE), so this leg runs it for REAL, no mock: an alias
+    CSV behind one loads as {} from both loaders (env pointing INSIDE it
+    too), and the /bundle door — forced to re-read its alias cache off the
+    same unreadable env — still answers 200 instead of a 500 raise.
+    RED-capable: revert the OSError arms in app/seed.py and BOTH asserts
+    fail (transcript: .audits/20261114-sealedflake/fix-red.md)."""
+    tmp, client = authed
+    blocked = tmp_path / "masked"
+    blocked.mkdir()
+    csv_path = blocked / "author_aliases.csv"
+    csv_path.write_text(SYNTH_CSV, encoding="utf-8")
+    monkeypatch.setenv("LISELOTT_ALIASES_FILE", str(csv_path))
+    monkeypatch.setattr(seed, "_APP_ALIASES", None)  # force the door's read
+    os.chmod(blocked, 0)
+    try:
+        assert seed.load_aliases(seed.aliases_file()) == {}
+        assert seed.read_overrides(csv_path) == {}
+        r = client.post("/liselott/bundle",
+                        data=bundle_bytes(line(book_key="kEac1",
+                                               title="Skyddad bok")),
+                        content_type="application/octet-stream")
+        assert r.status_code == 200, r.get_data(as_text=True)
+    finally:
+        os.chmod(blocked, 0o755)  # keep pytest's tmp cleanup traversable
+
+
+def test_synthetic_csv_envs_pinned_outside_the_personal_home():
+    """MC 12532 finding 2, purity shape: the suite-wide synthetic pin must
+    put BOTH CSV env vars outside the personal data home — on the build
+    host the resolvers' default IS her real CSVs, and an unpinned run
+    labelled synthetic silently read them. NAME-FREE: the assert compares
+    path shapes against seed.DATA_HOME, never a real file name."""
+    for var in ("LISELOTT_ALIASES_FILE", "LISELOTT_OVERRIDE_FILE"):
+        p = Path(os.environ[var])
+        assert not p.is_relative_to(seed.DATA_HOME), (
+            f"{var} resolves inside the personal data home — the suite-wide "
+            "synthetic pin is not in force")

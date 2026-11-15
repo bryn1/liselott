@@ -34,6 +34,32 @@ IN_REPO = ROOT / "data-import/seed-books-raw.md"
 # zero personal bytes, safe to run anywhere.
 SYNTH = ROOT / "tests/fixtures/synthetic_seed.md"
 
+# The two personal CSVs, env names (MC 12532): the resolvers in app/seed.py
+# are env-first, defaulting to the off-repo DATA_HOME — the REAL CSVs on the
+# build host. Unpinned, those ride into legs labelled `synthetic`.
+CSV_ENV_VARS = ("LISELOTT_ALIASES_FILE", "LISELOTT_OVERRIDE_FILE")
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _suite_csv_pins(tmp_path_factory):
+    """Suite-wide SYNTHETIC pin (MC 12532, sealed-flake finding 2): point
+    both CSV env vars at NON-EXISTENT paths inside pytest's tmp space, so a
+    leg labelled synthetic can never read the personal CSVs. The pin
+    doctrine survives untouched: a leg that builds its own CSV sets its env
+    per-test (monkeypatch), and the personal-CSV pin leg lifts this pin to
+    fall back to the real DATA_HOME default — it still runs the real CSVs
+    where they resolve."""
+    base = tmp_path_factory.mktemp("csv-pins")
+    prev = {var: os.environ.get(var) for var in CSV_ENV_VARS}
+    for var in CSV_ENV_VARS:
+        os.environ[var] = str(base / f"{var}.absent")
+    yield
+    for var, val in prev.items():
+        if val is None:
+            os.environ.pop(var, None)
+        else:
+            os.environ[var] = val
+
 
 def resolve_seed_file():
     """LISELOTT_SEED_FILE wins, else the known locations, else None.

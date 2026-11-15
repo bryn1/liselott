@@ -115,9 +115,15 @@ def load_aliases(path) -> dict:
     """author_aliases.csv: 'canonical,alias' rows -> alias→canonical. An
     ABSENT file is a clean no-op ({}) — same posture as read_overrides: the
     table is personal data and lives off-repo after MC 12523, so every
-    caller must degrade to "no aliases" instead of erroring (P3-2's rule)."""
+    caller must degrade to "no aliases" instead of erroring (P3-2's rule).
+    UNREADABLE-AT-STAT counts as absent too (MC 12532): a sealed runner
+    masks /home mode-000 and is_file() then RAISES OSError(EACCES) instead
+    of answering False — the no-op promise must hold there as well."""
     p = Path(path)
-    if not p.is_file():
+    try:
+        if not p.is_file():
+            return {}
+    except OSError:
         return {}
     with p.open(encoding="utf-8") as fh:
         return {alias: canonical for canonical, alias in csv.reader(fh)}
@@ -159,10 +165,15 @@ def _fold(s: str) -> str:
 
 def read_overrides(path) -> dict:
     """import_overrides.csv: 'exact title,date' rows (applied after parsing,
-    before dedupe, §5.6)."""
+    before dedupe, §5.6). Absent — or stat-blocked, EACCES under a sealed
+    runner (MC 12532) — is the same clean no-op as in load_aliases."""
     out = {}
     p = Path(path)
-    if p.is_file():
+    try:
+        present = p.is_file()
+    except OSError:
+        present = False
+    if present:
         with p.open(encoding="utf-8") as fh:
             for title, date in csv.reader(fh):
                 out[title.strip()] = date.strip()
