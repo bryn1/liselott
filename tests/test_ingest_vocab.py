@@ -330,13 +330,15 @@ def test_doors_refuse_a_body_they_cannot_measure_with_411(authed):
     the chunked shape — reached the door with the app unable to bound
     what the transport never delimited: caps compared against nothing,
     and the door answered 200 about bytes it had not honestly seen).
-    Both machine doors now answer 411 Length Required (named, Swedish
-    copy) and import NOTHING — whatever the stream itself happens to
-    carry. A normal client POST always carries Content-Length; this leg
-    overrides wsgi.input WITHOUT it, exactly the F-E2 shape."""
+    Every machine door now answers 411 Length Required (named, Swedish
+    copy) and imports NOTHING — whatever the stream itself happens to
+    carry: the two importers and, since MC 12542, the price door, whose
+    byte budget is worth nothing against a stream the transport never
+    delimited. A normal client POST always carries Content-Length; this
+    leg overrides wsgi.input WITHOUT it, exactly the F-E2 shape."""
     tmp, client = authed
     chunk = bundle_bytes(line(book_key="kChunk", title="Chunkbok"))
-    for path in ("/liselott/bundle", "/liselott/seed"):
+    for path in ("/liselott/bundle", "/liselott/seed", "/liselott/pris"):
         r = client.post(path,
                         environ_overrides={"wsgi.input": io.BytesIO(chunk)},
                         headers={"Transfer-Encoding": "chunked"},

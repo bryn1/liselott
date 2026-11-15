@@ -46,6 +46,10 @@ OWNER_ONLY = (
     "/lagg-till", "/onska", "/redigera/1", "/rapa/omslag",
     "/rapa/omslag-rapport", "/rapa/rekommendation-rapport", "/seed",
     "/bundle", "/backfill", "/byter-losenord", "/backup",
+    # MC 12542: the price door. Tokenless POSTs are a CSRF exemption, not a
+    # read path — an anonymous GET/POST /pris is the uniform 302 and the
+    # owner reaches the stub below, never a price written by a stranger.
+    "/pris",
 )
 
 # Both lists wrap behind /satt-loesenord while no password is set — the

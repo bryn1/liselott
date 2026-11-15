@@ -604,3 +604,77 @@ postdating a line make that line STALE — de-stale before quoting it.
   raising skip-guard of MC 12532 above). When to run + honest limit (the
   flag list is a MIRROR of vm100's seal; knut stays the authority): README
   §Sealed-shape pre-push smoke.
+- **MC 12542 M9a-1 — the price door, the FLOOR/badge engine and the public
+  wishlist price line — DONE (this commit):** `POST /pris`
+  (`app/pris.py`, DESIGN-prisbevakning-v2 §6e) takes a JSON array of
+  `{isbn, retailer, price, currency, checked_at}` and owns everything else —
+  body ≤ `MAX_PRIS_BODY` 65 536 B (named 413) and ≤ `MAX_PRIS_ROWS` 500 rows
+  (named 400) both judged before a row is parsed, a POST whose envelope carries
+  no `Content-Length` is the 411 the other machine doors already answer, `isbn`
+  exactly 13 ASCII digits resolving to a WISHLIST row, `bokus`/`SEK`/integer
+  1..20000, `checked_at` inside the CLAMPED window [now − 2 d, now + 5 min]
+  (§4 rule 5), a same-day re-ask UPSERTs into ONE history point via the §1 day
+  index `ux_price_isbn_day` (schema.sql carries that DDL verbatim — it was the
+  one thing M8 could not add without this card), a single-step drop past 60 % is
+  STORED FLAGGED (`suspect=1`, G1 computed before the upsert against the latest
+  observation strictly before that row's DAY and made payload-aware so restating
+  a day inside one POST cannot smuggle the drop past it), one 730-day prune per
+  accepted POST, and the response is seven counters that echo no book data.
+  AUTHZ EXPOSURE, NAMED: `/pris` joins `auth.TOKENLESS_POSTS` — tokenless (no
+  CSRF token, foreign Origin 400), NEVER guardless: an anonymous POST meets the
+  guard's uniform 302, the route joins no read allow-list, and it was added to
+  all three exhaustive sweeps (`test_guard.OWNER_ONLY`,
+  `test_public_read.WRITE_ROUTES`, `test_ingest_vocab`'s 411 door loop). Its
+  credential is the owner's own site password until M9a-2 hands it to a unit's
+  0600 env file. `app/priskort.py` is the ONE price read plus the §4 FLOOR-EVENT
+  walk — FRESH (current row = today's UTC date), DEPTH ≥ 8 distinct days inside
+  90, FLOOR = min over ACCEPTED rows strictly earlier, STRICTLY-BELOW, and the
+  badge identity is the EVENT's fixed floor: opens on a new low, persists under
+  it, closes at or above it, re-arms only from the confirmed low — so 100→30→105
+  →30 is ONE badge and not two, and a suspect ghost price enters no floor.
+  §8's two legs are `tests/test_pris_badge.py` as the lit-string walks
+  `".........BBB."` and `"..........BB..B"`. The DISPLAY (§5 + the owner's
+  public-scope ruling of 2026-11-15, quoted verbatim in README) rides the ONE
+  `bokkort` macro: `/bibliotek`'s wishlist cards and the owner's `/onska` rows
+  show `99 kr · Bokus` + `REA` + the worded check date, a price not seen today
+  shows its date and "kan ha ändrats" and NEVER a badge, and no observation
+  renders NO element at all; the deep-link is derived by the server from the
+  stored isbn (no stored URL column, no query param), and read-year cards are
+  never handed price data — measured byte-identical to the pre-M9a page
+  (`/bibliotek` and `/` anonymous and logged in, 2 621 / 2 911 / 3 518 B).
+  Suite **647 passed, exit 0** (VM350 `.venv`, `-p no:cacheprovider`, 138 s):
+  41 door legs, 13 badge legs, 12 display legs, 66 new in all. PLANTED RED, one
+  per gate this card added — the date clamp, the price bounds, the wishlist
+  resolve, the byte budget, the row budget, the Content-Length rule, the
+  TOKENLESS membership itself (red as the CSRF 400), the G1 flag, the
+  floor-skips-suspect rule, the badge CLOSE (`lit = True`: day 13 of leg 2
+  stayed lit, `..........BBB.B` where the contract says `..........BB..B`), the
+  template's badge/stale/no-observation gates, both read-scope filters and the
+  `/onska` duplicate branch — every one red on its own leg first; transcripts on
+  the card. Two of those reds are the reason to plant: the first ghost-price leg
+  stayed GREEN under the mutation (the ghost's own event kept the simpler series
+  lit) and was rewritten with a closing 200 in it; and the full-suite run caught
+  a fourth `/onska` render that had no price map at all.
+  A THIRD red came from OUTSIDE the suite and is the one worth carrying: the
+  card's own `scripts/exposure_check.py` run printed 0 and looked green, because
+  the gate greps the TRACKED universe (`git grep`) and the new test files were
+  still untracked — after the commit it went red on ONE literal, a plausible
+  978-91 isbn in `tests/test_pris_door.py`'s unknown-isbn leg that was in fact a
+  REAL wishlist ISBN off `liselott-data/real-isbns.txt` (read by instrument only,
+  never echoed). Cured here: that isbn is now an instrument-chosen 979-prefixed
+  synthetic (a prefix this diary never carries), the leg re-proved red-capable
+  against a build that lands any isbn, and the rule is in the leg's docstring —
+  "synthetic-looking" is not synthetic, the list is the oracle, and the exposure
+  gate must be run STAGED, never on an untracked tree.
+  HONEST LIMITS: no fetcher ships with this card, so `price` is empty on a fresh
+  site and production cards render exactly the price-less page until M9a-2
+  installs the daily pass (README §Known limits); a holder of the credential can
+  still backdate by ≤ 2 days — §6e's window is the mitigation, the residual is
+  named, not fixed here; §6e's response envelope names no key for an isbn that
+  matches several rows, so the door resolves MIN(id) of the wishlist rows and
+  counts it accepted (the ambiguity has no home in the pinned shape, inventing a
+  counter would be inventing contract); the display legs are anchored to today's
+  UTC date and a run straddling midnight needs a re-run (stated in the file); and
+  the design-pinned subtitle `tätat pris (90 d)` ships verbatim — if it is a
+  typo for "tätat" → "tagit"/"sänkt" it is one edit in one macro.
+  Nothing pushed; the live DB and `liselott-data` untouched.

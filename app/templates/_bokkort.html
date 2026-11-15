@@ -2,9 +2,20 @@
    (used twice → extracted), so a card can never mean two different things.
    Cover through url_for('cover') (§6.4/T3.4: the route paints the placeholder
    when the row has none), lazy because a 700-card page must not fetch 700
-   images to show the first screen. #}
+   images to show the first screen.
+
+   M9a-1 (DESIGN-prisbevakning-v2 §5): the optional `pris` argument is the
+   ONLY price markup in the app — /bibliotek's "Att läsa" cards and the
+   owner's /onska rows pass it, every other caller passes nothing and renders
+   EXACTLY the bytes it always did (the leading `{%-` on the price line eats
+   its own line break, so an absent price leaves no whitespace behind: the
+   byte-identity is measured, tests/test_pris_display.py). The deep-link is
+   server-derived from the isbn (§1 — no client-supplied URL can ever reach
+   this href), the badge is §4's verdict, never this file's arithmetic, and
+   the worded check date is what makes a stale row read AS stale (§5). No
+   buy button, no cart, no money path: the link leaves the site. #}
 {% from "_stjarnor.html" import stjarnor with context %}
-{% macro bokkort(b) %}
+{% macro bokkort(b, pris=None) %}
 <li class="bok-kort">
   <a class="bok-lank" href="{{ url_for('bok', id=b.id) }}">
     <img class="omslag" src="{{ url_for('cover', book_id=b.id) }}"
@@ -14,5 +25,6 @@
   <p class="forfattare">{{ authors_text(b) }}</p>
   <p class="meta">{{ format_word(b) }}{% if b.read_year %} · {{ b.read_year }}{% endif %}</p>
   {% if b.rating %}{{ stjarnor(b.rating) }}{% endif %}
+  {%- if pris %}<p class="prisrad"><a class="pris-lank" href="{{ pris.url }}">{{ pris.price }} kr · Bokus</a>{% if pris.rea %} <span class="rea">REA</span> <span class="rea-arsak">tätat pris (90 d)</span>{% endif %} <span class="pris-kollad">pris kollat {{ sw_date(pris.checked_date) }}{% if pris.stale %} — kan ha ändrats{% endif %}</span></p>{% endif %}
 </li>
 {% endmacro %}

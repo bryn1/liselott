@@ -12,18 +12,27 @@ from datetime import date
 
 from flask import abort, render_template, request
 
-from app import auth, books, db, redigera, seed
+from app import auth, books, db, priskort, redigera, seed
 
 
 def init_onska(app):
+
+    def _onska(vyan, fel):
+        """ONE render of the page for its three states (the list, a validation
+        error, a duplicate). `prisar` rides with all three (M9a-1, DESIGN §5):
+        the owner's rows carry the SAME price line /bibliotek's wishlist
+        section does, from the same one read — a fourth render that forgot it
+        is exactly the second mechanism this file exists to avoid."""
+        return render_template("onska.html", onska=vyan, fel=fel,
+                               prisar=priskort.card_prices(db.get_db(), vyan),
+                               current="onska")
 
     @app.get("/onska")
     def onska():
         conn = db.get_db()
         wishes = books.sort_by_read_date(
             [b for b in books.load_books(conn) if b["status"] != "read"])
-        return render_template("onska.html", onska=wishes, fel=None,
-                               current="onska")
+        return _onska(wishes, None)
 
     @app.post("/onska/lagg-till")
     def onska_lagg_till():
@@ -34,8 +43,7 @@ def init_onska(app):
         if fel:
             wishes = books.sort_by_read_date(
                 [b for b in books.load_books(conn) if b["status"] != "read"])
-            return render_template("onska.html", onska=wishes, fel=fel,
-                                   current="onska"), 400
+            return _onska(wishes, fel), 400
         authors = seed.split_authors(form.get("forfattare", ""))
         aliases = seed.app_aliases()
         canonical = [aliases.get(name, name) for name in authors]
@@ -55,10 +63,8 @@ def init_onska(app):
                 raise
             wishes = books.sort_by_read_date(
                 [b for b in books.load_books(conn) if b["status"] != "read"])
-            return render_template(
-                "onska.html", onska=wishes,
-                fel="Den boken står redan på önskelistan.",
-                current="onska"), 400
+            return _onska(
+                wishes, "Den boken står redan på önskelistan."), 400
         return auth.redirect_prefixed("/onska")
 
     @app.post("/onska/<int:id>/las")

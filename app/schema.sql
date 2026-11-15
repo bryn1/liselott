@@ -23,6 +23,26 @@ CREATE TABLE IF NOT EXISTS book_genre (book_id INTEGER NOT NULL, genre_id INTEGE
 CREATE TABLE IF NOT EXISTS candidate (id INTEGER PRIMARY KEY, title TEXT NOT NULL, author_name TEXT, isbn13 TEXT,
   year INTEGER, cover_path TEXT, cover_source TEXT CHECK (cover_source IN ('libris','googlebooks','openlibrary','manual','manual-url')),
   fetched_at TEXT NOT NULL);
+-- M9a-1 (DESIGN-prisbevakning-v2 §1, verbatim DDL): the price series the
+-- /pris door writes and the wishlist card reads. The UNIQUE day index IS the
+-- dedup (no SELECT-then-INSERT anywhere), which is what makes a same-day
+-- re-ask land in ONE history point; `book_id` is ingest-resolved metadata and
+-- rides the one delete door (ON DELETE CASCADE). `url` is GONE by design: the
+-- public deep-link is server-derived from `isbn`, never client-supplied.
+CREATE TABLE IF NOT EXISTS price (
+  id INTEGER PRIMARY KEY,
+  isbn TEXT NOT NULL,
+  book_id INTEGER NOT NULL REFERENCES book(id) ON DELETE CASCADE,
+  retailer TEXT NOT NULL CHECK (retailer IN ('bokus')),
+  price INTEGER NOT NULL CHECK (price BETWEEN 1 AND 20000),
+  currency TEXT NOT NULL DEFAULT 'SEK' CHECK (currency = 'SEK'),
+  list_price INTEGER, campaign TEXT,
+  checked_at TEXT NOT NULL,      -- ISO UTC (auth.utcnow_iso format)
+  ok INTEGER NOT NULL DEFAULT 1 CHECK (ok = 1),
+  suspect INTEGER NOT NULL DEFAULT 0 CHECK (suspect IN (0,1)));
+CREATE UNIQUE INDEX IF NOT EXISTS ux_price_isbn_day
+  ON price (isbn, retailer, substr(checked_at,1,10));
+CREATE INDEX IF NOT EXISTS idx_price_checked ON price(checked_at);
 CREATE TABLE IF NOT EXISTS dismissed (key TEXT PRIMARY KEY, ts TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS login_attempts (id INTEGER PRIMARY KEY, ip TEXT NOT NULL, ts TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);

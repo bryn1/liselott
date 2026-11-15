@@ -334,13 +334,31 @@ The guard (`app/auth.py::_auth_gate`) answers in three states, measured in
   sets a session cookie. `robots.txt` says `Allow: /` here — the site
   publishes its public set (the private half is unreachable to a crawler
   regardless of what the file says).
+- **Configured site, the wishlist's price line** (MC 12542, owner ruling
+  2026-11-15, verbatim: "every graded book displayed, every book on whishlist
+  displayed, current price and a 'on sale' if on sale for vooks on whishlist"):
+  the public shelf's "Att läsa" cards — and the owner's `/onska` rows, through
+  the same ONE macro — carry the book's CURRENT stored price
+  (`99 kr · Bokus`), a `REA` badge when the FLOOR-EVENT rule (design §4) says
+  today sits under any ACCEPTED price of the last 90 days, and the WORDED date
+  the price was checked. A price not seen today renders with its date and "kan
+  ha ändrats" and NEVER a badge; a wish with no observation renders NO element
+  (no dash, no empty chrome). It is a display and nothing else: the link is
+  derived by the server from the stored isbn
+  (`https://www.bokus.com/bok/<isbn13>` — no query, no affiliate or tracking
+  param, no stored URL column at all) and no card buys, carts or reserves.
+  Read-year cards are never handed price data, so every other card on the page
+  renders the bytes it had before prices existed (measured, not assumed:
+  `tests/test_pris_display.py`). The price of a READ book is neither public nor
+  shown anywhere: the door refuses an isbn no wish carries.
 - **Configured site, anonymous writes:** every POST stays the guard's 302 to
   `/logga-in` (the `/satt-loesenord` door answers its §6.1 404) — including
   POSTs aimed at the READ paths: the method rule in `_is_public_read` is what
   makes "public to read" not mean "public to write". Owner surfaces —
   `/onska`, `/lagg-till`, `/redigera/<id>`, `/rapa/*`, `/backup`,
   `/byter-losenord`, `/logga-ut` and the machine doors `/seed`, `/bundle`,
-  `/backfill` — stay behind her session, as do search and recommendations.
+  `/backfill`, `/pris` — stay behind her session, as do search and
+  recommendations.
 - **Configured site, the owner:** she sees EVERYTHING unfiltered,
   everywhere — the full shelf including every unrated row, search, recs,
   her pages in every slash spelling. The narrowing changed nothing in her
@@ -445,6 +463,28 @@ LEADING `YYMMDD` token, 45 rows). Trust the plan's §5 rules, never the header.
   every cover won since the last export travels. Dated snapshot 2026-11-14: a
   724-line export of 2 765 194 B in 4 chunks — 856 873 / 889 325 / 879 626 /
   139 370 B, each ≤ 900 000.
+- `POST /pris` (M9a-1, MC 12542) — the price door. A JSON array of
+  `{isbn, retailer, price, currency, checked_at}` and NOTHING else about a row
+  is client-owned: `book_id` is resolved here, `ok` is constant, `suspect` is
+  computed here, the public link is derived at display time, and the dedup is
+  the UNIQUE day index (`ux_price_isbn_day`) — a same-day re-ask overwrites
+  today's row and is ONE history point. Body ≤ `MAX_PRIS_BODY` = 65 536 B
+  (named 413) and ≤ `MAX_PRIS_ROWS` = 500 rows (named 400), both judged before
+  a row is parsed; a POST whose envelope carries no `Content-Length` is a 411
+  (the F-E2 posture the other two doors already hold). Per-row contract, one
+  class per row: `isbn` exactly 13 ASCII digits resolving to a WISHLIST row,
+  `retailer` `bokus`, `currency` `SEK`, `price` an integer 1..20000,
+  `checked_at` inside the CLAMPED window [now − 2 d, now + 5 min] (§4 rule 5,
+  the backdate defence — the named residual: a holder of the credential can
+  still backdate by ≤ 2 days). The response is the seven counters
+  (`accepted`, `inserted`, `updated`, `suspect`, `rejected_unknown`,
+  `rejected_shape`, `rejected_date`) and echoes no book data. A single-step
+  drop past 60 % is STORED FLAGGED (`suspect=1`, G1 computed before the
+  upsert against the latest observation strictly before that row's day) and a
+  suspect row enters no floor and mints no badge. One prune per accepted POST
+  keeps `RETENTION_DAYS` = 730 days. TOKENLESS like the other machine doors,
+  never guardless: an anonymous POST meets the uniform 302, a foreign Origin
+  400s, and the route joins no read allow-list.
 - `POST /backfill?n=5&after=<id>[&mode=candidates]` — the cover/ISBN retry and
   candidate-pool builder, resumable by `last_id` (cursor advances past
   permanent failures; wrap = fresh pass). Shares one pipeline with
@@ -509,6 +549,15 @@ remain vm106-ROOT actions — owner decision, never assumed.
 
 ### Known limits (all measured or plan-stated, 2026-11-13)
 
+- **The price door has no fetcher yet (M9a-1 shipped the door; M9a-2 ships
+  the pass).** Nothing in this repo reads Bokus, so `price` is empty on a fresh
+  site and every wishlist card renders exactly the page it rendered before
+  prices existed: the price line and the REA badge are live the moment a POST
+  lands, and they stay dark until the daily runner is installed. The door is
+  also NOT credentialed separately — its credential is the owner's own site
+  session (the §6a login the runner performs), so until M9a-2 hands that
+  credential to a systemd unit with its own 0600 env file, `/pris` is writable
+  by anyone who holds the site password.
 - Cover coverage: build DB 74/724 at T9.1 time (47 books provider-exhausted,
   `enrich_fail=1`); production serves 80/724 (orchestrator rapport-measured
   in the M8 run). The residual misses ride the fix-me loop (`/rapa/omslag`),

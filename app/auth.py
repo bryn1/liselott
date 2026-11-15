@@ -89,8 +89,14 @@ QUARANTINED_NAMESPACES = (".git",)
 # first, so no session could ever carry a token) stays true as written. The
 # exemption is TOKENLESS, not guardless: foreign Origin still 400s and the
 # routes keep their own guards (rate limit + password / window + rate limit).
+# M9a-1 (DESIGN-prisbevakning-v2 §6e) adds a FOURTH machine door, POST /pris,
+# under exactly this reading: the daily runner logs in as the owner and posts
+# JSON, so it can carry no browser token. The guard still runs FIRST — an
+# anonymous POST /pris meets the uniform 302 — and /pris joins NO read
+# allow-list (§6.4): writing prices is not something a stranger may do.
 CSRF_METHODS = ("POST", "PUT", "PATCH", "DELETE")
-TOKENLESS_POSTS = ("/logga-in", "/satt-loesenord", "/seed", "/bundle", "/backfill")
+TOKENLESS_POSTS = ("/logga-in", "/satt-loesenord", "/seed", "/bundle",
+                   "/backfill", "/pris")
 CSRF_TOKEN_COPY = "Säkerhetsmärket saknas — ladda om sidan och försök igen."
 FOREIGN_ORIGIN_COPY = "Fel — formuläret skickades från en annan webbplats."
 

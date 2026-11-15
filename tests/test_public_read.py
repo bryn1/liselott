@@ -75,6 +75,10 @@ WRITE_ROUTES = [
     ("/djem/book/1", 302), ("/omslag/1", 302), ("/omslag/1/hitta", 302),
     ("/omslag/1/ladda-up", 302), ("/byter-losenord", 302),
     ("/seed", 302), ("/bundle", 302), ("/backfill", 302),
+    # M9a-1 (MC 12542): POST /pris is a machine door too — tokenless, never
+    # guardless: it joins NO read allow-list, so the anonymous refuse is the
+    # guard's uniform 302 like every other write.
+    ("/pris", 302),
     ("/satt-loesenord", 404),
     # writes aimed at READ paths — the matrix's sharp corner:
     ("/", 302), ("/bibliotek", 302), ("/bok/1", 302), ("/sok", 302),

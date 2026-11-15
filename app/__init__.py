@@ -102,8 +102,8 @@ def create_app():
         return response
 
     # Late import: app.auth imports app.db, never the factory (no cycle).
-    from app import (auth, backfill, bundle, onska, redigera, report,
-                         routes, tillagg)
+    from app import (auth, backfill, bundle, onska, pris, redigera,
+                     report, routes, tillagg)
     auth.init_auth(app)
 
     @app.after_request
@@ -128,6 +128,7 @@ def create_app():
     report.init_report(app)
     backfill.init_backfill(app)
     bundle.init_bundle(app)
+    pris.init_pris(app)
 
     @app.get("/healthz")
     def healthz():
