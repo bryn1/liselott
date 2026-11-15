@@ -590,3 +590,17 @@ postdating a line make that line STALE — de-stale before quoting it.
   passed, exit 0** (579 base + the two new legs, 0 skipped both ways on
   this host; VM350 `.venv`, `-p no:cacheprovider`, 111.66 s). Live
   untouched; nothing pushed.
+- **MC 12533 sealed-shape pre-push smoke — DONE (this commit):**
+  `scripts/sealed_smoke.sh [SHA]` runs knut's vm100 verify seal over this
+  repo's suite FROM THE BUILD HOST before any push — git-archive of the SHA
+  into `vm100:/var/tmp/sealed-smoke/<sha8>`, non-sealed pip fetch unit, then
+  `systemd-run --wait --collect --pipe` with the flag pairs copied VERBATIM
+  from `sandbox.py` `verify_argv` (source + date named in the script; flags
+  literal, nothing parsed off vm100 at run time). The sealed pytest exit is
+  the script's exit. Measured at landing, both legs clean single attempts:
+  HEAD **558 passed, 2 skipped, exit 0** (107 s on vm100); bug commit
+  2dbeed7 **48 failed, 491 passed, 1 skipped, 18 errors**, exit 1 — the
+  gate's red case IS the historical bug (1 skip vs GREEN's 2 reproduces the
+  raising skip-guard of MC 12532 above). When to run + honest limit (the
+  flag list is a MIRROR of vm100's seal; knut stays the authority): README
+  §Sealed-shape pre-push smoke.

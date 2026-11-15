@@ -242,6 +242,33 @@ silent skip there would be the vacuous-green defect class §13 named.
 > holding her personal data, which fails the clean-environment contract and
 > blocked any verifier (knut) from ever PASSing a commit-bound card on this repo.
 
+### Sealed-shape pre-push smoke (MC 12533)
+
+```bash
+scripts/sealed_smoke.sh [SHA]   # default HEAD; KEEP=1 keeps the remote tree
+```
+
+Run it for ANY commit touching `tests/conftest.py` or the file-posture of
+`app/seed.py` (the MC 12526/12532 class: `is_file()` vs a mode-000 masked
+`/home` = EACCES passed five manual green runs on two hosts and was caught
+ONLY by knut's sealed lane), and before any session's first push. The smoke
+applies THAT seal from the build host in ~2 min: `git archive` of the SHA
+into `vm100:/var/tmp/sealed-smoke/<sha8>` (never `/tmp` — the sealed unit is
+`PrivateTmp=yes`), a non-sealed pip fetch unit (the seal denies the network
+the fetch needs), then `systemd-run --wait --collect --pipe` with the flag
+list copied VERBATIM from `vm100:/opt/knut/bin/sandbox.py` `verify_argv`
+(source + date named in the script's comment; flags are literals, nothing is
+parsed off vm100 at run time). The sealed pytest exit is the script's exit
+and the run-log tail is the answer. Measured at landing: HEAD **558 passed,
+2 skipped, exit 0** (107 s on vm100); the bug commit 2dbeed7 **48 failed,
+491 passed, 1 skipped, 18 errors**, exit 1 — the gate's red case IS the
+historical bug, not a planted one.
+
+Honest limit: the flag list is a MIRROR of vm100's seal — if the seal
+changes, the mirror goes stale; refresh the literals from `sandbox.py`.
+It is a smoke, not the verifier: knut's sealed lane stays the authority
+that gates every push.
+
 ### Environment (exhaustive)
 
 | variable | meaning |
