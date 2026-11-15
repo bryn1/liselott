@@ -10,10 +10,12 @@ this line). **The PUBLIC SET is public** (owner ruling 2026-11-14, web chat,
 verbatim: "Rated books and their ratings as well as whishlist shall be
 public. The rest behind password" — narrowing the same-day earlier claim of
 MC 12497, the newer ruling binding): the shelf filtered to it (rated books
-with their stars, plus the wishlist), the bok pages and covers of public-set
-ids, and the landing — which since MC 12522 OPENS that public shelf instead of
-only pointing at a login door — answer any anonymous visitor on a configured
-site; everything else — the unfiltered shelf, search, recommendations, and
+with their stars, plus the wishlist) — narrowable by the public reader's own
+filter row (MC 12551: score, read year, and a title/author search, always over
+those SAME public rows and never beyond them), the bok pages and covers of
+public-set ids, and the landing — which since MC 12522 OPENS that public shelf
+instead of only pointing at a login door — answer any anonymous visitor on a
+configured site; everything else — the unfiltered shelf, search, recommendations, and
 every write (grading, wishing, adding, editing, deleting, the machine doors,
 backups, rapporter) — stays behind her one password. It is built to be
 served at `https://sibbamala.com/liselott` on the fleet's auto lane. The
@@ -354,6 +356,29 @@ The guard (`app/auth.py::_auth_gate`) answers in three states, measured in
   renders the bytes it had before prices existed (measured, not assumed:
   `tests/test_pris_display.py`). The price of a READ book is neither public nor
   shown anywhere: the door refuses an isbn no wish carries.
+- **Configured site, the public reader's filters** (MC 12551, owner
+  2026-11-15, verbatim: "The public page needs filter by score, year, search by
+  author, title and year"): above `/bibliotek` the anonymous reader gets ONE
+  calm GET-form row — a `betyg` select (1–5), an `ar` select carrying the years
+  the PUBLIC shelf actually populated, and a `q` box that searches TITLE OR
+  AUTHOR (`app/templates/_publik-filtrering.html`, plain HTML, no JavaScript,
+  the existing design tokens). `app/filtrering.py` owns the rules: the params
+  combine with AND, a bad value is the ABSENT value (the calm public shelf,
+  never a 500), and every narrowing is a SUBTRACTION from the rows the ONE
+  public filter already returned — the module runs no query of its own, not
+  even for the year list the form offers, so a filtered page can never be
+  wider than the public set. `ar` is the shelf's own year (the `read_year` the
+  section heading shows, `books.shelf_year`); `q` folds case and diacritics
+  (§7's `app/text.py::fold`) over rows already in hand and is NOT a SQL LIKE —
+  `%`, `_`, `*`, `?`, a quote and the word ESCAPE are ordinary characters,
+  which is exactly why a wildcard needle answers "Inga träffar". The wishlist
+  is narrowed by `q` ONLY: it carries neither rating nor read year, so no
+  `betyg`/`ar` param speaks for it. The OWNER is never filtered (her params are
+  inert) and the landing carries no form row — both render the bytes they had
+  before the filters existed, pinned by `tests/test_public_filter.py`. Public
+  stays exactly the ruling's list — rated books, the wishlist, the price/REA
+  line (MC 12542) and now PUBLIC FILTERING over those rows; NOTHING else
+  becomes public.
 - **Configured site, anonymous writes:** every POST stays the guard's 302 to
   `/logga-in` (the `/satt-loesenord` door answers its §6.1 404) — including
   POSTs aimed at the READ paths: the method rule in `_is_public_read` is what

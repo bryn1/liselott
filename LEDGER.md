@@ -800,3 +800,60 @@ postdating a line make that line STALE — de-stale before quoting it.
   STAGED: 0, exit 0; secret_scan --range clean. Nothing pushed; docs/ §3
   zero-price line + rule-4 pointer carry the dated ruling marker
   (host-local, untracked); conftest untouched, no real data, no network.
+- **MC 12551 M10 — the public shelf's filter row + search (owner 2026-11-15,
+  verbatim: "The public page needs filter by score, year, search by author,
+  title and year").** `GET /bibliotek` gains `?betyg=1..5&ar=YYYY&q=<text>` for
+  the ANONYMOUS reader — ONE calm GET-form row above the shelf
+  (`app/templates/_publik-filtrering.html`: two selects + a search box + a
+  submit, plain HTML, no JavaScript, no new design tokens, `contrast_check`
+  PASS) — and `app/filtrering.py` owns the rules: the params combine with AND,
+  an INVALID value is the ABSENT value (the calm public shelf, never a 500),
+  and every narrowing is a SUBTRACTION from the rows the ONE public filter
+  already returned (`books.load_books(public_only=True)` under
+  `books.PUBLIC_SET_SQL`, MC 12501) — the module runs NO query of its own, not
+  even for the year list the form offers, so a filtered page can never be
+  wider than the public set. `ar` is the shelf's own year (the `read_year` the
+  section heading shows — `books.shelf_year`, F-A2's guarded int, extracted from
+  `group_for_shelf` so grouping and filter read the SAME year); `q` is TITLE OR
+  AUTHOR with §7's `text.fold` on both sides (åäö- and case-safe), a substring
+  test over rows in hand and NOT a SQL LIKE, so `%`, `_`, `*`, `?`, a quote and
+  the word ESCAPE are literal characters by construction; the wishlist is
+  narrowed by `q` ONLY (it carries no rating and no read year — the ruling made
+  it public as it is, so no `betyg`/`ar` speaks for it and none can leak it).
+  The OWNER is never filtered: `_publik_filtrering()` returns None for a
+  session, her params are inert, so MC 12501's "her view changed NOTHING" and
+  MC 12522's landing==shelf byte equality both still hold.
+  BYTE IDENTITY, measured on `6d4d576` BEFORE the first edit and pinned (the
+  MC 12522 idiom): anonymous `/` unchanged (raw 2911 B, normalized 2874 B /
+  sha 56780752…), owner `/` and `/bibliotek` unchanged (raw 4313 B, normalized
+  4276 B / sha fedfe610…), and anonymous `/bibliotek` is the pinned base page
+  (normalized 2584 B / sha fb5269d1…) plus EXACTLY one 822-byte form row —
+  deleting that `<form>` reproduces the base bytes byte for byte. The
+  stylesheet's `?v=<APP_VERSION>` cache key IS the commit (T4.4), so the pins
+  normalize that one token and pin everything else literally; the pins are
+  whitespace-exact by construction (`bibliotek.html` gained one include line,
+  its prose folded into the pre-existing comment, and the partial's TRUE render
+  ends at `</form>` so the strip-leg is clean).
+  Tests: 18 new legs in `tests/test_public_filter.py` — the three byte pins
+  (landing, shelf-plus-form-row, owner-inert), the params one at a time, the
+  AND-combination, the calm "Inga träffar" state without the owner's empty-diary
+  chrome, the wishlist rule, the year-`<option>` list read off the public rows
+  only, no-private-name-under-any-param (typed/folded/cased, non-vacuity
+  pinned), the betyg×year×q FUZZ asserting every rendered card is a public id
+  (≥20 cards painted, so the loop cannot pass vacuously), the wildcard/quote
+  literals over BOTH metacharacter dialects + the escaped q-echo, the
+  invalid-param calm legs, HEAD/write sweeps with params on, and the owner's
+  `/sok` untouched. PLANTED REDS 7/7 (.tmp/mc12551-planted-red.md, one mutant
+  at a time, sha-verified restore, green pair after each): matcher turned
+  fnmatch wildcard ⇒ wildcards leg RED (the first attempt at that leg named only
+  SQL-LIKE metacharacters, which fnmatch treats as literals — it stayed GREEN,
+  so the leg was strengthened before it counted); `public_only` dropped on the
+  q path ⇒ leak legs RED; `public_only` dropped on the ar path ⇒ year legs RED;
+  wishlist-q dropped ⇒ wishlist/empty-state legs RED; year list from a
+  table-wide query ⇒ year-option leg RED; the landing's shelf include removed ⇒
+  landing pin + MC 12522 legs RED; betyg clamp widened to `\d+` ⇒ invalid-param
+  leg RED. Suite **714 passed** exit 0 (696 before + 18 new).
+  `scripts/exposure_check.py` run STAGED: 0 findings, exit 0;
+  `secret_scan.sh --range origin/main..main` clean. Nothing pushed.
+  conftest untouched, `liselott-data` untouched (synthetic fixtures only, the
+  979-isbn rule), no network, routes.py back to 400 lines.

@@ -17,8 +17,8 @@ from pathlib import Path
 from flask import (Response, abort, jsonify, render_template, request,
                    send_file, session)
 
-from app import (auth, backup, books, db, omslag, priskort,
-                   recommend, search, seed)
+from app import (auth, backup, books, db, filtrering, omslag, priskort,
+                 recommend, search, seed)
 
 # F-2 (SEC-verdict-12497): werkzeug's int converter matches \d+ WITHOUT
 # bound, and binding an id >= 2**63 into sqlite OverflowErrors — the
@@ -88,15 +88,28 @@ def init_routes(app):
         "number_and_word",
         lambda n, one, many: f"{n} {one if n == 1 else many}")
 
-    def _hyllgrupper():
-        """The shelf's sections for whoever is asking — the ONE shelf read,
-        shared by the shelf page and by the landing. MC 12501: the anonymous
-        read is narrowed to the public set (books.PUBLIC_SET_SQL) right here
-        at the fetch — the ONE filter, so no section, year or count a
-        private-only book populated can render around it. The owner's read is
-        the full shelf, unchanged."""
-        return books.group_for_shelf(books.load_books(
-            db.get_db(), public_only=_publikt_endast()))
+    def _publik_filtrering():
+        """MC 12551: the shelf's filter params are the PUBLIC reader's view,
+        parsed HERE so no template parses anything. The owner is never
+        filtered — her view changed NOTHING when the public scope narrowed
+        (MC 12501) — so her params stay inert and her pages keep their bytes."""
+        if session.get(auth.SESSION_FLAG):
+            return None
+        return filtrering.parse(request.args)
+
+    def _hylldata(filtr=None):
+        """The shelf's ONE read for whoever is asking — the shelf page and the
+        landing share it (MC 12522), so they can never disagree. MC 12501: the
+        anonymous fetch is narrowed to the public set (books.PUBLIC_SET_SQL)
+        HERE — the ONE filter, so nothing a private-only book populated can
+        render around it. MC 12551: the public reader's params (filtrering.py)
+        then NARROW those SAME rows — no second query, and the years the form
+        offers come off these rows, never off the book table."""
+        bocker = books.load_books(db.get_db(), public_only=_publikt_endast())
+        if not filtr:
+            return books.group_for_shelf(bocker), ()
+        return (books.group_for_shelf(filtrering.narrow(bocker, filtr)),
+                filtrering.years(bocker))
 
     def _prisar(grupper):
         """M9a-1 (DESIGN §5): the price rows the shelf's WISHLIST cards show,
@@ -107,13 +120,17 @@ def init_routes(app):
         return priskort.card_prices(
             db.get_db(), [b for _ar, bocker in grupper for b in bocker])
 
-    def _hylla():
+    def _hylla(filtr=None):
         """One read, one render — shared by the two rules below. The price map
         rides the SAME shelf read (_prisar reuses its rows, never re-fetches
-        the shelf), so the landing and /bibliotek stay one query path."""
-        grupper = _hyllgrupper()
+        the shelf), so the landing and /bibliotek stay one query path.
+        MC 12551: `filtrering`/`ar` ride along for the public reader only (the
+        form partial); the owner's render passes neither and carries ZERO new
+        bytes — the pin in tests/test_public_filter.py."""
+        grupper, ar = _hylldata(filtr)
         return render_template("bibliotek.html", grupper=grupper,
-                               prisar=_prisar(grupper), current="hylla")
+                               prisar=_prisar(grupper), current="hylla",
+                               filtrering=filtr, ar_all=ar)
 
     @app.get("/")
     def rot():
@@ -124,7 +141,7 @@ def init_routes(app):
         only get to thr logga in page." — the public set was readable at
         /bibliotek and the landing never pointed there, so the promise had no
         entrance. An anonymous GET now answers 200 with the intro AND the same
-        public shelf /bibliotek serves: _hyllgrupper() — the same fetch, the
+        public shelf /bibliotek serves: _hylldata() — the same fetch, the
         same grouping, _hyllan.html the same markup, no second query path
         (M9a-1: and the same _prisar map, so a wish carries the same price
         line here and there — one price read per page, in either state).
@@ -141,7 +158,7 @@ def init_routes(app):
         if session.get(auth.SESSION_FLAG):
             return _hylla()
         if auth.is_configured(db.get_db()):
-            grupper = _hyllgrupper()
+            grupper, _ = _hylldata(_publik_filtrering())
             return render_template("start.html", dorren="logga_in",
                                    etiketten="Logga in", grupper=grupper,
                                    prisar=_prisar(grupper))
@@ -152,8 +169,13 @@ def init_routes(app):
     @app.get("/bibliotek")
     def bibliotek():
         """The shelf (§9 "Din hylla"): read years newest first, "Att läsa"
-        last."""
-        return _hylla()
+        last. MC 12551 (owner 2026-11-15, verbatim: "The public page needs
+        filter by score, year, search by author, title and year"): an anonymous
+        reader may also narrow it with ?betyg=1..5&ar=YYYY&q=text — one calm
+        GET-form above the shelf, every rule in app/filtrering.py. An invalid
+        value is an absent one (never a 500), and the narrowing runs on the
+        PUBLIC SET rows only, so no param can surface an unrated book."""
+        return _hylla(_publik_filtrering())
 
     @app.get("/bok/<int:id>")
     def bok(id):

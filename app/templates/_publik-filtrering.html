@@ -1,0 +1,37 @@
+{#- MC 12551 — the public shelf's ONE filter row (owner 2026-11-15, verbatim:
+   "The public page needs filter by score, year, search by author, title and
+   year"). A plain GET form, no JavaScript: the values ride the query string
+   and the page IS the result. It renders ONLY when the view hands over a
+   `filtrering` — the anonymous reader's /bibliotek — so the landing, the setup
+   state and every owner page carry exactly the bytes they had before this row
+   existed (the byte pins in tests/test_public_filter.py).
+   `ar_all` is the view's list of years PRESENT in the rows it just read (for
+   this reader: the public set) — a lookup, never a query from here; an
+   <option> naming a year only a PRIVATE book populated would itself be a
+   leak, and the leg pins that it cannot happen.
+   The "Inga träffar" line belongs to this row too: a filtered-out shelf says
+   so calmly, under the form and above NOTHING — no section, no heading, no
+   count, no chrome. Existing copy classes only (.ingna-traffar, the §9 muted
+   line); no new token, no new colour. -#}
+{%- if filtrering %}
+<form class="hyll-filtrering" method="get" action="{{ url_for('bibliotek') }}" role="search">
+  <label for="hyll-betyg">Betyg</label>
+  <select id="hyll-betyg" name="betyg">
+    <option value="">Alla</option>
+    {% for n in [5, 4, 3, 2, 1] %}<option value="{{ n }}"{% if filtrering.betyg == n %} selected{% endif %}>{{ n }}</option>
+    {% endfor %}</select>
+  <label for="hyll-ar">År</label>
+  <select id="hyll-ar" name="ar">
+    <option value="">Alla</option>
+    {% for year in ar_all %}<option value="{{ year }}"{% if filtrering.ar == year %} selected{% endif %}>{{ year }}</option>
+    {% endfor %}</select>
+  <label for="hyll-q">Sök</label>
+  <input id="hyll-q" name="q" type="search" value="{{ filtrering.q }}"
+         placeholder="Titel eller författare" autocomplete="off">
+  <button type="submit">Filtrera</button>
+</form>
+{%- if filtrering.aktiv and not grupper %}
+<p class="ingna-traffar">Inga träffar. Prova ett annat betyg, ett annat år
+  eller färre bokstäver.</p>
+{% endif %}
+{%- endif %}

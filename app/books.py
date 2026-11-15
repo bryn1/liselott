@@ -96,6 +96,19 @@ def sort_by_read_date(books):
     return ordered
 
 
+def shelf_year(book) -> int:
+    """The shelf's OWN year for a row — the read_year the section heading
+    shows — through the ONE guarded int conversion (F-A2 (b, MC 12451): a DB
+    written before the write-door fix CAN carry a TEXT year, so one guard
+    keeps sorted() from comparing str against int — the shelf-brick 500).
+    0 is the yearless sentinel; a wish row's 0 rides along too, which is why
+    the read/wish split is on `status`, never on this value."""
+    try:
+        return int(book["read_year"])
+    except (TypeError, ValueError, OverflowError):
+        return 0
+
+
 def group_for_shelf(books):
     """[(label, rows)] for the shelf: ONE section per read_year, the years
     newest first; read rows without a usable year (the seed's 0 sentinel)
@@ -113,13 +126,7 @@ def group_for_shelf(books):
     by_year = {}
     utan_ar = []
     for book in read:
-        try:                                   # F-A2 (b, MC 12451): a DB
-            year = int(book["read_year"])      # written before the write-
-        except (TypeError, ValueError,         # door fix CAN carry a TEXT
-                OverflowError):                # year — ONE guarded int
-            year = 0                           # conversion so sorted() can
-                                               # never compare str against
-                                               # int (the shelf-brick 500)
+        year = shelf_year(book)                # F-A2's guarded int, ONE place
         if year:
             by_year.setdefault(year, []).append(book)
         else:

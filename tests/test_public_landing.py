@@ -7,7 +7,7 @@ link only — the public shelf that `/bibliotek` serves had no path from the
 landing, so the public promise (MC 12501: "Rated books and their ratings as
 well as whishlist shall be public. The rest behind password") was unreachable
 from the door the owner actually opens. The cure is reuse, not a new
-mechanism: `rot()` hands the landing `_hyllgrupper()` — the SAME read
+mechanism: `rot()` hands the landing `_hylldata()` — the SAME read
 `/bibliotek` serves (books.load_books(public_only=True) under
 books.PUBLIC_SET_SQL) — and start.html includes `_hyllan.html`, the SAME
 markup `/bibliotek` includes. Zero new query path, zero copied card markup,

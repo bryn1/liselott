@@ -3,10 +3,18 @@
 {% block content %}
 {# §9's page frame for the shelf: the h1 and the honest empty copy are this
    page's; the sections themselves live in _hyllan.html — the SAME include the
-   anonymous landing renders (MC 12522), so the shelf is one markup. #}
+   anonymous landing renders (MC 12522), so the shelf is one markup.
+   MC 12551: the filter row below is the public reader's — it renders only when
+   the view hands over a `filtrering` — and the tom-state copy stays the OWNER's
+   sentence about her own empty diary, quiet exactly when a public FILTER is
+   what emptied the page (then the partial's "Inga träffar" line is the whole
+   answer). Whitespace is load-bearing: one include tag on its own line with
+   `-%}`, and the owner's no-param render is byte-for-byte the page that existed
+   before this row did (the pins in tests/test_public_filter.py). #}
 <h1>Din hylla</h1>
-{% if not grupper %}
+{% if not grupper and not (filtrering and filtrering.aktiv) %}
 <p class="tom-state">Hyllan är tom. Böcker kommer in när du lägger till dem.</p>
 {% endif %}
+{% include "_publik-filtrering.html" -%}
 {% include "_hyllan.html" -%}
 {% endblock %}

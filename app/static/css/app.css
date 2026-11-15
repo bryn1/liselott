@@ -169,6 +169,16 @@ button {
 .sok-form label { grid-column: 1 / -1; margin-top: 0; }
 .sok-form button { margin-top: 0; }
 
+/* MC 12551 — the public shelf's ONE filter row: one calm wrapping line of
+   label+control pairs above the shelf. Existing tokens and the §9 field/
+   button shapes only — no new token, no new colour (contrast_check unchanged,
+   and it reads DESIGN.md, not this file). */
+.hyll-filtrering { display: flex; flex-wrap: wrap; align-items: end; gap: var(--s2); max-width: none; margin-bottom: var(--s4); }
+.hyll-filtrering label { margin: 0; }
+.hyll-filtrering select { font: inherit; padding: var(--s2) var(--s3); background: var(--card); color: var(--ink); border: 1px solid var(--line); border-radius: var(--radius); }
+.hyll-filtrering input[type="search"] { width: auto; flex: 1 1 10rem; }
+.hyll-filtrering button { margin-top: 0; }
+
 /* §9's motion budget to the letter: 120ms ease-out on opacity,
    background-color and border-color ONLY. No `color` transition, no lift. */
 a, button, input, .omslag {
@@ -184,6 +194,7 @@ a, button, input, .omslag {
   .hylla { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s4) var(--s3); }
   .sida { padding-left: var(--s3); padding-right: var(--s3); }
   form, .sok-form { max-width: none; }
+  .hyll-filtrering { gap: var(--s3) var(--s2); }
 }
 
 /* ── grading: §9's stars input — five radios, an aria-hidden glyph carries
