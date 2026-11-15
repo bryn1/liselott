@@ -90,10 +90,14 @@ QUARANTINED_NAMESPACES = (".git",)
 # exemption is TOKENLESS, not guardless: foreign Origin still 400s and the
 # routes keep their own guards (rate limit + password / window + rate limit).
 # M9a-1 (DESIGN-prisbevakning-v2 §6e) adds a FOURTH machine door, POST /pris,
-# under exactly this reading: the daily runner logs in as the owner and posts
-# JSON, so it can carry no browser token. The guard still runs FIRST — an
-# anonymous POST /pris meets the uniform 302 — and /pris joins NO read
-# allow-list (§6.4): writing prices is not something a stranger may do.
+# under exactly this reading: the daily runner posts JSON, so it can carry no
+# browser token. M9a-1b (MC 12546, owner ruling 2026-11-15) took the runner
+# OFF the owner's session: its credential is the DEDICATED DOOR TOKEN, checked
+# in the DOOR (app/pris.py) BEFORE any body parse, fail-closed — so the guard's
+# session rule no longer answers this POST; _is_pris_door below lets the POST
+# METHOD through instead. Everything else the guard enforces stays: the Origin
+# rule runs BEFORE the door ever compares a token, /pris joins NO read
+# allow-list (§6.4), and every other method on /pris keeps the uniform 302.
 CSRF_METHODS = ("POST", "PUT", "PATCH", "DELETE")
 TOKENLESS_POSTS = ("/logga-in", "/satt-loesenord", "/seed", "/bundle",
                    "/backfill", "/pris")
@@ -257,6 +261,19 @@ def _is_public_read() -> bool:
     return path in PUBLIC_READ_PATHS or path.startswith(PUBLIC_READ_PREFIXES)
 
 
+def _is_pris_door() -> bool:
+    """MC 12546 (owner ruling 2026-11-15): POST /pris reaches its route
+    WITHOUT an owner session — the daily runner's credential is the dedicated
+    door token (app/pris.py compares it BEFORE any body parse, 503 fail-closed
+    when the env is unset), never Liselott's password. The allow is the POST
+    METHOD ONLY, an exhaustive-list rule for exactly one route: the door is a
+    write door, so GET/HEAD on /pris keep the guard's uniform 302 the §6.4
+    sweep pins, no other route joins any allow-list through this door, and
+    the CSRF/Origin machinery (_csrf_gate, run on this branch too) is
+    untouched — the door only ever sees same-origin-or-curl requests."""
+    return request.path == "/pris" and request.method == "POST"
+
+
 def _file_shaped() -> bool:
     """M8-hotfix-2 (MC 12451): the lane staging gate (vm106-staging-gate.sh
     §6) probes every root file the mirror DROPS (DESIGN.md, README.md,
@@ -376,6 +393,7 @@ def init_auth(app):
         if request.path == "/satt-loesenord":
             abort(404)  # configured -> gone forever (§6.1)
         if (request.path in UNAUTHENTICATED_ALLOW or _is_public_read()
+                or _is_pris_door()
                 or request.path.startswith(STATIC_PREFIX)):
             return _csrf_gate()
         if session.get(SESSION_FLAG):

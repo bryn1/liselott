@@ -46,9 +46,11 @@ OWNER_ONLY = (
     "/lagg-till", "/onska", "/redigera/1", "/rapa/omslag",
     "/rapa/omslag-rapport", "/rapa/rekommendation-rapport", "/seed",
     "/bundle", "/backfill", "/byter-losenord", "/backup",
-    # MC 12542: the price door. Tokenless POSTs are a CSRF exemption, not a
-    # read path — an anonymous GET/POST /pris is the uniform 302 and the
-    # owner reaches the stub below, never a price written by a stranger.
+    # MC 12542 + MC 12546: the price door. The guard's door allow is the
+    # POST METHOD only (auth._is_pris_door) — an anonymous GET /pris is the
+    # uniform 302 and the owner reaches the stub below; the POST answer
+    # (door token, fail-closed 503) is swept in test_configured_state_sweep
+    # and pinned in tests/test_pris_door.py.
     "/pris",
 )
 
@@ -111,6 +113,9 @@ def make_app(tmp_path, monkeypatch):
     monkeypatch.setenv("LISELOTT_DATA_DIR", str(tmp_path))
     monkeypatch.delenv("LISELOTT_PREFIX", raising=False)
     monkeypatch.delenv("LISELOTT_ENV", raising=False)
+    # MC 12546 determinism: this sweep answers as the DISARMED door does
+    # (fail-closed 503), whatever the build host happens to export.
+    monkeypatch.delenv("PRIS_DOOR_TOKEN", raising=False)
     app = create_app()
     app.testing = True
     for path in sorted(unimplemented(app)):
@@ -165,6 +170,14 @@ def test_configured_state_sweep(tmp_path, monkeypatch):
     assert r.status_code == 404  # static is allow-listed (not redirected)
     r = client.post("/seed", data="x")
     assert r.status_code == 302  # machine routes too (§6.4)
+    # MC 12546's NEW posture for /pris, swept in the same exhaustive list:
+    # the POST method reaches the DOOR — not the guard's 302 — and the door
+    # answers 503 fail-closed (make_app deleted PRIS_DOOR_TOKEN). The GET
+    # half stays the uniform 302 in the OWNER_ONLY loop above; the armed
+    # door's token answers are pinned in tests/test_pris_door.py.
+    r = client.post("/pris", data="x")
+    assert r.status_code == 503, r.get_data(as_text=True)
+    assert b"stub" not in r.data
     # the root leg (MC 12451, shape widened by MC 12522): the landing answers
     # 200, never a redirect, carries the ONE legal door and stays the PUBLIC
     # page — the public shelf under its intro yes, the owner's page (her

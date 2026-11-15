@@ -75,10 +75,12 @@ WRITE_ROUTES = [
     ("/djem/book/1", 302), ("/omslag/1", 302), ("/omslag/1/hitta", 302),
     ("/omslag/1/ladda-up", 302), ("/byter-losenord", 302),
     ("/seed", 302), ("/bundle", 302), ("/backfill", 302),
-    # M9a-1 (MC 12542): POST /pris is a machine door too — tokenless, never
-    # guardless: it joins NO read allow-list, so the anonymous refuse is the
-    # guard's uniform 302 like every other write.
-    ("/pris", 302),
+    # M9a-1 (MC 12542) as RE-CUT by M9a-1b (MC 12546): POST /pris reaches
+    # its route without a session (the door's POST-method allow) — but this
+    # matrix runs DISARMED (the fixtures delete PRIS_DOOR_TOKEN), so the
+    # anonymous refuse is the door's fail-closed 503, not the guard's 302.
+    # Still non-2xx, still no write; the GET half stays the uniform 302.
+    ("/pris", 503),
     ("/satt-loesenord", 404),
     # writes aimed at READ paths — the matrix's sharp corner:
     ("/", 302), ("/bibliotek", 302), ("/bok/1", 302), ("/sok", 302),
@@ -115,6 +117,8 @@ def configured(tmp_path, monkeypatch):
     monkeypatch.setenv("LISELOTT_DATA_DIR", str(tmp_path))
     monkeypatch.delenv("LISELOTT_PREFIX", raising=False)
     monkeypatch.delenv("LISELOTT_ENV", raising=False)
+    monkeypatch.delenv("PRIS_DOOR_TOKEN", raising=False)   # MC 12546: the
+    # /pris leg answers as the DISARMED door, whatever the build host exports
     seed_shelf(tmp_path / "liselott.db")
     _seed_private_only_year(tmp_path / "liselott.db")
     (tmp_path / "covers").mkdir()
@@ -133,6 +137,7 @@ def fresh(tmp_path, monkeypatch):
     monkeypatch.setenv("LISELOTT_DATA_DIR", str(tmp_path))
     monkeypatch.delenv("LISELOTT_PREFIX", raising=False)
     monkeypatch.delenv("LISELOTT_ENV", raising=False)
+    monkeypatch.delenv("PRIS_DOOR_TOKEN", raising=False)   # MC 12546, as above
     seed_shelf(tmp_path / "liselott.db")
     app = _app()
     return tmp_path, app.test_client()

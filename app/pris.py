@@ -31,15 +31,30 @@ compares against the latest observation strictly BEFORE the written row's day
 (the F-b cure: it keeps today's own re-ask from suppressing today's badge, and
 makes the verdict arrival-order-independent), flagging a >60 % drop as suspect.
 
-Posture (§6e): /pris joins auth.TOKENLESS_POSTS — no CSRF token, foreign
-Origin 400s, login throttle and Secure cookie unchanged — and the guard runs
-BEFORE the token rule, so an anonymous POST meets the uniform 302. The
-exemption is TOKENLESS, not guardless, and /pris is NOT in the §6.4 read
-allow-list: writing prices is not something a stranger may do.
+Posture (§6e, credential re-cut by MC 12546 / owner ruling 2026-11-15):
+/pris joins auth.TOKENLESS_POSTS — no CSRF token, foreign Origin 400s, login
+throttle and Secure cookie unchanged — and the GUARD still runs first, but
+since M9a-1b its session rule no longer answers this POST: the guard lets the
+POST method through (auth._is_pris_door, method-exact) and THE DOOR does its
+own credential check FIRST, before the envelope rules and before any body
+parse. The credential is the dedicated door token, never the site password:
+env `PRIS_DOOR_TOKEN` unset (or empty) ⇒ 503 for EVERY POST — fail-closed,
+an unset env never means open, not even for the owner's session (the shipped
+default until the runner env is wired); with the env armed, the
+`X-Pris-Token` header is compared to it with hmac.compare_digest (constant-
+time, byte-exact), missing or wrong ⇒ 401, ONE uniform copy — the answer
+never tells absent from wrong. A valid owner session rides the door WITHOUT
+the token: her own tools post through the session she already holds, so the
+token guards the door for the runner, it does not re-gate the site's owner.
+/pris is NOT in the §6.4 read allow-list and every other METHOD on it keeps
+the guard's uniform 302: writing prices is still not something a stranger
+may do.
 """
+import hmac
+import os
 from datetime import datetime, timedelta, timezone
 
-from flask import jsonify, request
+from flask import jsonify, request, session
 
 from app import auth, db
 
@@ -54,6 +69,12 @@ CHECKED_FWD_S = 5 * 60            # …and forward (a runner's clock skew, bound
 G1_DROP_NUM, G1_DROP_DEN = 2, 5   # §4 rule 4: price < 2/5 × prev ⇒ suspect
 
 STAMP_FMT = "%Y-%m-%dT%H:%M:%SZ"  # auth.utcnow_iso's own shape (§1)
+PRIS_TOKEN_ENV = "PRIS_DOOR_TOKEN"    # MC 12546: the dedicated door credential
+PRIS_HEADER = "X-Pris-Token"    # ... and the header it arrives on
+TOKEN_UNARMED = ("Prisdörren är inte aktiverad på den här servern — "
+                 "ingen prisrad är lagrad")           # 503, fail-closed
+TOKEN_REFUSED = ("Dörrnyckeln saknas eller är fel — ingen prisrad är "
+                 "lagrad")            # 401, ONE uniform copy (no oracle)
 LENGTH_REQUIRED = (
     "Innehållets längd (Content-Length) saknas — dörren vägrar gissa sig "
     "till vad transporten skickade: skicka listan igen med längden i höljet."
@@ -63,6 +84,33 @@ ROWS_TOO_BIG = ("Prislistan är {antal} rader — budgetet är {max} rader per "
 NOT_A_LIST = ("Prislistan är inte en JSON-array av objekt — dörren tar "
               "emot [{isbn, retailer, price, currency, checked_at}, …]. "
               "Ingen prisrad är lagrad")
+
+
+def _door_refused():
+    """MC 12546's credential, the door's OWN first word — called at the top
+    of the view, before the Content-Length rule and before a single byte of
+    body is parsed or read. Env read PER REQUEST, the app's own env idiom
+    (`ensure_secret`, `state_base`, `current_prefix` all re-read): rotation =
+    set the new env and restart the door. An unset or empty env is NOT open —
+    it is the disarmed door, and disarmed answers 503 for EVERY POST, the
+    owner's session included (fail-closed is the shipped default precisely
+    because nobody has wired the runner env yet). The compare is
+    hmac.compare_digest over UTF-8 BYTES (byte-exact, constant-time; bytes,
+    so a non-ASCII header cannot raise where a str-vs-str compare would);
+    absent and wrong answers are THE SAME copy, so the door carries no
+    absent-vs-wrong oracle for a caller to walk."""
+    expected = os.environ.get(PRIS_TOKEN_ENV) or ""
+    if not expected:
+        return TOKEN_UNARMED, 503
+    if session.get(auth.SESSION_FLAG):
+        return None        # the owner's own tools ride her session (§6a):
+                           # a valid session already IS write access to the
+                           # whole shelf — re-gating it at the door would
+                           # guard nothing but the copy
+    sent = request.headers.get(PRIS_HEADER, "")
+    if hmac.compare_digest(sent.encode("utf-8"), expected.encode("utf-8")):
+        return None
+    return TOKEN_REFUSED, 401
 
 
 def _obs(row, now):
@@ -202,11 +250,16 @@ def init_pris(app):
 
     @app.post("/pris")
     def pris_door():
-        """The machine door (§6e). No Content-Length, no read (F-E2); body
-        over MAX_PRIS_BODY bytes 413s naming the budget; more than
-        MAX_PRIS_ROWS rows 400s naming it — both BEFORE a row is parsed, so
-        neither ever touches the DB. The payload must be a JSON array; a
-        single object is a shape error of the PAYLOAD, not a row, and 400s."""
+        """The machine door (§6e). The credential runs FIRST (MC 12546 —
+        503 disarmed / 401 bad key, before anything else touches the
+        request); then no Content-Length, no read (F-E2); body over
+        MAX_PRIS_BODY bytes 413s naming the budget; more than MAX_PRIS_ROWS
+        rows 400s naming it — all BEFORE a row is parsed, so none of them
+        ever touches the DB. The payload must be a JSON array; a single
+        object is a shape error of the PAYLOAD, not a row, and 400s."""
+        refused = _door_refused()
+        if refused is not None:
+            return refused
         if request.headers.get("Content-Length") is None:
             return LENGTH_REQUIRED, 411
         raw = request.get_data()

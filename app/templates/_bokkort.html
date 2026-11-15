@@ -25,6 +25,6 @@
   <p class="forfattare">{{ authors_text(b) }}</p>
   <p class="meta">{{ format_word(b) }}{% if b.read_year %} · {{ b.read_year }}{% endif %}</p>
   {% if b.rating %}{{ stjarnor(b.rating) }}{% endif %}
-  {%- if pris %}<p class="prisrad"><a class="pris-lank" href="{{ pris.url }}">{{ pris.price }} kr · Bokus</a>{% if pris.rea %} <span class="rea">REA</span> <span class="rea-arsak">tätat pris (90 d)</span>{% endif %} <span class="pris-kollad">pris kollat {{ sw_date(pris.checked_date) }}{% if pris.stale %} — kan ha ändrats{% endif %}</span></p>{% endif %}
+  {%- if pris %}<p class="prisrad"><a class="pris-lank" href="{{ pris.url }}">{{ pris.price }} kr · Bokus</a>{% if pris.rea %} <span class="rea">REA</span> <span class="rea-arsak">Lägsta pris på 90 dagar</span>{% endif %} <span class="pris-kollad">pris kollat {{ sw_date(pris.checked_date) }}{% if pris.stale %} — kan ha ändrats{% endif %}</span></p>{% endif %}
 </li>
 {% endmacro %}

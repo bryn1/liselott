@@ -675,6 +675,44 @@ postdating a line make that line STALE — de-stale before quoting it.
   counts it accepted (the ambiguity has no home in the pinned shape, inventing a
   counter would be inventing contract); the display legs are anchored to today's
   UTC date and a run straddling midnight needs a re-run (stated in the file); and
-  the design-pinned subtitle `tätat pris (90 d)` ships verbatim — if it is a
-  typo for "tätat" → "tagit"/"sänkt" it is one edit in one macro.
+  the design-pinned subtitle shipped verbatim under a named open question —
+  the owner ruled the wording the next day (MC 12546 below: the pinned
+  string carried a typo; the fix and its marker are there).
   Nothing pushed; the live DB and `liselott-data` untouched.
+- **MC 12546 M9a-1b — the dedicated price-door token + the badge wording —
+  DONE (this commit):** two owner rulings of 2026-11-15. (a) The `/pris`
+  door's credential is no longer the owner's site session: `POST /pris`
+  reaches its route WITHOUT a session (the guard's door allow is
+  method-exact, `auth._is_pris_door` — every other method keeps the uniform
+  302 and no other route joins any allow-list), and THE DOOR does its own
+  credential check FIRST, before the envelope rules and before any body
+  parse: header `X-Pris-Token` vs env `PRIS_DOOR_TOKEN` (read per request,
+  the app's env idiom) under `hmac.compare_digest` over UTF-8 bytes —
+  constant-time, byte-exact; env unset or empty ⇒ 503 fail-closed for EVERY
+  POST, the owner's session included (unset never means open — the shipped
+  default until M9a-2 wires the runner env); wrong or absent ⇒ 401, ONE
+  uniform copy, no absent-vs-wrong oracle. A valid owner session still
+  posts WITHOUT the token (her own tools ride the session she already
+  holds). Her password is copied nowhere and rotating the door key is set
+  new env + restart. Foreign Origin still 400s AT THE GUARD with a valid
+  token; CSRF-tokenless posture, budgets, windows, UPSERT, suspect flag and
+  counters unchanged (docs §6e re-ruled for the credential leg only, marker
+  inline). The three exhaustive sweeps keep sweeping `/pris` under the NEW
+  posture: `test_guard` (GET 302 in OWNER_ONLY + the disarmed POST answered
+  503 in the configured sweep), `test_public_read.WRITE_ROUTES` (`/pris`
+  now 503 disarmed), `test_ingest_vocab` (the 411 door loop, reached through
+  an armed door + owner session). (b) The REA badge subtitle is "Lägsta
+  pris på 90 dagar" (the v2.4 design pin carried a typo; owner string quoted
+  in README) — `_bokkort.html`, the two display legs and both docs lines
+  updated, the docs PINNED notes kept with dated owner-ruling markers,
+  repo grep for the retired string = 0. Suite **653 passed** exit 0 (VM350
+  `.venv`, `-p no:cacheprovider`, 149 s): 47 door legs — the 40 kept from
+  M9a-1 all MIGRATED to the runner posture (token stamped, no session)
+  beside 7 new credential legs (the retired anonymous-POST-302 leg became
+  the GET-uniform-302 leg; 651 was the DoD floor). PLANTED RED, one per new gate (`.tmp/m9a1b-planted-red.md`):
+  the 503 fail-closed, the 401 refusal, the byte-exact compare
+  (`startswith` mutant), the session carve, the POST-only guard allow and
+  the disarmed-owner leg. `scripts/exposure_check.py` run STAGED: 0, exit 0
+  (tracked universe; the instrument-checked 979-prefix rule held — no new
+  13-digit fixture value entered the tree). Nothing pushed; live DB and
+  `liselott-data` untouched.

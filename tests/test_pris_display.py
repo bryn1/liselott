@@ -119,7 +119,7 @@ def test_a_wish_on_sale_shows_its_price_and_the_badge_to_anyone(publikt):
     body = anon.get("/liselott/bibliotek").text
     assert "95 kr · Bokus" in body
     assert ">REA<" in body
-    assert "tätat pris (90 d)" in body          # §5's pinned subtitle, verbatim
+    assert "Lägsta pris på 90 dagar" in body          # §5's pinned subtitle, verbatim
     assert "pris kollat " in body               # the check date is REQUIRED
     assert books.sw_date(NU.date().isoformat()) in body   # …sw_date's own words
 
@@ -207,7 +207,7 @@ def test_the_owner_wishlist_rows_carry_the_same_line_from_the_same_macro(publikt
     body = owner.get("/liselott/onska").text
     assert "95 kr · Bokus" in body and ">REA<" in body
     assert f'href="{LINK}"' in body
-    assert "tätat pris (90 d)" in body
+    assert "Lägsta pris på 90 dagar" in body
 
 
 def test_the_duplicate_wish_400_page_carries_the_price_too(publikt):

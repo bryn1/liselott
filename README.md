@@ -279,6 +279,7 @@ that gates every push.
 | `LISELOTT_DATA_DIR` | data-dir override — dev/test/build use only |
 | `LISELOTT_BACKUP_DIR` | where `scripts/backup.sh` writes its pairs; default `$HOME/liselott-backups` (§11). `GET /backup` never writes here — it streams from a temp dir |
 | `LISELOTT_ENV=dev` | local/test only — turns the session cookie's `Secure` flag off; UNSET means production (Secure ON, debug OFF) |
+| `PRIS_DOOR_TOKEN` | MC 12546 — the dedicated credential of the `POST /pris` price door (header `X-Pris-Token`, constant-time compare). UNSET or empty = the door is DISARMED: 503 for every POST, fail-closed (the shipped default until the runner's 0600 env file lands with M9a-2). Rotation = set the new value + restart the door. Liselott's site password is never involved. Read per request by `app/pris.py`, never by any other route |
 | `LISELOTT_SEED_FILE` | test suite ONLY (MC 12451 c5) — points at the personal seed export so the `personal` corpus CASE runs; unset, the locator falls back to `data-import/seed-books-raw.md`; with neither, only the synthetic cases run. The app never reads it |
 | `LISELOTT_ALIASES_FILE` | MC 12523 — the personal author-alias CSV (off-repo state data, `canonical,alias` rows); default `/home/claudecode/liselott-data/author_aliases.csv`; ABSENT = no aliases (clean no-op, tested). Read by the importer CLI, the /bundle door and the add/edit doors through `app/seed.py` |
 | `LISELOTT_OVERRIDE_FILE` | MC 12523 — the personal date-override CSV (`exact title,ISO-date` rows); default `/home/claudecode/liselott-data/import_overrides.csv`; ABSENT = no date fixes (clean no-op, tested). Same readers |
@@ -288,7 +289,9 @@ that gates every push.
 | `DESCRIBE_IMAGE_MODEL` | the S12 cover pass ONLY — the model the vision gate asks to report the cover's printed words; default `qwen3.8-flash-next`. The app never reads it |
 
 **Production needs zero custom env.** The lane unit sets only `HOME` and `PORT`;
-everything else falls out of the defaults above.
+everything else falls out of the defaults above — which is also why the price
+door ships fail-closed: until the runner's own env file lands with M9a-2,
+`PRIS_DOOR_TOKEN` is unset on the server and every `POST /pris` answers 503.
 
 ### Where the data lives
 
@@ -354,10 +357,15 @@ The guard (`app/auth.py::_auth_gate`) answers in three states, measured in
 - **Configured site, anonymous writes:** every POST stays the guard's 302 to
   `/logga-in` (the `/satt-loesenord` door answers its §6.1 404) — including
   POSTs aimed at the READ paths: the method rule in `_is_public_read` is what
-  makes "public to read" not mean "public to write". Owner surfaces —
+  makes "public to read" not mean "public to write". The one named exception
+  is `POST /pris` (M9a-1b, MC 12546): the guard lets that POST method reach
+  the price door, which then answers with its OWN dedicated door credential
+  (503 disarmed / 401 wrong key, see *Machine routes*) — never a session,
+  never the site password; every other method on `/pris` keeps the uniform
+  302. Owner surfaces —
   `/onska`, `/lagg-till`, `/redigera/<id>`, `/rapa/*`, `/backup`,
   `/byter-losenord`, `/logga-ut` and the machine doors `/seed`, `/bundle`,
-  `/backfill`, `/pris` — stay behind her session, as do search and
+  `/backfill` — stay behind her session, as do search and
   recommendations.
 - **Configured site, the owner:** she sees EVERYTHING unfiltered,
   everywhere — the full shelf including every unrated row, search, recs,
@@ -431,7 +439,7 @@ nowhere and carries two false claims (it says no grades exist — 6 rating rows
 do; it advertises a date-suffix form — no row uses it; the real form is a
 LEADING `YYMMDD` token, 45 rows). Trust the plan's §5 rules, never the header.
 
-### Machine routes (all behind the owner session)
+### Machine routes (behind the owner session — `/pris` behind its own door token, MC 12546)
 
 - `POST /seed` — the raw markdown in, `parsed=725 stored=724 duplicates=1` out
   (the loader/CLI pins the `parsed`/`duplicates` triple; the door's own legs
@@ -482,9 +490,21 @@ LEADING `YYMMDD` token, 45 rows). Trust the plan's §5 rules, never the header.
   drop past 60 % is STORED FLAGGED (`suspect=1`, G1 computed before the
   upsert against the latest observation strictly before that row's day) and a
   suspect row enters no floor and mints no badge. One prune per accepted POST
-  keeps `RETENTION_DAYS` = 730 days. TOKENLESS like the other machine doors,
-  never guardless: an anonymous POST meets the uniform 302, a foreign Origin
-  400s, and the route joins no read allow-list.
+  keeps `RETENTION_DAYS` = 730 days. CSRF-tokenless like the other machine
+  doors, never guardless: a foreign Origin 400s at the guard (which runs
+  before the door's own credential), the route joins no read allow-list, and
+  every non-POST method keeps the uniform 302. The credential (M9a-1b,
+  MC 12546, owner ruling 2026-11-15) is a DEDICATED DOOR TOKEN, never the
+  site password: the header `X-Pris-Token` is compared to the env
+  `PRIS_DOOR_TOKEN` with a constant-time, byte-exact compare — inside the
+  door, before any body parse. Unset (or empty) env ⇒ 503 for EVERY POST
+  (fail-closed, the shipped default until the runner env is wired; the
+  owner's own session included — an unset env never means open); wrong or
+  absent token ⇒ 401 in ONE uniform copy (no absent-vs-wrong oracle).
+  A valid owner session rides the door WITHOUT the token — her own tools
+  post through the session she already holds — and rotation is set the new
+  env value + restart the door. Her password is never copied anywhere:
+  she can change it whenever she likes without affecting the watcher.
 - `POST /backfill?n=5&after=<id>[&mode=candidates]` — the cover/ISBN retry and
   candidate-pool builder, resumable by `last_id` (cursor advances past
   permanent failures; wrap = fresh pass). Shares one pipeline with
@@ -553,11 +573,15 @@ remain vm106-ROOT actions — owner decision, never assumed.
   the pass).** Nothing in this repo reads Bokus, so `price` is empty on a fresh
   site and every wishlist card renders exactly the page it rendered before
   prices existed: the price line and the REA badge are live the moment a POST
-  lands, and they stay dark until the daily runner is installed. The door is
-  also NOT credentialed separately — its credential is the owner's own site
-  session (the §6a login the runner performs), so until M9a-2 hands that
-  credential to a systemd unit with its own 0600 env file, `/pris` is writable
-  by anyone who holds the site password.
+  lands, and they stay dark until the daily runner is installed. The door
+  IS credentialed separately since M9a-1b (MC 12546, owner ruling
+  2026-11-15): a dedicated door token (`X-Pris-Token` compared to env
+  `PRIS_DOOR_TOKEN`, constant-time), never Liselott's site password — her
+  password is copied nowhere and she can change it whenever she likes
+  without affecting the watcher; rotation = set the new env value and
+  restart the door. UNSET env fails the door CLOSED (503 for every POST),
+  so `/pris` stays dark — not open, not half-open — until M9a-2 wires that
+  env into the runner's 0600 env file.
 - Cover coverage: build DB 74/724 at T9.1 time (47 books provider-exhausted,
   `enrich_fail=1`); production serves 80/724 (orchestrator rapport-measured
   in the M8 run). The residual misses ride the fix-me loop (`/rapa/omslag`),

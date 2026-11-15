@@ -20,8 +20,18 @@ legs below are the contract's own classes, each one named:
   400s, each naming its own number, neither touching the table.
 * the envelope — no Content-Length is 411 (the F-E2 posture both other machine
   doors already hold); a payload that is not an array is a payload-shape 400.
-* the posture — TOKENLESS (the cron POST carries no browser token) but never
-  guardless: anonymous POST is the uniform 302, a foreign Origin 400s.
+* the posture — TOKENLESS (the runner POST carries no browser token) but never
+  guardless: a foreign Origin 400s AT THE GUARD even with a valid door token,
+  and every non-POST method on /pris keeps the uniform 302 (MC 12546's door
+  allow is the POST method only).
+* the credential (MC 12546, owner ruling 2026-11-15) — a DEDICATED DOOR
+  TOKEN instead of the site password — the `X-Pris-Token` header is
+  compared to the `PRIS_DOOR_TOKEN` env value inside the door, BEFORE
+  any body parse. Env unset ⇒ 503 fail-closed
+  for EVERY POST, owner session included, proving zero write; wrong or absent
+  token ⇒ 401 in ONE uniform copy (no oracle); byte-exact, so a PREFIX of
+  the real token is just another wrong key; a valid owner session rides the
+  door without the token (her own tools ride the session).
 * G1 — the FIRST observation is never suspect; a drop to under 2/5 of the
   latest observation strictly BEFORE the written day is; a re-ask of the SAME
   day cannot suppress the day it just confirmed (the F-b cure); exactly 60 %
@@ -39,6 +49,16 @@ budget, the row budget, the Content-Length rule (in
 tests/test_ingest_vocab.py's sweep), and the door's TOKENLESS membership in
 auth.TOKENLESS_POSTS (red as the CSRF page's 400: the exemption is load-
 bearing, not decoration).
+MC 12546 plants one red per NEW gate, the same rule (transcript
+`.tmp/m9a1b-planted-red.md`, host-local; the tree restored to shipped bytes
+before commit): the 503 fail-closed (the unarmed branch made to `return
+None` — the env-unset legs go red as accepted rows written), the 401 refusal
+(the token compare made to `return None` — the wrong/absent legs go red as
+200), the byte-exact compare (`compare_digest` → `startswith` — the prefix
+leg goes red as 200), the session carve (its branch removed — the owner
+leg goes red as 401) and the POST-only guard allow (`_is_pris_door` widened
+to every method — the GET leg goes red as the door's own answer, not the
+guard's 302).
 """
 import json
 import sqlite3
@@ -52,6 +72,7 @@ from tests.test_browse import PASSWORD, seed_shelf
 
 WISH_ISBN = "9789173710107"        # seed_shelf's wish (id 5), given an isbn here
 READ_ISBN = "9789173710015"        # seed_shelf's rated read row: a price, no wish
+DOOR_CRED = "syntetisk-dorr-979"          # the fixture credential (fixture-only)
 NU = datetime.now(timezone.utc).replace(microsecond=0)
 
 
@@ -64,23 +85,56 @@ def row(isbn=WISH_ISBN, price=99, retailer="bokus", currency="SEK", when=None):
             "currency": currency, "checked_at": stamp(when or NU)}
 
 
-@pytest.fixture()
-def dorren(tmp_path, monkeypatch):
-    """The configured site on the synthetic shelf, logged in — the door's own
-    caller posture (a session, no CSRF token, JSON body)."""
+def _site(tmp_path, monkeypatch, token=DOOR_CRED):
+    """The configured site on the synthetic shelf, the door ARMED with
+    `token` (None = env DELETED — the disarmed posture MC 12546 ships by
+    default). The env goes in via monkeypatch, the idiom every env-driven
+    leg here uses. Returns (app, the owner-session client that set the
+    password — §6.1 signs her in on the way)."""
     monkeypatch.setenv("LISELOTT_DATA_DIR", str(tmp_path))
     monkeypatch.delenv("LISELOTT_PREFIX", raising=False)
     monkeypatch.delenv("LISELOTT_ENV", raising=False)
+    if token is None:
+        monkeypatch.delenv("PRIS_DOOR_TOKEN", raising=False)
+    else:
+        monkeypatch.setenv("PRIS_DOOR_TOKEN", token)
     seed_shelf(tmp_path / "liselott.db")
     with sqlite3.connect(tmp_path / "liselott.db") as c:
         c.execute("UPDATE book SET isbn13 = ? WHERE id = 5", (WISH_ISBN,))
     app = create_app()
     app.testing = True
-    client = app.test_client()
-    assert client.post("/liselott/satt-loesenord",
-                       data={"loesenord": PASSWORD,
-                             "bekrafta": PASSWORD}).status_code == 302
-    return tmp_path, client
+    owner = app.test_client()
+    assert owner.post("/liselott/satt-loesenord",
+                      data={"loesenord": PASSWORD,
+                            "bekrafta": PASSWORD}).status_code == 302
+    return app, owner
+
+
+class Runner:
+    """The MC 12546 caller posture: a FRESH client with no session whose
+    every POST carries the door token — the daily runner, NOT Liselott.
+    `.raw` is the same client without the stamp (the negative legs),
+    `.owner` the session that configured the site (her legs, no token)."""
+
+    def __init__(self, client, owner):
+        self.raw = client
+        self.owner = owner
+        self._client = client
+
+    def post(self, path, headers=None, **kw):
+        merged = dict(headers or {})
+        merged["X-Pris-Token"] = DOOR_CRED
+        return self._client.post(path, headers=merged, **kw)
+
+
+@pytest.fixture()
+def dorren(tmp_path, monkeypatch):
+    """The configured site on the synthetic shelf with the door ARMED. The
+    returned client IS the runner (token on every POST, zero session): the
+    door's real caller since MC 12546 — the legs below ride it exactly as
+    production will."""
+    app, owner = _site(tmp_path, monkeypatch)
+    return tmp_path, Runner(app.test_client(), owner)
 
 
 def priser(tmp):
@@ -277,32 +331,106 @@ def test_door_answers_empty_array_with_zero_counters(dorren):
 
 
 # ── the posture: tokenless, never guardless ─────────────────────────────────
-def test_door_is_not_anonymous_reachable(tmp_path, monkeypatch):
-    """The §6.4 read allow-list does NOT name /pris: an anonymous POST meets
-    the guard's uniform 302, the same answer every private path gives."""
-    monkeypatch.setenv("LISELOTT_DATA_DIR", str(tmp_path))
-    monkeypatch.delenv("LISELOTT_PREFIX", raising=False)
-    monkeypatch.delenv("LISELOTT_ENV", raising=False)
-    app = create_app()
-    app.testing = True
-    first = app.test_client()          # CONFIGURED state: the uniform 302 is
-    assert first.post("/liselott/satt-loesenord",                      # the guard's,
-                      data={"loesenord": PASSWORD,
-                            "bekrafta": PASSWORD}).status_code == 302   # not setup's
-    r = app.test_client().post("/liselott/pris", json=[row()])
+def test_get_on_pris_still_meets_the_uniform_302(tmp_path, monkeypatch):
+    """MC 12546's method rule, §6.4 sweep material: the guard's door allow
+    is the POST method ONLY, so an anonymous GET /pris — even CARRYING the
+    valid door token — keeps the uniform 302 the guard gives every private
+    path. A key that opens a write door never widens the read surface."""
+    app, _owner = _site(tmp_path, monkeypatch)
+    r = app.test_client().get("/liselott/pris",
+                              headers={"X-Pris-Token": DOOR_CRED})
     assert r.status_code == 302
     assert r.headers["Location"].endswith("/logga-in")
 
 
-def test_door_needs_no_token_but_refuses_a_foreign_origin(dorren):
-    """§6.6's machine posture: the cron POST carries no browser token (the
-    door joined TOKENLESS_POSTS), a MISSING Origin is allowed, a foreign one
-    400s — the exemption is TOKENLESS, not guardless and not origin-free."""
+def test_door_needs_no_browser_token_but_refuses_a_foreign_origin(dorren):
+    """§6.6's machine posture + MC 12546's DoD row 3: the runner's POST
+    carries the door token and NO browser CSRF token (the door sits in
+    TOKENLESS_POSTS); a MISSING Origin passes, a foreign one 400s — and it
+    400s AT THE GUARD WITH A VALID DOOR TOKEN, so a cross-site POST never
+    reaches the compare whatever key it rides. The exemption is TOKENLESS,
+    not guardless and not origin-free."""
     _, client = dorren
-    assert client.post("/liselott/pris", json=[],
-                       headers={"Origin": "https://evil.example"}).status_code == 400
+    r = client.post("/liselott/pris", json=[],
+                    headers={"Origin": "https://evil.example"})
+    assert r.status_code == 400, "a valid door token must not outvote Origin"
     assert client.post("/liselott/pris", json=[],
                        headers={"Origin": "http://localhost"}).status_code == 200
+
+
+# ── MC 12546: the door's OWN credential — dedicated token, never the password
+def test_valid_door_token_without_any_session_is_accepted(dorren):
+    """The point of M9a-1b: the runner is a STRANGER WITH A KEY. No session
+    cookie on the request, the token on the header ⇒ the row lands; and the
+    answer hands out NO session of its own (Set-Cookie absent — the door
+    answers counters, it does not mint logins)."""
+    tmp, client = dorren
+    r = client.post("/liselott/pris", json=[row()])
+    assert r.status_code == 200 and r.get_json()["accepted"] == 1
+    assert "Set-Cookie" not in r.headers
+    assert priser(tmp) == [(WISH_ISBN, 99, stamp(NU), 0, 5)]
+
+
+def test_wrong_and_missing_door_tokens_answer_the_same_401(dorren):
+    """Wrong ⇒ 401, absent ⇒ 401, and the two answers are BYTE-EQUAL — the
+    copies carry no oracle for a probe to walk (this leg IS the uniform-
+    copy claim). Neither writes a row."""
+    tmp, client = dorren
+    wrong = client.raw.post("/liselott/pris", json=[row()],
+                            headers={"X-Pris-Token": DOOR_CRED + "-fel"})
+    absent = client.raw.post("/liselott/pris", json=[row()])
+    assert (wrong.status_code, absent.status_code) == (401, 401)
+    assert wrong.get_data() == absent.get_data()
+    assert priser(tmp) == []
+
+
+def test_door_compares_the_token_byte_exact_a_prefix_is_not_enough(dorren):
+    """The constant-time posture at BEHAVIOUR level (the shipped compare is
+    hmac.compare_digest over UTF-8 bytes, app/pris.py): a strict PREFIX of
+    the real token is just another wrong key — a compare that accepted what
+    a probe already knew would hand it the suffix one byte at a time. The
+    full value passes right after, so the refusal is the prefix, not the
+    fixture."""
+    tmp, client = dorren
+    r = client.raw.post("/liselott/pris", json=[row()],
+                        headers={"X-Pris-Token": DOOR_CRED[:6]})
+    assert r.status_code == 401
+    assert priser(tmp) == []
+    assert client.post("/liselott/pris",
+                       json=[row()]).get_json()["accepted"] == 1
+
+
+def test_owner_session_post_needs_no_door_token(dorren):
+    """The MC 12546 carve, kept EXPLICIT: the owner's own tools ride her
+    session (a valid session already IS write access to the whole shelf —
+    re-gating it at the door would guard nothing but the copy), so her POST
+    with NO token header at all is accepted."""
+    tmp, client = dorren
+    r = client.owner.post("/liselott/pris", json=[row()])
+    assert r.status_code == 200 and r.get_json()["accepted"] == 1
+    assert priser(tmp) == [(WISH_ISBN, 99, stamp(NU), 0, 5)]
+
+
+def test_door_answers_503_and_writes_nothing_when_the_env_is_unset(
+        tmp_path, monkeypatch):
+    """Fail-closed IS the shipped default: no PRIS_DOOR_TOKEN on the server
+    means the door is DISARMED — 503, before the envelope rules and before
+    any body parse, and the table proves the counters never ran: a payload
+    of one perfectly legal row wrote NOTHING."""
+    app, _owner = _site(tmp_path, monkeypatch, token=None)
+    r = app.test_client().post("/liselott/pris", json=[row()])
+    assert r.status_code == 503, r.get_data(as_text=True)
+    assert priser(tmp_path) == []
+
+
+def test_the_disarmed_door_503s_the_owner_session_too(tmp_path, monkeypatch):
+    """The claim is LITERAL — 503 for every POST (MC 12546): an unset env
+    never means open — even the session that owns the site meets the disarmed
+    door's 503 while no credential is wired, and writes nothing."""
+    _app, owner = _site(tmp_path, monkeypatch, token=None)
+    r = owner.post("/liselott/pris", json=[row()])
+    assert r.status_code == 503
+    assert priser(tmp_path) == []
 
 
 # ── G1 (§4 rule 4): the door is the named evaluator ─────────────────────────
