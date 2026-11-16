@@ -11,14 +11,21 @@ out of routes.py unchanged (endpoint names, URLs and behaviour stand;
 routes.py ends at <=400 lines, MC 12597's hygiene move).
 
 The lifecycle rules MC 12590 §d pins, all door-side so the UI cannot be
-blamed: the upsert matches on `rec_key` (isbn13 when present, else
-seed.book_key — THE repo key mechanism); a row whose state is 'accept' or
-'decline' is NEVER overwritten and never resurrected (counters
-kept_accept/kept_decline); `ts` is the SERVER clock, no client stamp, no
-backdate surface. Accept is not a second wishlist mechanism: it flips the
-row and writes the wish through onska.skapa_onska — one wish writer, two
-callers. Decline is the state flip + `declined_at`; no un-decline door in
-M11 (the task pins: declines never resurface).
+blamed — with the MC 12602 DA-gate fixes: the upsert matches on the WHOLE
+book identity, not one ingest key (`_bok_rad`: the UNIQUE `rec_key`, the
+isbn, and the §5.3 normalized title+author key through `onska.wish_key` —
+ONE identity mechanism, so a decline holds however the book is spelled and
+a re-spelling cannot mint a second card, F-P1-1); a row in state 'accept'
+or 'decline' is NEVER overwritten and never resurrected (counters
+kept_accept/kept_decline); the INSERT rides `ON CONFLICT(rec_key) DO
+NOTHING` + re-ask, never an IntegrityError under concurrent POSTs
+(F-P3-7); `ts` is the SERVER clock, no client stamp, no backdate surface;
+fit is baked CHECKed [0,1] and `kategori` (nyhet/klassiker/blandad) rides
+the ingest (F-P4-1). Accept is not a second wishlist mechanism: the wish
+goes through onska.skapa_onska — one wish writer, two callers, THE §7 isbn
+validation inside it (F-P2-2) — and the state flip lands only after the
+wish succeeded (F-P2-3). Decline is the state flip + `declined_at`; no
+un-decline door in M11 (the task pins: declines never resurface).
 """
 import hmac
 import math
@@ -40,8 +47,12 @@ AI_REK_HEADER = "X-Ai-Rek-Token"    # ... and the header it arrives on
 # never a weaker one.
 TOKEN_SHAPE = re.compile(r"[0-9a-f]{64}")
 
-TOKEN_UNARMED = ("AI-rek-dörren är inte aktiverad på den här servern — "
-                 "ingen rekommendation är lagrad")            # 503, fail-closed
+TOKEN_UNARMED = ("Dörren är inte aktiverad på den här servern — "
+                 "ingen uppgift är lagrad")   # 503, fail-closed. MC 12602
+# F-P3-6: the DISARMED answer is GENERIC — a 503 on the un-armed door must
+# not name the door (no ai-rek bytes in an anonymous answer, the no-leak
+# posture); which door is disarmed is server config, and a 503 body that
+# spells it out hands an unauthenticated prober the route inventory.
 TOKEN_REFUSED = ("Dörrnyckeln saknas eller är fel — ingen rekommendation är "
                  "lagrad")           # 401, ONE uniform copy (no oracle)
 LENGTH_REQUIRED = (
@@ -51,8 +62,10 @@ LENGTH_REQUIRED = (
 ROWS_TOO_BIG = ("AI-listan är {antal} rader — budgetet är {max} rader per "
                 "anrop; dela upp den. Ingen rekommendation är lagrad")
 NOT_A_LIST = ("AI-listan är inte en JSON-array av objekt — dörren tar emot "
-              "[{title, author_name, isbn13, year, reason, source, fit}, …]. "
-              "Ingen rekommendation är lagrad")
+              "[{title, author_name, isbn13, year, reason, source, fit,"
+              " kategori}, …]. Ingen rekommendation är lagrad")
+
+KATEGORIER = ("nyhet", "klassiker", "blandad")   # the table's CHECK vocabulary
 
 DISMISS_KINDS = {"book": "book", "cand": "candidate"}   # moved with /djem
 
@@ -119,22 +132,78 @@ def _obs(row):
     if (isinstance(fit, bool) or not isinstance(fit, (int, float))
             or not math.isfinite(fit) or not 0.0 <= fit <= 1.0):
         return "shape", None
+    kategori = row.get("kategori")
+    if kategori is not None and kategori not in KATEGORIER:
+        # the table's CHECK, asked AT the door (the /pris posture: the
+        # named evaluator answers, the CHECK never fires mid-commit).
+        return "shape", None
     return None, {"rec_key": isbn if isbn is not None
                   else seed.book_key(title, [author or ""]),
+                  "boknyckel": onska.wish_key(title, author or ""),
                   "isbn13": isbn, "title": title, "author_name": author,
                   "year": year, "reason": reason, "source": source,
-                  "fit": float(fit)}
+                  "fit": float(fit), "kategori": kategori}
+
+
+def _bok_rad(conn, obs):
+    """The row that already carries THIS BOOK, or None — MC 12602 F-P1-1's
+    whole-identity match: the UNIQUE `rec_key` lane, the isbn lane (when
+    BOTH sides carry one), and the normalized title+author lane through
+    `onska.wish_key` — THE app's §5.3 identity normalization (seed.book_key
+    NFD+casefold+strip, authors sorted; alias canonicalization via
+    app_aliases, the same chain the wish rows are keyed by — the door's
+    "same book" IS the wish's "same book", never a second one). A DECIDED
+    row wins the match wherever it stands in the table: one book, one card,
+    and the decision holds on EITHER identity — re-spelling the title,
+    aliasing the author or moving the isbn in/out cannot mint a second card
+    to decline again, nor walk a decision back. Later `new` matches are
+    returned as `duppar`: the pre-fix identity split, merged (deleted) by
+    the caller BEFORE the refresh lands the shared rec_key on the target —
+    only `new` rows can ever be merged, the guarded DELETE says so."""
+    ny = None
+    duppar = []
+    for id_, state, rkey, isbn, titel, forf in conn.execute(
+            "SELECT id, state, rec_key, isbn13, title, author_name"
+            " FROM ai_rek ORDER BY id"):
+        if not (rkey == obs["rec_key"]
+                or (obs["isbn13"] is not None and isbn == obs["isbn13"])
+                or onska.wish_key(titel, forf or "") == obs["boknyckel"]):
+            continue
+        if state in ("accept", "decline"):
+            return state, id_, ()
+        if ny is None:
+            ny = id_
+        else:
+            duppar.append(id_)
+    if ny is None:
+        return None
+    return "new", ny, duppar
+
+
+def _uppdatera(conn, obs, nu, rad_id):
+    """The refresh of one matched row — rec_key included, so the row also
+    follows the book's newest identity; guarded to state 'new' (a decided
+    row is UNTOUCHABLE, also mid-transaction)."""
+    conn.execute(
+        "UPDATE ai_rek SET rec_key = ?, title = ?, author_name = ?,"
+        " isbn13 = ?, year = ?, reason = ?, source = ?, fit = ?,"
+        " kategori = ?, ts = ? WHERE id = ? AND state = 'new'",
+        (obs["rec_key"], obs["title"], obs["author_name"], obs["isbn13"],
+         obs["year"], obs["reason"], obs["source"], obs["fit"],
+         obs["kategori"], nu, rad_id))
 
 
 def ingest(conn, rows):
-    """One POST's rows through shape + upsert; returns the aggregate
-    counters and ZERO book data (the echo rule, pris.py's response). The
-    upsert asks for the key BEFORE the write (the pris `_store` posture —
-    the only honest way to tell a first sighting from a refresh):
-    state 'new' refreshes in place, no key INSERTs, and a row in state
-    'accept' or 'decline' is counted kept and left UNTOUCHED — the one
-    rule that makes "declines never resurface" the door's promise, not
-    the page's."""
+    """One POST's rows through shape + whole-identity upsert; returns the
+    aggregate counters and ZERO book data (the echo rule, pris.py's
+    response). The upsert asks for the book BEFORE the write (the pris
+    `_store` posture): a decided row is counted kept and left UNTOUCHED —
+    the one rule that makes "declines never resurface" the door's promise,
+    not the page's, and F-P1-1's fix makes it hold on every identity the
+    book can arrive under. The INSERT rides `ON CONFLICT(rec_key) DO
+    NOTHING` (MC 12602 F-P3-7, the /pris race posture): a concurrent POST
+    that won the UNIQUE lane is RE-ASKED, never an IntegrityError and
+    never a whole lost generation."""
     counts = {k: 0 for k in ("accepted", "inserted", "updated",
                              "kept_accept", "kept_decline",
                              "rejected_shape")}
@@ -144,27 +213,37 @@ def ingest(conn, rows):
         if reject:
             counts["rejected_shape"] += 1
             continue
-        rad = conn.execute("SELECT id, state FROM ai_rek WHERE rec_key = ?",
-                           (obs["rec_key"],)).fetchone()
-        if rad is not None and rad[1] in ("accept", "decline"):
-            counts[f"kept_{rad[1]}"] += 1
-            continue
-        if rad is not None:              # state 'new' ⇒ refresh in place
-            conn.execute(
-                "UPDATE ai_rek SET title = ?, author_name = ?, isbn13 = ?,"
-                " year = ?, reason = ?, source = ?, fit = ?, ts = ?"
-                " WHERE id = ?",
-                (obs["title"], obs["author_name"], obs["isbn13"], obs["year"],
-                 obs["reason"], obs["source"], obs["fit"], nu, rad[0]))
+        match = _bok_rad(conn, obs)
+        if match is not None:
+            state, rad_id, duppar = match
+            if state in ("accept", "decline"):
+                counts[f"kept_{state}"] += 1
+                continue
+            for dup in duppar:
+                conn.execute("DELETE FROM ai_rek WHERE id = ?"
+                             " AND state = 'new'", (dup,))
+            _uppdatera(conn, obs, nu, rad_id)
             counts["updated"] += 1
         else:
-            conn.execute(
+            cur = conn.execute(
                 "INSERT INTO ai_rek (rec_key, isbn13, title, author_name,"
-                " year, reason, source, fit, ts) VALUES (?,?,?,?,?,?,?,?,?)",
+                " year, reason, source, fit, kategori, ts)"
+                " VALUES (?,?,?,?,?,?,?,?,?,?)"
+                " ON CONFLICT(rec_key) DO NOTHING",
                 (obs["rec_key"], obs["isbn13"], obs["title"],
                  obs["author_name"], obs["year"], obs["reason"],
-                 obs["source"], obs["fit"], nu))
-            counts["inserted"] += 1
+                 obs["source"], obs["fit"], obs["kategori"], nu))
+            if cur.rowcount == 0:
+                dot = conn.execute("SELECT id, state FROM ai_rek"
+                                   " WHERE rec_key = ?",
+                                   (obs["rec_key"],)).fetchone()
+                if dot[1] in ("accept", "decline"):
+                    counts[f"kept_{dot[1]}"] += 1
+                else:
+                    _uppdatera(conn, obs, nu, dot[0])
+                    counts["updated"] += 1
+            else:
+                counts["inserted"] += 1
         counts["accepted"] += 1
     conn.commit()
     return counts
@@ -216,14 +295,18 @@ def init_ai_rek(app):
     def ai_rek_accept(rek_id):
         """Owner POST: guard + CSRF already ran (session-guarded, token
         required — the /djem pattern, NOT a TOKENLESS machine route).
-        Unknown id ⇒ plain 404, echo nothing (the /djem idiom). The flip
-        is COMMITTED FIRST (MC 12597's order) — skapa_onska owns its own
-        commit/rollback, so flipping after its commit would leave a wish
-        with no state, and flipping inside its transaction would let its
-        UNIQUE rollback undo the flip; a committed flip first cannot undo,
-        and "redan" (already wished) still counts as the accept succeeding.
-        A row already decided ('accept' or 'decline') is a no-op redirect:
-        the second accept writes no second wish, the declined stay down."""
+        Unknown id ⇒ plain 404, echo nothing (the /djem idiom). MC 12602
+        F-P2-3 reorders the write: THE WISH WRITER RUNS FIRST and the
+        state flip lands only AFTER it succeeded, each in its own committed
+        transaction — a raising writer leaves state 'new' with a named 400
+        and the retry works (the first shipped order committed an
+        accept-no-wish and made the retry answer "already decided", i.e.
+        the failed accept was unrecoverable). "redan" (already wished)
+        still counts as the accept succeeding. A row already decided
+        ('accept' or 'decline') is a no-op redirect: the second accept
+        writes no second wish, the declined stay down — and the flip's own
+        `state='new'` guard keeps a concurrent double-click from ever
+        un-deciding."""
         conn = db.get_db()
         rad = conn.execute("SELECT title, author_name, isbn13, year, state"
                            " FROM ai_rek WHERE id = ?", (rek_id,)).fetchone()
@@ -231,11 +314,20 @@ def init_ai_rek(app):
             abort(404)                       # the 404 page echoes nothing
         if rad[4] != "new":
             return auth.redirect_prefixed("/rekommendationer")
+        try:
+            # THE wish writer (isbn/year validated inside it, F-P2-2).
+            onska.skapa_onska(conn, rad[0], rad[1] or "",
+                              isbn13=rad[2], year=rad[3])
+        except Exception:
+            conn.rollback()                  # the writer's own rollback, and
+            return render_template(          # the flip never ran: state new
+                "csrf-fel.html",
+                fel="Boken kunde inte läggas på önskelistan — "
+                    "försök igen."), 400
         conn.execute("UPDATE ai_rek SET state = 'accept', ts = ?"
-                     " WHERE id = ?", (auth.utcnow_iso(), rek_id))
+                     " WHERE id = ? AND state = 'new'",
+                     (auth.utcnow_iso(), rek_id))
         conn.commit()
-        onska.skapa_onska(conn, rad[0], rad[1] or "",
-                          isbn13=rad[2], year=rad[3])   # THE wish writer
         return auth.redirect_prefixed("/rekommendationer")
 
     @app.post("/ai-rek/<int:rek_id>/decline")

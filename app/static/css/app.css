@@ -267,6 +267,13 @@ a, button, input, .omslag {
 .antal { color: var(--muted); font-size: .8125rem; margin: 0 0 var(--s4); }
 .onska-rad form { margin-top: var(--s2); }
 
+/* ── M11 (MC 12597): the AI section is a quiet shelf under its own h2 — the
+   cards ride .hylla/.bok-kort, these rules only give the section its rhythm
+   (§9 "calm, sparsmakad" — palette vars, nothing new). ─────────────────── */
+.ai-rek { margin: 0 0 var(--s6); }
+.ai-rek h2 { font-size: 1.25rem; margin: var(--s6) 0 var(--s3); }
+.ai-rek-lista .bok-kort form { margin-top: var(--s2); }
+
 /* ── the cover worklist (§9 a11y at 375 too): hairline rows and quiet
    headers at reading width; below 700px the two columns STACK — a table
    with a form column has no business at 375 side-by-side. ── */

@@ -57,7 +57,13 @@ CREATE TABLE IF NOT EXISTS ai_rek (
   year INTEGER,
   reason TEXT NOT NULL,
   source TEXT NOT NULL,
-  fit REAL NOT NULL,
+  -- MC 12602 F-P4-1: the fit domain baked into the table (the door already
+  -- enforces it; this is the belt, and the cheapest form while the table
+  -- has zero live rows — no live DB has ever baked the old shape, so no
+  -- migrate.py re-create is owed) + the category the plan's §e output
+  -- carries and the page must one day tell apart.
+  fit REAL NOT NULL CHECK (fit BETWEEN 0 AND 1),
+  kategori TEXT CHECK (kategori IN ('nyhet','klassiker','blandad')),
   state TEXT NOT NULL DEFAULT 'new' CHECK (state IN ('new','accept','decline')),
   ts TEXT NOT NULL,                      -- auth.utcnow_iso shape, SERVER clock
   declined_at TEXT);                     -- set by the ONE decline flip

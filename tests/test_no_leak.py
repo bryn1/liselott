@@ -23,6 +23,7 @@ public). /robots.txt is served to anonymous visitors in both open states
 the personal export, so the `corpus` fixture skips these with a loud
 reason where it is unresolvable and seeds the pinned one where it exists.
 """
+import re
 import sqlite3
 import subprocess
 import sys
@@ -272,3 +273,18 @@ def test_seed_actually_ran(seeded, private_probe, corpus_case):
                      " AND status = 'read'").fetchone()[0]
     conn.close()
     assert n == len(private_probe) >= PRIVATE_FLOOR[corpus_case]
+
+
+def test_ai_rek_door_disarmed_answer_names_no_door(seeded, monkeypatch):
+    """MC 12602 F-P3-6: the DISARMED AI-ingest door answers anonymously —
+    the POST passes the guard as the named door method (auth._is_ai_rek_door),
+    the door itself answers 503 — and that anonymous 503 must carry ZERO
+    bytes matching ai[- ]?rek, case-insensitive: which door is disarmed is
+    server config, and a body that spells the route out hands a prober the
+    inventory. The copy is generic ("Dörren är inte aktiverad…",
+    app/ai_rek.py's TOKEN_UNARMED)."""
+    monkeypatch.delenv("AI_REC_DOOR_TOKEN", raising=False)
+    app, _ = configured_client(seeded)
+    r = app.test_client().post("/liselott/ai-rek", json=[])
+    assert r.status_code == 503
+    assert re.search(r"ai[- ]?rek", r.get_data(as_text=True), re.I) is None

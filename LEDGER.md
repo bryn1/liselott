@@ -952,3 +952,39 @@ postdating a line make that line STALE — de-stale before quoting it.
   state); after: **736 passed** exit 0 (716 + 20 new, zero regressions),
   incl. the MC 12551 byte pins. `scripts/exposure_check.py` run STAGED:
   0 findings exit 0. Nothing pushed. docs/ left untracked (untouched).
+
+- **MC 12597 fix-wave — the MC 12602 DA-gate verdict FIX, repaired in one
+  commit (2026-11-16).** All six shipped-side findings, each with new legs
+  (tests/test_ai_rek.py 20→29, tests/test_no_leak.py +1 × 2 corpus cases)
+  and a planted-red run per new gate (map in the test file's docstring):
+  F-P1-1 (decline-permanence was keyed on the INGEST identity) — the upsert
+  now matches the whole BOOK identity via `_bok_rad`: the UNIQUE rec_key,
+  the isbn lane, and the §5.3 title+author key through the new
+  `onska.wish_key` (split_authors + app_aliases + seed.book_key — the
+  normalization seed.py §5.3 names, cited; ONE identity implementation, two
+  callers, the door's "same book" IS the wish's); a decided row wins the
+  match on any lane and stays untouched, later `new` twins merge.
+  F-P2-2 — `skapa_onska` runs THE §7 mechanism `search.normalize_isbn` on
+  the accept path's isbn (check-digit failure = NO isbn = NULL, never the
+  machine's token into book identity); /lagg-till byte-identical (it never
+  passed an isbn to the writer). F-P2-3 — accept runs the writer FIRST, a
+  raise is a named 400 with state 'new' and the retry works, the flip (own
+  `state='new'` guard) lands only after the writer succeeded. F-P3-6 — the
+  disarmed-door copy is generic; the leak leg asserts zero `ai[- ]?rek`
+  bytes in the anonymous 503. F-P3-7 — the INSERT rides
+  `ON CONFLICT(rec_key) DO NOTHING` + re-ask (the /pris race posture); the
+  leg forces the check-then-act interleave with a barrier and pins one row,
+  two 200s, zero exceptions. F-P4-1 — schema bakes
+  `fit REAL CHECK (fit BETWEEN 0 AND 1)` + `kategori TEXT CHECK IN
+  (nyhet,klassiker,blandad)` (the table has never been live → baked fresh,
+  no migrate.py entry owed), kategori rides the ingest door-gated by
+  KATEGORIER; README gained the AI_REC_DOOR_TOKEN env row, the machine-door
+  bullet and the guard-paragraph pair; the `.ai-rek` classes KEPT and given
+  three calm palette-var rules (decision stated, VERSION 2026.11-4).
+  Interpretation: for a DECIDED matched row "update" reads as count kept_*
+  and leave untouched — the card's own DoD line "NEVER overwrites an
+  accept/decline row"; only `new` matches refresh. Runner-side findings
+  F-P2-4/F-P2-5 are MC 12601's, untouched here. Suite: before **736**,
+  after **747 passed** exit 0, zero regressions (incl. the MC 12551 byte
+  pins). `scripts/exposure_check.py` run STAGED: exit 0. Nothing pushed.
+  docs/ left untouched.

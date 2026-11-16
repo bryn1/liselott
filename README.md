@@ -282,6 +282,7 @@ that gates every push.
 | `LISELOTT_BACKUP_DIR` | where `scripts/backup.sh` writes its pairs; default `$HOME/liselott-backups` (§11). `GET /backup` never writes here — it streams from a temp dir |
 | `LISELOTT_ENV=dev` | local/test only — turns the session cookie's `Secure` flag off; UNSET means production (Secure ON, debug OFF) |
 | `PRIS_DOOR_TOKEN` | MC 12546 — the dedicated credential of the `POST /pris` price door (header `X-Pris-Token`, constant-time compare). UNSET or empty = the door is DISARMED: 503 for every POST, fail-closed (the shipped default until the runner's 0600 env file lands with M9a-2). Rotation = set the new value + restart the door. Liselott's site password is never involved. Read per request by `app/pris.py`, never by any other route |
+| `AI_REC_DOOR_TOKEN` | MC 12597 — the dedicated credential of the `POST /ai-rek` AI-recommendation door (header `X-Ai-Rek-Token`, constant-time compare), and the **64-hex requirement ON THE VALUE**: unset, empty or malformed = the door is DISARMED — 503 for every POST, fail-closed, the owner's session included (a malformed env is never a weaker door; `openssl rand -hex 32` is the shape). Rotation = set the new value + restart the door. Liselott's site password is never involved. Read per request by `app/ai_rek.py`, never by any other route |
 | `LISELOTT_SEED_FILE` | test suite ONLY (MC 12451 c5) — points at the personal seed export so the `personal` corpus CASE runs; unset, the locator falls back to `data-import/seed-books-raw.md`; with neither, only the synthetic cases run. The app never reads it |
 | `LISELOTT_ALIASES_FILE` | MC 12523 — the personal author-alias CSV (off-repo state data, `canonical,alias` rows); default `/home/claudecode/liselott-data/author_aliases.csv`; ABSENT = no aliases (clean no-op, tested). Read by the importer CLI, the /bundle door and the add/edit doors through `app/seed.py` |
 | `LISELOTT_OVERRIDE_FILE` | MC 12523 — the personal date-override CSV (`exact title,ISO-date` rows); default `/home/claudecode/liselott-data/import_overrides.csv`; ABSENT = no date fixes (clean no-op, tested). Same readers |
@@ -382,12 +383,13 @@ The guard (`app/auth.py::_auth_gate`) answers in three states, measured in
 - **Configured site, anonymous writes:** every POST stays the guard's 302 to
   `/logga-in` (the `/satt-loesenord` door answers its §6.1 404) — including
   POSTs aimed at the READ paths: the method rule in `_is_public_read` is what
-  makes "public to read" not mean "public to write". The one named exception
-  is `POST /pris` (M9a-1b, MC 12546): the guard lets that POST method reach
-  the price door, which then answers with its OWN dedicated door credential
+  makes "public to read" not mean "public to write". The named exceptions
+  are `POST /pris` (M9a-1b, MC 12546) and `POST /ai-rek` (M11, MC 12597):
+  the guard lets those POST methods reach their doors, which then answer
+  with their OWN dedicated door credentials
   (503 disarmed / 401 wrong key, see *Machine routes*) — never a session,
-  never the site password; every other method on `/pris` keeps the uniform
-  302. Owner surfaces —
+  never the site password; every other method on `/pris` or `/ai-rek` keeps
+  the uniform 302. Owner surfaces —
   `/onska`, `/lagg-till`, `/redigera/<id>`, `/rapa/*`, `/backup`,
   `/byter-losenord`, `/logga-ut` and the machine doors `/seed`, `/bundle`,
   `/backfill` — stay behind her session, as do search and
@@ -530,6 +532,25 @@ LEADING `YYMMDD` token, 45 rows). Trust the plan's §5 rules, never the header.
   post through the session she already holds — and rotation is set the new
   env value + restart the door. Her password is never copied anywhere:
   she can change it whenever she likes without affecting the watcher.
+- `POST /ai-rek` (M11, MC 12597) — the AI-recommendation ingest door. A JSON
+  array of `{title, author_name, isbn13, year, reason, source, fit, kategori}`
+  in, the six counters (`accepted`, `inserted`, `updated`, `kept_accept`,
+  `kept_decline`, `rejected_shape`) out, zero book data echoed. `fit` is a
+  finite number in [0,1] (the table CHECKs it too) and `kategori` is `nyhet`,
+  `klassiker` or `blandad`. The upsert matches the WHOLE book identity — the
+  UNIQUE `rec_key`, the isbn, and the §5.3 normalized title+author key (the
+  shared `app/onska.py::wish_key` chain) — and NEVER overwrites or resurrects
+  a row in state `accept`/`decline` (a decided book stays decided however it
+  is re-spelled); the INSERT is `ON CONFLICT DO NOTHING` + re-ask, so two
+  concurrent POSTs land one row, never an error. Body ≤ `MAX_AI_REK_BODY` =
+  262 144 B (named 413) and ≤ `MAX_AI_REK_ROWS` = 500 (named 400), judged
+  before any row is parsed; no `Content-Length` is a 411. The credential is
+  the dedicated door token: header `X-Ai-Rek-Token` constant-time compared to
+  the env `AI_REC_DOOR_TOKEN`, which is 64-hex ENFORCED — unset, empty OR
+  malformed means DISARMED (503, fail-closed, owner session included), wrong
+  or absent token ⇒ 401 in one uniform copy; a valid owner session rides
+  without the token; GET keeps the guard's uniform 302 (MC 12546's posture
+  verbatim).
 - `POST /backfill?n=5&after=<id>[&mode=candidates]` — the cover/ISBN retry and
   candidate-pool builder, resumable by `last_id` (cursor advances past
   permanent failures; wrap = fresh pass). Shares one pipeline with

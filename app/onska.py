@@ -12,7 +12,22 @@ from datetime import date
 
 from flask import abort, render_template, request
 
-from app import auth, books, db, priskort, redigera, seed
+from app import auth, books, db, priskort, redigera, search, seed
+
+
+def wish_key(titel, forfattare):
+    """§5.3's key for ONE book's identity: the one chain the wish rows are
+    keyed by — `split_authors` + `app_aliases` canonicalization feeding
+    `seed.book_key` (NFD + casefold + strip, authors sorted AFTER
+    normalization, seed.py §5.3 — THE app's named book-identity
+    normalization). MC 12602 F-P1-1: the ai_rek door matches incoming
+    rows through THIS function too, so the door's "same book" and the
+    wish's "same book" (alias spellings included, since the alias table
+    is the app's only spelling mechanism) can never mean different
+    things — one identity implementation, two callers."""
+    aliases = seed.app_aliases()
+    return seed.book_key(titel, [aliases.get(name, name)
+                                 for name in seed.split_authors(forfattare)])
 
 
 def skapa_onska(conn, titel, forfattare, isbn13=None, year=None,
@@ -21,18 +36,27 @@ def skapa_onska(conn, titel, forfattare, isbn13=None, year=None,
     /onska/lagg-till extracted one step, so the accept route and the form
     route cannot drift (one writer, two callers; §5.4's anti-drift rule
     speaks of splitters but binds for writers too). `forfattare` is the raw
-    display string — split_authors + alias canonicalization live HERE, so
-    the stored author rows and the §5.3 book_key cannot disagree, exactly
-    as inside the route before the move. Returns None on success and the
-    sentinel "redan" on the UNIQUE book_key collision (§5.3) — the CALLER
-    owns the Swedish copy, because one caller re-renders a form and the
-    other redirects. `isbn13`/`year` ride for the accept path (an AI rec
-    carries them; the form route has never stored them — enrichment owns
-    that door, /backfill). The §5.11 posture is untouched: a wish is BORN
-    as a wish — status 'wishlist', the read_year 0 sentinel, no date."""
+    display string — the author split and the §5.3 key run through the
+    SAME chain (`wish_key`), so the stored author rows and the book_key
+    cannot disagree, exactly as inside the route before the move. Returns
+    None on success and the sentinel "redan" on the UNIQUE book_key
+    collision (§5.3) — the CALLER owns the Swedish copy, because one caller
+    re-renders a form and the other redirects. `isbn13`/`year` ride for the
+    accept path (an AI rec carries them; the form route has never stored
+    them — enrichment owns that door, /backfill). The §5.11 posture is
+    untouched: a wish is BORN as a wish — status 'wishlist', the read_year
+    0 sentinel, no date."""
     authors = seed.split_authors(forfattare)
-    aliases = seed.app_aliases()
-    canonical = [aliases.get(name, name) for name in authors]
+    if isbn13 is not None:
+        # MC 12602 F-P2-2 (PLAN §d was right): the ISBN runs through THE §7
+        # mechanism, search.normalize_isbn — the same canonical validation
+        # /lagg-till performs via form_to_fields, now living with the writer
+        # so the machine caller cannot skip what the form caller pays. A
+        # check-digit failure is NO isbn, not a string: the wish row gets
+        # NULL, never the machine's un-validated token into book identity
+        # (the /pris price resolve joins on book.isbn13).
+        got = search.normalize_isbn(isbn13)
+        isbn13 = got[0] if got else None
     nu = auth.utcnow_iso()
     try:
         cur = conn.execute(
@@ -40,7 +64,7 @@ def skapa_onska(conn, titel, forfattare, isbn13=None, year=None,
             " year, book_key, created, updated) VALUES (?,?,0,'wishlist',?"
             ",?,?,?,?)",
             (titel, format if format in redigera.FORMATS else "bok",
-             isbn13, year, seed.book_key(titel, canonical), nu, nu))
+             isbn13, year, wish_key(titel, forfattare), nu, nu))
         seed.set_authors(conn, cur.lastrowid, authors)
         conn.commit()
     except Exception as e:
