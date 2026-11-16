@@ -857,3 +857,38 @@ postdating a line make that line STALE — de-stale before quoting it.
   `secret_scan.sh --range origin/main..main` clean. Nothing pushed.
   conftest untouched, `liselott-data` untouched (synthetic fixtures only, the
   979-isbn rule), no network, routes.py back to 400 lines.
+- **MC 12570 pris-vakt transport — curl-subprocess, urllib RETIRED (measured
+  live, first manual tick 2026-11-16 06:19: scope GET "bibliotek 403" —
+  Cloudflare refuses python-urllib, curl's default UA passes the edge; the
+  fleet's known CF fact).** The two plain legs (scope GET §2 + door POST §6e)
+  now ride the new `scripts/pris_vakt.py::_curl`: argv list, never
+  `shell=True`, curl's DEFAULT UA, `--max-time` 15 (GET) / 30 (POST) with a
+  hard subprocess watchdog at ceiling + 5 s, POST body `--data-binary @-` on
+  stdin, status off `--write-out`, body to a temp file. Return shape and
+  exception mapping byte-for-byte unchanged (non-2xx rides an empty body /
+  `{}` like the old HTTPError, transport failure is status 0), so the alarm
+  path PROVED by that 06:19 tick (`scope_error=fetch_failed ... (bibliotek
+  403)`, exit=1) stands — a new leg pins the exact line. urllib is deleted
+  whole (no caller would remain — the unit's transport surface is the
+  `run_tick` get/post seams, untouched); the browser leg is unaffected. The
+  docstring line that named the urllib era now names the measured CF fact +
+  date; a header comment carries the >400-line reason (the card's diff scope
+  pinned the transport beside its two mapping legs). New legs
+  `test_default_transports_ride_curl_argv` (argv shape: curl first, url
+  last, no shell, max-time 15/30, watchdog, body on stdin) and
+  `test_curl_403_keeps_the_fetch_failed_alarm`; PLANTED REDS 3/3
+  (.tmp/mc12570-planted-red.md, sha-verified restore): max-time pinned 30 =>
+  argv leg RED, `@-` broken => argv leg RED, status flattened to 200 => 403
+  leg RED. Seam-leg rewrites ZERO — all 24 runner legs flow through the
+  seams unchanged. Reading stated: the card pins the GET ceiling at 15 s
+  (urllib ran 30) — GET tightens per the card's explicit ceiling. Suite
+  **715 passed, 1 failed** (716 collected, 714 before + 2 new): the one RED
+  is the PRE-EXISTING clock-window leg
+  `test_pris_door::test_g1_compares_the_day_before_never_the_same_day` —
+  module-level `NU - timedelta(hours=8)` is only "today" when the wall clock
+  is ≥ 08:00 UTC, so it goes RED 00:00–08:00 UTC; measured RED at 06:3x UTC
+  on the UNTOUCHED base (07fb9c4) and GREEN in the afternoon — out of this
+  card's diff scope, reported not silently fixed. `scripts/exposure_check.py`
+  run STAGED: 0 findings, exit 0; `secret_scan.sh --range origin/main..main`
+  clean. Nothing pushed. conftest untouched, `liselott-data` untouched,
+  no real data, no network in any leg.

@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# 417 lines > 400 (MC 12570): the curl transport's argv contract rides in the
+# ONE file holding the two plain legs that map it — this card's diff scope
+# pinned the change here; a third file would split one alarm path in two.
 """MC 12547 (M9a-2a) — the daily pris-vakt runner (Bokus-only, §6a's unit
 ExecStarts this; the parse rules live in the pure scripts/pris_parse.py and
 the state files in scripts/pris_state.py — this file is the tick's mechanics).
@@ -52,10 +55,10 @@ nightly zero alarm trains everyone to ignore real alarms (MC 12549).
 import json
 import os
 import random
+import subprocess
 import sys
+import tempfile
 import time
-import urllib.error
-import urllib.request
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -82,45 +85,72 @@ BOKUS_ASK = "https://www.bokus.com/bok/"   # + isbn13; slug is INERT (measured)
 RETAILER, CURRENCY = "bokus", "SEK"        # §6e payload constants (door-checked)
 STAMP_FMT = "%Y-%m-%dT%H:%M:%SZ"           # the door's checked_at shape (§1)
 STATE_DIR = Path("/var/lib/pris-liselott")  # §6a StateDirectory
+CURL = "curl"                               # the production transport (MC 12570)
+GET_TIMEOUT_S, POST_TIMEOUT_S = 15, 30      # ceilings: --max-time + watchdog
+WATCHDOG_GRACE_S = 5                        # hard subprocess stop, wedged curl
 
 
-class _NoRedirect(urllib.request.HTTPRedirectHandler):
-    def redirect_request(self, req, fp, code, msg, headers, newurl):
-        return None               # a 302 SURFACES as 302 — §2 counts it `gone`
-
-
-_OPENER = urllib.request.build_opener(_NoRedirect)
+def _curl(args, *, timeout_s, stdin_data=b""):
+    """MC 12570 — the transport BOTH plain legs ride since 2026-11-16: curl
+    via subprocess, argv list, never a shell, curl's DEFAULT UA. The named
+    urllib era is over: the first manual tick 2026-11-16 06:19 measured the
+    fleet's known CF fact — Cloudflare 403s python-urllib ("bibliotek 403"),
+    curl passes the edge. The status is captured with --write-out, the body
+    lands in a temp file; (0, b"") is a transport failure, never a zero
+    result, and --max-time + the subprocess timeout (grace on top) is the
+    hard ceiling — a wedged curl dies, the tick never rides into the kill."""
+    with tempfile.NamedTemporaryFile() as body_file:
+        argv = [CURL, "--silent", "--show-error",
+                "--max-time", str(timeout_s),
+                "--write-out", "%{http_code}",
+                "--output", body_file.name, *args]
+        try:
+            proc = subprocess.run(argv, input=stdin_data,
+                                  capture_output=True,
+                                  timeout=timeout_s + WATCHDOG_GRACE_S)
+        except (OSError, subprocess.SubprocessError):
+            return 0, b""
+        body_file.seek(0)
+        body = body_file.read()
+    if proc.returncode != 0:
+        return 0, b""                      # connect/timeout exit classes
+    try:
+        return int(proc.stdout), body
+    except ValueError:
+        return 0, b""                      # no parseable status: no answer
 
 
 def http_get(url):
     """One anonymous GET of the site's OWN public page (§2 — the only
     plain-GET leg in the design; Bokus is never plain-fetched). Returns
-    (status, text); status 0 is a transport failure, never a zero result."""
-    try:
-        with _OPENER.open(url, timeout=30) as resp:
-            return resp.status, resp.read().decode("utf-8", "replace")
-    except urllib.error.HTTPError as exc:
-        return exc.code, ""
-    except (urllib.error.URLError, TimeoutError, OSError):
-        return 0, ""
+    (status, text); status 0 is a transport failure, never a zero result.
+    The transport is curl-subprocess (_curl, MC 12570 — urllib is GONE,
+    the measured CF block); a non-200 rides with an empty body, exactly
+    the old HTTPError mapping, so §2's alarm path is byte-for-byte."""
+    status, body = _curl([url], timeout_s=GET_TIMEOUT_S)
+    if 200 <= status < 300:
+        return status, body.decode("utf-8", "replace")
+    return status, ""
 
 
 def door_post(url, token, rows):
     """The flush POST (§6e): JSON array of the five client-owned fields,
-    `X-Pris-Token` on the dedicated header. ONE try, then loud — §3's
-    no-retry-loop. Returns (status, counters-dict); non-200 gives 0-status
-    or the door's own error shape, and the runner never reads a body it
-    cannot trust."""
-    req = urllib.request.Request(
-        url, data=json.dumps(rows).encode("utf-8"), method="POST",
-        headers={"Content-Type": "application/json", "X-Pris-Token": token})
+    `X-Pris-Token` on the dedicated header, the body via --data-binary @-
+    on stdin — the same _curl transport as the scope GET (MC 12570). ONE
+    try, then loud — §3's no-retry-loop. Returns (status, counters-dict);
+    non-200 gives 0-status or the door's own error shape, and the runner
+    never reads a body it cannot trust."""
+    status, body = _curl(
+        ["--request", "POST", "--header", "Content-Type: application/json",
+         "--header", "X-Pris-Token: " + token,
+         "--data-binary", "@-", url],
+        timeout_s=POST_TIMEOUT_S,
+        stdin_data=json.dumps(rows).encode("utf-8"))
+    if not 200 <= status < 300:
+        return status, {}
     try:
-        with urllib.request.urlopen(req, timeout=30) as resp:
-            return resp.status, json.loads(resp.read().decode("utf-8"))
-    except urllib.error.HTTPError as exc:
-        return exc.code, {}
-    except (urllib.error.URLError, TimeoutError, OSError,
-            json.JSONDecodeError):
+        return status, json.loads(body.decode("utf-8"))
+    except json.JSONDecodeError:
         return 0, {}
 
 
