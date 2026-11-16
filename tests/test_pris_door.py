@@ -80,6 +80,16 @@ def stamp(when):
     return when.strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
+def tidigare_samma_dag(when):
+    """`when`'s own UTC date at its earliest second — the earlier half of a
+    SAME-day pair. A fixed `-hours` offset is not one: it crosses UTC midnight
+    whenever the wall clock reads below the offset (MC 12571: `-8 h` was
+    "yesterday" to the door every 00:00–08:00 UTC, turning a same-day re-ask
+    into a real G1 comparison). `replace` cannot cross the date boundary,
+    so the pair holds at every wall-clock hour."""
+    return when.replace(hour=0, minute=0, second=0)
+
+
 def row(isbn=WISH_ISBN, price=99, retailer="bokus", currency="SEK", when=None):
     return {"isbn": isbn, "retailer": retailer, "price": price,
             "currency": currency, "checked_at": stamp(when or NU)}
@@ -159,11 +169,12 @@ def test_door_upserts_a_same_day_re_ask_into_one_point(dorren):
     re-run re-asks and overWRITES today's row — one history point per isbn per
     day, whatever order the two POSTs arrive in."""
     tmp, client = dorren
-    earlier = row(price=99, when=NU - timedelta(hours=6))
-    later = row(price=85, when=NU)
+    nu = datetime.now(timezone.utc).replace(microsecond=0)
+    earlier = row(price=99, when=tidigare_samma_dag(nu))
+    later = row(price=85, when=nu)
     assert client.post("/liselott/pris", json=[earlier]).get_json()["inserted"] == 1
     assert client.post("/liselott/pris", json=[later]).get_json()["updated"] == 1
-    assert priser(tmp) == [(WISH_ISBN, 85, stamp(NU), 0, 5)]
+    assert priser(tmp) == [(WISH_ISBN, 85, stamp(nu), 0, 5)]
 
 
 def test_door_response_echoes_no_book_data(dorren):
@@ -460,12 +471,20 @@ def test_g1_exactly_sixty_percent_is_not_past_sixty_percent(dorren):
 def test_g1_compares_the_day_before_never_the_same_day(dorren):
     """The F-b cure: prev is the latest observation STRICTLY before the written
     row's day, so today's re-ask (100 then 39, both today) can never suppress
-    the badge day it just confirmed. The row is still stored with its price."""
+    the badge day it just confirmed. The row is still stored with its price.
+
+    The day pair comes from ONE clock read at leg start, the earlier half
+    anchored by `tidigare_samma_dag` — the first version stamped the earlier
+    row eight hours back from the module `NU`, which the door read as
+    YESTERDAY every 00:00–08:00 UTC, so the leg went red overnight (MC 12570
+    measured it, MC 12571 pins it green at every hour)."""
     tmp, client = dorren
-    client.post("/liselott/pris", json=[row(price=100, when=NU - timedelta(hours=8))])
-    body = client.post("/liselott/pris", json=[row(price=39)]).get_json()
+    nu = datetime.now(timezone.utc).replace(microsecond=0)
+    client.post("/liselott/pris",
+                json=[row(price=100, when=tidigare_samma_dag(nu))])
+    body = client.post("/liselott/pris", json=[row(price=39, when=nu)]).get_json()
     assert (body["accepted"], body["suspect"], body["updated"]) == (1, 0, 1)
-    assert priser(tmp) == [(WISH_ISBN, 39, stamp(NU), 0, 5)]
+    assert priser(tmp) == [(WISH_ISBN, 39, stamp(nu), 0, 5)]
 
 
 @pytest.mark.parametrize("ordning", ["front", "back"])

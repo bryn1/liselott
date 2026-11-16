@@ -892,3 +892,23 @@ postdating a line make that line STALE — de-stale before quoting it.
   run STAGED: 0 findings, exit 0; `secret_scan.sh --range origin/main..main`
   clean. Nothing pushed. conftest untouched, `liselott-data` untouched,
   no real data, no network in any leg.
+- **MC 12571 de-time-bomb — the G1 day-pair leg, green at every hour.**
+  The clock-window leg MC 12570 reported is FIXED: its earlier half was
+  stamped eight hours off the module `NU`, which the door read as YESTERDAY
+  every 00:00–08:00 UTC, turning the same-day re-ask into a real G1
+  comparison (inserted+flagged where updated+clean is the contract). The
+  leg's day pair now comes from ONE clock read at leg start, the earlier
+  half anchored by the new `tidigare_samma_dag` helper — same UTC date at
+  its earliest second, `replace` cannot cross the date boundary. The same
+  bomb class sat in `test_door_upserts_a_same_day_re_ask_into_one_point`
+  (`NU − 6 h`, red before 06:00 UTC) — same file, same anchor, fixed in
+  this commit. `app/pris.py` UNTOUCHED: the freeze seam `ingest(now=…)`
+  already exists, but these legs ride the HTTP door, which never passes
+  `now`, and the card's first reading (single clock read) wins — zero
+  production change, no new seam, so no default-unchanged leg is owed.
+  Measured RED at 06:5x UTC on the untouched tree, GREEN at the SAME wall
+  clock after. Door file 47/47 green under TZ=UTC AND TZ=Europe/Stockholm;
+  suite **716 passed** exit 0. `scripts/exposure_check.py` run STAGED:
+  0 findings, exit 0; `secret_scan.sh --range origin/main..main` clean.
+  Nothing pushed. conftest untouched, synthetic 979-isbn data only,
+  `scripts/pris_vakt.py` untouched (the live tick's file).
