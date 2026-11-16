@@ -15,6 +15,42 @@ from flask import abort, render_template, request
 from app import auth, books, db, priskort, redigera, seed
 
 
+def skapa_onska(conn, titel, forfattare, isbn13=None, year=None,
+                format="bok"):
+    """M11 (MC 12597) — THE one wish writer: the INSERT body of
+    /onska/lagg-till extracted one step, so the accept route and the form
+    route cannot drift (one writer, two callers; §5.4's anti-drift rule
+    speaks of splitters but binds for writers too). `forfattare` is the raw
+    display string — split_authors + alias canonicalization live HERE, so
+    the stored author rows and the §5.3 book_key cannot disagree, exactly
+    as inside the route before the move. Returns None on success and the
+    sentinel "redan" on the UNIQUE book_key collision (§5.3) — the CALLER
+    owns the Swedish copy, because one caller re-renders a form and the
+    other redirects. `isbn13`/`year` ride for the accept path (an AI rec
+    carries them; the form route has never stored them — enrichment owns
+    that door, /backfill). The §5.11 posture is untouched: a wish is BORN
+    as a wish — status 'wishlist', the read_year 0 sentinel, no date."""
+    authors = seed.split_authors(forfattare)
+    aliases = seed.app_aliases()
+    canonical = [aliases.get(name, name) for name in authors]
+    nu = auth.utcnow_iso()
+    try:
+        cur = conn.execute(
+            "INSERT INTO book (title, format, read_year, status, isbn13,"
+            " year, book_key, created, updated) VALUES (?,?,0,'wishlist',?"
+            ",?,?,?,?)",
+            (titel, format if format in redigera.FORMATS else "bok",
+             isbn13, year, seed.book_key(titel, canonical), nu, nu))
+        seed.set_authors(conn, cur.lastrowid, authors)
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        if "UNIQUE" not in str(e):
+            raise
+        return "redan"
+    return None
+
+
 def init_onska(app):
 
     def _onska(vyan, fel):
@@ -44,23 +80,11 @@ def init_onska(app):
             wishes = books.sort_by_read_date(
                 [b for b in books.load_books(conn) if b["status"] != "read"])
             return _onska(wishes, fel), 400
-        authors = seed.split_authors(form.get("forfattare", ""))
-        aliases = seed.app_aliases()
-        canonical = [aliases.get(name, name) for name in authors]
-        now = auth.utcnow_iso()
-        try:
-            cur = conn.execute(
-                "INSERT INTO book (title, format, read_year, status,"
-                " book_key, created, updated) VALUES (?,?,0,'wishlist',?,?,?)",
-                (values["title"], form.get("format") if form.get("format")
-                 in ("bok", "ljudbok") else "bok",
-                 seed.book_key(values["title"], canonical), now, now))
-            seed.set_authors(conn, cur.lastrowid, authors)
-            conn.commit()
-        except Exception as e:
-            conn.rollback()
-            if "UNIQUE" not in str(e):
-                raise
+        # MC 12597: the write itself moved ONE step into skapa_onska (the
+        # accept route is its second caller); the POST contract here is
+        # byte-identical — the writer gets no isbn/year, as before.
+        if skapa_onska(conn, values["title"], form.get("forfattare", ""),
+                       format=form.get("format")) == "redan":
             wishes = books.sort_by_read_date(
                 [b for b in books.load_books(conn) if b["status"] != "read"])
             return _onska(

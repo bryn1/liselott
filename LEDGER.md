@@ -912,3 +912,43 @@ postdating a line make that line STALE — de-stale before quoting it.
   0 findings, exit 0; `secret_scan.sh --range origin/main..main` clean.
   Nothing pushed. conftest untouched, synthetic 979-isbn data only,
   `scripts/pris_vakt.py` untouched (the live tick's file).
+- **MC 12597 M11-N4 — the app side of "AI rekommenderar" (design MC 12590
+  PLAN).** DONE (this commit): `ai_rek` table (idempotent CREATE, the price
+  idiom, rec_key UNIQUE = isbn13-else-seed.book_key, state new/accept/
+  decline CHECK + declined_at); `app/ai_rek.py` = the fifth machine door
+  POST /ai-rek (the /pris posture verbatim + AI_REC_DOOR_TOKEN 64-hex
+  ENFORCED — a malformed armed env is the DISARMED door 503; one uniform
+  401; owner session rides tokenless; GET keeps the uniform 302; auth joins
+  TOKENLESS_POSTS + `_is_ai_rek_door` POST-only) + accept/decline owner
+  POSTs (guard+CSRF, the /djem pattern) + `onska.skapa_onska` — ONE wish
+  writer, two callers, the lagg-till POST contract byte-identical; the
+  upsert NEVER touches accept/decline rows (kept_* counters — declines
+  never resurface, door-side); the page gains the "AI rekommenderar"
+  section (fit DESC, empty-state line). MOVED OUT of routes.py: the rec
+  page + /djem (pure move, endpoint names stand) — routes.py 376 lines
+  (<=400), and the F-3 slash rule for /rekommendationer MOVED with the
+  view because url_for builds the FIRST rule of an endpoint: registered
+  beside the old loop it flipped every rendered nav URL to the slash
+  spelling and the MC 12551 byte pins went red (measured +1 byte on the
+  owner pages); with the rule under the view the owner landing re-dumped
+  BYTE-IDENTICAL against a HEAD worktree. PLAN deviations, each named:
+  schema columns per the card (isbn13/author_name/fit REAL [0,1] enforced
+  door-side + declined_at, not PLAN's isbn/author/rank); fit DESC not rank;
+  one test file (tests/test_ai_rek.py, 20 legs) not PLAN's two, and
+  test_no_leak.py untouched (the leak legs ride the new file: zero
+  "AI rekommenderar" bytes in every anonymous answer, positive owner-page
+  leg, both lists, fit DESC); the §d full-replacement sweep NOT built (the
+  card's ingest DoD names upsert-only — a DELETE no caller of this card
+  issues is a mechanism waiting for a spec); no app.css lines (existing
+  classes cover the section); accept COMMITS the state flip BEFORE the
+  writer (the writer owns its commit/rollback — flipping inside its txn
+  would let the UNIQUE rollback undo the flip); runner scripts (§e) are
+  another card, app side only here. PLANTED-RED: the kept_* branch, the
+  accept state-guard, the writer's "redan" collision, the 64-hex arming and
+  the guard's door term each went RED on its named leg and green after
+  restore (map in the test file's docstring). Suite baseline BEFORE the
+  work: **716 passed** (`pytest -q`, the repo .venv; system python3
+  carries 4 pre-existing raw-socket failures — not this card's tree
+  state); after: **736 passed** exit 0 (716 + 20 new, zero regressions),
+  incl. the MC 12551 byte pins. `scripts/exposure_check.py` run STAGED:
+  0 findings exit 0. Nothing pushed. docs/ left untracked (untouched).

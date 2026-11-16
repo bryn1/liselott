@@ -43,6 +43,24 @@ CREATE TABLE IF NOT EXISTS price (
 CREATE UNIQUE INDEX IF NOT EXISTS ux_price_isbn_day
   ON price (isbn, retailer, substr(checked_at,1,10));
 CREATE INDEX IF NOT EXISTS idx_price_checked ON price(checked_at);
+-- M11 (MC 12597, design MC 12590): the AI-recommended category. One table,
+-- the whole AI lifecycle; a rec is NOT a book until she accepts (then the
+-- wish is its own row, §5.11). rec_key is the upsert match key, computed
+-- DOOR-side: isbn13 when present, else seed.book_key(title,[author]) — so
+-- "same book" means the same thing the bundle upsert means.
+CREATE TABLE IF NOT EXISTS ai_rek (
+  id INTEGER PRIMARY KEY,
+  rec_key TEXT NOT NULL UNIQUE,
+  isbn13 TEXT,
+  title TEXT NOT NULL,
+  author_name TEXT,
+  year INTEGER,
+  reason TEXT NOT NULL,
+  source TEXT NOT NULL,
+  fit REAL NOT NULL,
+  state TEXT NOT NULL DEFAULT 'new' CHECK (state IN ('new','accept','decline')),
+  ts TEXT NOT NULL,                      -- auth.utcnow_iso shape, SERVER clock
+  declined_at TEXT);                     -- set by the ONE decline flip
 CREATE TABLE IF NOT EXISTS dismissed (key TEXT PRIMARY KEY, ts TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS login_attempts (id INTEGER PRIMARY KEY, ip TEXT NOT NULL, ts TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);

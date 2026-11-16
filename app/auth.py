@@ -1,7 +1,8 @@
 """Auth core (§6) — setup window, guard allow-list, mount-aware redirects.
 reason: the §6 auth core is ONE concern (state matrix, guard, CSRF, password
-lifecycle) — the MC 12497 sec-wave grew this file past 400; the split is
-scheduled beside the LEDGER row, not smuggled into a security fix. Original:
+lifecycle) — the MC 12497 sec-wave grew this file past 400, and MC 12597
+(the /ai-rek machine door's guard legs) added to it; the split is scheduled
+beside the LEDGER row, not smuggled into a security fix. Original:
 The §6.1 three-state matrix is pinned here (P2-c): /healthz answers 200 `ok`
 in EVERY state; /satt-loesenord exists only while the password is unset AND
 within SETUP_WINDOW_S of process start (F-5: no public land-grab — fest40
@@ -99,8 +100,12 @@ QUARANTINED_NAMESPACES = (".git",)
 # rule runs BEFORE the door ever compares a token, /pris joins NO read
 # allow-list (§6.4), and every other method on /pris keeps the uniform 302.
 CSRF_METHODS = ("POST", "PUT", "PATCH", "DELETE")
+# M11 (MC 12597): POST /ai-rek is the FIFTH machine door, the same reading —
+# the AI-pass runner posts JSON, carries no browser token, and its credential
+# is the dedicated door token checked IN THE DOOR (app/ai_rek.py), so
+# _is_ai_rek_door below lets the POST METHOD through and nothing else.
 TOKENLESS_POSTS = ("/logga-in", "/satt-loesenord", "/seed", "/bundle",
-                   "/backfill", "/pris")
+                   "/backfill", "/pris", "/ai-rek")
 CSRF_TOKEN_COPY = "Säkerhetsmärket saknas — ladda om sidan och försök igen."
 FOREIGN_ORIGIN_COPY = "Fel — formuläret skickades från en annan webbplats."
 
@@ -274,6 +279,17 @@ def _is_pris_door() -> bool:
     return request.path == "/pris" and request.method == "POST"
 
 
+def _is_ai_rek_door() -> bool:
+    """MC 12597 (M11, design MC 12590): POST /ai-rek reaches its route
+    WITHOUT an owner session — the AI-pass runner's credential is the
+    dedicated door token (app/ai_rek.py compares it BEFORE any body parse,
+    503 fail-closed when the env is unset or malformed, 64-hex enforced).
+    _is_pris_door's rule re-stated for the fifth door, and it stands for
+    exactly one route: the POST METHOD ONLY, so GET/HEAD on /ai-rek keep
+    the guard's uniform 302 and no other route joins any allow-list here."""
+    return request.path == "/ai-rek" and request.method == "POST"
+
+
 def _file_shaped() -> bool:
     """M8-hotfix-2 (MC 12451): the lane staging gate (vm106-staging-gate.sh
     §6) probes every root file the mirror DROPS (DESIGN.md, README.md,
@@ -393,7 +409,7 @@ def init_auth(app):
         if request.path == "/satt-loesenord":
             abort(404)  # configured -> gone forever (§6.1)
         if (request.path in UNAUTHENTICATED_ALLOW or _is_public_read()
-                or _is_pris_door()
+                or _is_pris_door() or _is_ai_rek_door()
                 or request.path.startswith(STATIC_PREFIX)):
             return _csrf_gate()
         if session.get(SESSION_FLAG):

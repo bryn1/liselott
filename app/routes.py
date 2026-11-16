@@ -18,7 +18,7 @@ from flask import (Response, abort, jsonify, render_template, request,
                    send_file, session)
 
 from app import (auth, backup, books, db, filtrering, omslag, priskort,
-                 recommend, search, seed)
+                 search, seed)
 
 # F-2 (SEC-verdict-12497): werkzeug's int converter matches \d+ WITHOUT
 # bound, and binding an id >= 2**63 into sqlite OverflowErrors — the
@@ -205,37 +205,11 @@ def init_routes(app):
         return render_template("sok.html", q=q, traffar=traffar,
                                current="sok")
 
-    DISMISS_KINDS = {"book": "book", "cand": "candidate"}
-
-    @app.get("/rekommendationer")
-    def rekommendationer():
-        """T6.2 — the §8 page: the engine's top 12, best first. rated==0 is
-        NOT an error state: the plan's empty-state copy answers and the
-        wishlist-led list still renders (the t=0 leg)."""
-        conn = db.get_db()
-        rated = conn.execute("SELECT COUNT(*) FROM book"
-                             " WHERE rating IS NOT NULL").fetchone()[0]
-        return render_template("rekommendationer.html",
-                               recs=recommend.top_recommendations(conn, 12),
-                               rated=rated, current="rekommendationer")
-
-    @app.post("/djem/<kind>/<int:item_id>")
-    def djem(kind, item_id):
-        """T6.2 — "Visa inte igen": the §8 dismissed row, keyed 'book:<id>'
-        for a wish and 'cand:<id>' for a pool card (P2-3 — both kinds are
-        dismissible). The engine excludes the key from the top-12; PRIMARY
-        KEY makes a repeated click a no-op, never an error. The table name
-        comes from a fixed whitelist dict, never from the URL."""
-        if kind not in DISMISS_KINDS:
-            abort(404)
-        conn = db.get_db()
-        if conn.execute(f"SELECT 1 FROM {DISMISS_KINDS[kind]} WHERE id = ?",
-                        (item_id,)).fetchone() is None:
-            abort(404)                       # the 404 page echoes nothing
-        conn.execute("INSERT OR IGNORE INTO dismissed (key, ts) VALUES (?,?)",
-                     (f"{kind}:{item_id}", auth.utcnow_iso()))
-        conn.commit()
-        return auth.redirect_prefixed("/rekommendationer")
+    # MC 12597 (M11): GET /rekommendationer and POST /djem/<kind>/<id>
+    # MOVED OUT here, verbatim in behaviour, into app/ai_rek.py — the one
+    # recommendation-surface module (the page now carries the AI category
+    # too). The endpoint names are unchanged, so the slash rules at the
+    # foot of this file and every url_for stand as they were.
 
     GRADE_RE = re.compile(r"[1-5]")          # §1: integers 1–5, ASCII digits only
     GRADE_CLEAR = "clear"                    # the Rensa button's own value
@@ -388,13 +362,15 @@ def init_routes(app):
     # and none is added beside Flask's: the guard's tolerated match
     # (auth.py _is_public_read) opens the way for what MC 12501 left public,
     # these rules answer the page itself, in place, 200 — and they stand
-    # for the owner's slash spelling of the now-private /sok and
-    # /rekommendationer too, which the guard answers anonymous with its
-    # uniform 302. url_for still builds the canonical (shorter) rule, so
-    # no template, redirect or asset URL changes.
+    # for the owner's slash spelling of the now-private /sok too, which the
+    # guard answers anonymous with its uniform 302. url_for still builds the
+    # canonical (shorter) rule, so no template, redirect or asset URL
+    # changes. (MC 12597: the /rekommendationer/ leg MOVED with its view
+    # into app/ai_rek.py — url_for builds the FIRST rule of an endpoint, so
+    # a slash rule added before the later-registered view would flip every
+    # rendered URL; it is registered directly under the view there.)
     for slash_rule, endpoint in (("/bibliotek/", "bibliotek"),
                                  ("/sok/", "sok"),
-                                 ("/rekommendationer/", "rekommendationer"),
                                  ("/bok/<int:id>/", "bok"),
                                  ("/cover/<int:book_id>/", "cover")):
         app.add_url_rule(slash_rule, endpoint=endpoint)

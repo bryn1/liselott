@@ -11,6 +11,40 @@
 <p class="tom-state">Betygsätt några böcker för personliga rekommendationer.</p>
 {% endif %}
 
+{# M11 (MC 12597, design MC 12590 §c) — "AI rekommenderar" FIRST on the
+   page (her ask is this category; the classic §8 list keeps its bytes
+   below). Rows are the ai_rek state='new' set, best fit first (fit DESC);
+   accept goes through THE wish writer (onska.skapa_onska), "Avstå" is the
+   ONE permanent decline. The buttons are browser POSTs — this page is
+   owner-only (the guard 302s anonymous, MC 12501), so it never paints on
+   a public answer and the csrf idiom is the djem form's below. #}
+<section class="ai-rek">
+  <h2>AI rekommenderar</h2>
+  {% if ai_recs %}
+  <ul class="hylla ai-rek-lista">
+    {% for a in ai_recs %}
+    <li class="bok-kort" data-kind="ai">
+      <p class="titel">{{ a.title }}</p>
+      {% if a.author_name %}<p class="forfattare">{{ a.author_name }}</p>{% endif %}
+      {% if a.year or a.source %}<p class="meta">{% if a.year %}{{ a.year }} · {% endif %}{{ a.source }}</p>{% endif %}
+      <p class="motivering">{{ a.reason }}</p>
+      <form method="post" action="{{ url_for('ai_rek_accept', rek_id=a.id) }}">
+        <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+        <button type="submit" class="overopande">Till önskelistan</button>
+      </form>
+      <form method="post" action="{{ url_for('ai_rek_decline', rek_id=a.id) }}">
+        <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+        <button type="submit" class="overopande">Avstå</button>
+      </form>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="tom-state">Inga AI-rekommendationer ännu — de kommer hit efter
+    nästa AI-pass.</p>
+  {% endif %}
+</section>
+
 {% if recs %}
 <ul class="hylla rek-lista">
   {% for r in recs %}
