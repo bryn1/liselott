@@ -1258,3 +1258,56 @@ postdating a line make that line STALE — de-stale before quoting it.
   banners (untracked — never in git, bannered in place, NOT added), the
   `pris_parse` rename/naming hygiene row, and MC 12616's /tmp 0600 tmpfile
   clearing. Exposure gate 0 findings pre-commit. NOTHING pushed.
+
+- **MC 12617 (M11-N8b) — corpus rebase + the FIRST LIVE generation wave
+  (2026-11-17, this commit on top of `157fb93`)** —
+  RUNNER HARDENING, three gates + one suite class, all legs seen RED on
+  mutants (battery + sha-verified restores logged at
+  `.audits/202611161817-aae834ce-n1/out/.tmp/n8b/mut/`):
+  (a) the PROMPT SPLIT — `build_prompt` returns a (SYSTEM, USER) pair
+  (instructions + the answer contract in system, her graded cards + the
+  review quotes as data in user), `lane_ask` rides both messages to Lane
+  E; the OUTPUT CONTRACT is byte-pinned (sha256 `79ac40b5…`, the
+  leg asserts the pinned sha of its own literal first) — DA c3 F-P3-4;
+  (b) the DRY-REHEARSAL BELT (`scripts/ai_rek_belt.py`: a completed
+  `--dry-run` writes a 0600 stamp keyed by base+library carrying
+  corpus-sha256+accepted+ts; `--full` refuses — ZERO POST — without a
+  fresh stamp for THIS corpus+library inside the window, checked BOTH
+  before the lane ask and again before the POST; DA c5 F-P4-1) and the
+  NEAR-MISS GATE (the same belt module: a candidate that folded-title
+  LOOKS like a graded shelf card but cannot join via `wish_key` refuses
+  the WHOLE generation before the lane ask — ownership is unresolvable
+  because `seed.book_key` aliases AUTHORS only (DA probe3); fail-closed,
+  counts in the ALARM, refused titles never ride stdout; DA c3 F-P2-2c);
+  (c) the PERMANENT E2E SUITE CLASS (`tests/test_ai_rek_e2e.py`): the
+  runner module over a REAL socket (`make_server` port 0, `rp.door_post`
+  AND a whole `run_pass` with only the library/lane seams faked) against
+  the REAL door — receipt read, DB rows read back, wrong-token lands
+  NOTHING (the DA c7 probe adopted as law). Mutants: gate-off,
+  pair-collapse, contract-word-drift, both rehearsal belts off
+  simultaneously, stamp-always-held, config-header-never-written — all
+  RED. Suite **702 passed + 1 skipped** (the 691+1 base + 11 new legs);
+  the new legs split to `tests/test_ai_rek_gates.py` under the 600-line
+  test ceiling. Exposure gate 0 findings pre-commit.
+  CORPUS REBASE (fleet-side, `out/lane/n8b_rebase.py` importing the
+  belt classifier + `read_corpus` — ONE mechanism, two callers): shelf
+  fetched over curl from BOTH public faces, graded SETS equal (221=221),
+  26→**24 rows** (sha `a5e1f4a2…` → `a060baef…`), kept lines
+  byte-identical to the base, 24/24 fresh Libris isbn+title+author
+  confirmations; DROPPED fail-closed: the EXACT-JOIN owned row and the
+  NON-JOIN near-miss row (CORPUS.md REBASE section names them; no title
+  alias, no second normalizer — the corrected rule). DA c3 probe re-run:
+  0 near-miss of 24.
+  FIRST LIVE WAVE (sequence: dry-run → rehearsal stamp → `--full`):
+  production door answered **200** `{"accepted":23,"deleted_n":0,
+  "inserted":23,"updated":0,"kept_accept":0,"kept_decline":0,
+  "rejected_shape":0}` — zero deletions (first wave, table was empty),
+  the live twin-dedupe belt dropped one duplicated lane-answer row
+  (23≥floor 20, mix nyhet+klassiker held); NO generated covers, isbns
+  only; owner page untouched. PLAN §e carries the SYNC addendum:
+  pris_vakt RETIRED (MC 12606), `ai_rek_pass` is THE standing runner,
+  every other pris citation is dated precedent.
+  NOT DONE HERE, named: the `ai-rek-liselott.{service,timer}` owner-gated
+  schedule (the wave was manual by scope), the corpus-growth row count
+  toward 24→30+ (rebase costs a row per ownership ambiguity). NOTHING
+  pushed. `docs/` left untouched.

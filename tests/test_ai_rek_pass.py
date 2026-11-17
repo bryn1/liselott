@@ -46,6 +46,12 @@ sha-verified restore) is mapped in the commit body.
   owned-named-back     an isbn naming a JOIN-DROPPED owned corpus row is
                        refused post-parse (belt F-C3-1, the tester's L11)
 ONE live-optional leg (real Lane E) is skipped unless AI_REK_LIVE=1.
+NOTE on the fixture titles (MC 12617): the corpus fixture rows now carry
+DISTINCT Swedish-looking titles (TITELORD — pairwise near-miss-clean by
+computation). In the old dense "Bok N" space every pair of synthetic
+titles is one edit apart, which the near-miss gate correctly reads as an
+ownership ambiguity; the leg INTENTS are unchanged, the dense fixture
+space simply moved outside the gate's real-world semantics.
 """
 import json
 import os
@@ -88,8 +94,23 @@ def isbn(i):
 
 KATERS = ("new_release", "classic", "mix")
 
+# MC 12617: fixture titles ride DISTINCT real-looking Swedish names — the
+# near-miss gate (ai_rek_belt) reads the old dense "Bok N" space as one big
+# ownership ambiguity. Pairwise near-miss-clean VERIFIED by computation
+# (folded ratio < 0.62 and no token containment, all 24×23 ordered pairs,
+# plus every title vs GRADERADE).
+TITELORD = [
+    "Alfabetets Hus", "Barnvagnsbron", "Cykelverkstaden Norr", "Dagdrömsängen",
+    "Ekbackens Tavla", "Fyrhornets Skugga", "Glasögonbindeln",
+    "Hammarbyns Krog", "Infallsvinkeln Idag", "Journalistens Nyckel",
+    "Karusellen Imorgon", "Lantvägens Krämeri", "Musiksalongens Hemlighet",
+    "Naturreservatet Söder", "Orkesterdiket", "Pandemin Papper",
+    "Resväskebudet", "Skördemånens Fågel", "Trädgårdsmästarens Arv",
+    "Upprorets Utsikt", "Vintergatans Vaktare", "Yrkesvalets Ångest",
+    "Ångertågets Signal", "Öppet Hus För Alla"]
 
-def korpus_tsv(path, n=21, title=lambda i: f"Bok {i}",
+
+def korpus_tsv(path, n=21, title=lambda i: f"{TITELORD[i % 24]} {i}",
                 author=lambda i: f"Upp {i}",
                 category=lambda i: KATERS[i % 3]):
     with open(path, "w", newline="", encoding="utf-8") as fh:
@@ -104,14 +125,18 @@ def korpus_tsv(path, n=21, title=lambda i: f"Bok {i}",
 
 
 class FakeLane:
-    """Answer carrier; .prompt captures what the model was actually asked."""
+    """Answer carrier; .prompt captures what the model was actually asked
+    (joined across turns — substring legs stay substring legs), .turer the
+    RAW (system, user) pair from MC 12617's split (None on a legacy str)."""
 
     def __init__(self, text):
-        self.text, self.calls, self.prompt = text, 0, None
+        self.text, self.calls, self.prompt, self.turer = text, 0, None, None
 
     def __call__(self, prompt):
         self.calls += 1
-        self.prompt = prompt
+        self.turer = None if isinstance(prompt, str) else prompt
+        self.prompt = (prompt if isinstance(prompt, str)
+                       else "\n\n".join(prompt))
         return self.text
 
 
@@ -144,14 +169,25 @@ GRADERADE = [{"title": "En helt annan bok", "author": "Annat Namn",
 
 def kör(mp, tmp_path, *, n=21, graded=GRADERADE, lane_text=None, post=None,
         dry=False, token="a" * 64, category=lambda i: KATERS[i % 3],
-        full=False):
+        full=False, rehearse=True):
     """One full run over faked seams; `mp` owns the token env (the delivery
-    legs ride a VALID 64-hex token unless a leg names its own)."""
+    legs ride a VALID 64-hex token unless a leg names its own). MC 12617:
+    the rehearsal stamp dir is per-leg tmp (no /tmp litter, no cross-leg
+    bleed), and a `full=True` run is REHEARSED FIRST by a plain dry-run on
+    the same corpus/library — pass `rehearse=False` to attack the belt."""
     mp.setenv(rp.ENV_TOKEN, token)
+    mp.setenv("AI_REK_REHEARSAL_DIR", str(tmp_path))
     ts = korpus_tsv(tmp_path / "corpus.tsv", n=n, category=category)
     lane = FakeLane(lane_text if lane_text is not None else svar_alla(n))
     post = post or FakePost()
     lines = []
+    if full and rehearse:
+        rr = rp.run_pass(ts, "https://sibbamala.test/liselott/bibliotek",
+                         "https://sibbamala.test/liselott", dry_run=True,
+                         get_library=library_med_html(shelf_html(graded)),
+                         lane=FakeLane(lane.text), post=FakePost(),
+                         say=lambda line: None)
+        assert rr == 0, "rehearsal must pass before the --full leg runs"
     code = rp.run_pass(ts, "https://sibbamala.test/liselott/bibliotek",
                        "https://sibbamala.test/liselott",
                        dry_run=dry,
@@ -166,7 +202,7 @@ def test_join_drops_owned_books(tmp_path, monkeypatch):
     """The corpus book the shelf grades — spelled DIFFERENTLY, identity is
     the wish_key normalization, not string equality — never reaches the
     prompt, and never rides the POST."""
-    graded = [{"title": "BOK 0", "author": "upp 0", "rating": 4}]
+    graded = [{"title": "ALFABETETS HUS 0", "author": "upp 0", "rating": 4}]
     post = FakePost()
     code, lines, lane, post = kör(
         monkeypatch, tmp_path, graded=graded, n=22, post=post,
@@ -414,7 +450,7 @@ def test_owned_book_named_back_is_refused(tmp_path, monkeypatch):
     row the JOIN dropped as owned — post-parse the belt refuses it even
     though the row exists in corpus.tsv; the offered set is the accepted
     set. All other rows ride."""
-    graded = [{"title": "Bok 0", "author": "Upp 0", "rating": 4}]
+    graded = [{"title": "Alfabetets Hus 0", "author": "Upp 0", "rating": 4}]
     post = FakePost()
     code, lines, _, post = kör(
         monkeypatch, tmp_path, graded=graded, n=22, post=post,
@@ -485,3 +521,4 @@ def test_live_lane_e_ranks_real_shapes():
         rankade = rp.parse_ranking(rp.lane_ask(rp.build_prompt(graded, rows)))
         assert len(rankade) >= 2
         assert all(re.fullmatch(r"\d{13}", str(r["isbn13"])) for r in rankade)
+
