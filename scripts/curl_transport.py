@@ -6,7 +6,15 @@ and pris_vakt (the /pris runner) share ONE transport instead of forking a
 second one — one mechanism, two callers. The body is byte-identical to the
 MC 12570 original; the patch surface moved with it (tests monkeypatch
 `curl_transport.subprocess.run`).
+
+MC 12616 (DA c3 P2) adds `_curl_config` beside `_curl`: header delivery
+whose SECRET bytes never reach argv (the reproduced /proc/<curl>/cmdline
+leak). `_curl`'s signature is UNCHANGED — pris_vakt keeps the header-as-
+argv path byte-identically (MC 12616's stated reading: the card pins its
+behaviour unchanged; the shared mechanism is the MODULE, one transport
+with two call shapes, not one call shape).
 """
+import os
 import subprocess
 import tempfile
 
@@ -42,3 +50,29 @@ def _curl(args, *, timeout_s, stdin_data=b""):
         return int(proc.stdout), body
     except ValueError:
         return 0, b""                      # no parseable status: no answer
+
+
+def _curl_config(secret_headers, build_args, *, timeout_s, stdin_data=b""):
+    """MC 12616 (DA c3 P2, the reproduced /proc/<curl>/cmdline leak) — the
+    delivery that keeps SECRET header bytes OUT of the child's argv: the
+    named headers are written to a per-call tmpfile (tempfile.mkstemp —
+    created 0600), curl reads them via `--config @<path>`, and the file is
+    unlinked in the finally. The content is never echoed or logged: this
+    function never prints, and `_curl`'s failure path answers (0, b"").
+    `secret_headers` is a sequence of (namn, varde) ASCII pairs — a value
+    carrying a quote or a newline RAISES before a byte is written, so a
+    token value can never inject config lines. `build_args(config_arg)`
+    returns the caller's curl argv tail with the "@"-prefixed reference
+    where it belongs; the argv that reaches /proc then carries ZERO
+    secret bytes (leg: test_door_post_token_absent_from_the_live_curl_cmdline)."""
+    fd, path = tempfile.mkstemp(prefix="curl-hdr-")
+    try:
+        with os.fdopen(fd, "w", encoding="ascii") as fh:
+            for namn, varde in secret_headers:
+                if '"' in varde or "\n" in varde or "\r" in varde:
+                    raise ValueError("configvärdet ur formen — vägrar skriva")
+                fh.write(f'header = "{namn}: {varde}"\n')
+        return _curl(build_args("@" + path), timeout_s=timeout_s,
+                     stdin_data=stdin_data)
+    finally:
+        os.unlink(path)

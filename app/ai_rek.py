@@ -1,3 +1,8 @@
+# 438 lines > 400 (MC 12616): the door's ONE ingest chain — shape pass,
+# identity matcher, full-swap sweep, the settle and its commit — is one
+# atomic "new generation" transaction; cutting the sweep into a sibling
+# file would scatter that guarantee (coding-discipline header REASON; the
+# split stays scheduled, a REASON never absolves it).
 """M11 (MC 12597, design MC 12590) — the "AI rekommenderar" category.
 
 One module, one concern: the recommendation SURFACE. It owns the machine
@@ -26,6 +31,18 @@ goes through onska.skapa_onska — one wish writer, two callers, THE §7 isbn
 validation inside it (F-P2-2) — and the state flip lands only after the
 wish succeeded (F-P2-3). Decline is the state flip + `declined_at`; no
 un-decline door in M11 (the task pins: declines never resurface).
+
+MC 12616 (M11-N8a, PLAN §d completion) adds the door's OPTIONAL full-swap
+envelope `{"generation": [ …rows… ]}`: the POSTed list is the COMPLETE new
+generation and `_sweepa` deletes the state='new' rows whose identity is
+ABSENT from it — identity is THE SAME union `_bok_rad` matches on, asked
+inverted through `_samma_bock` (ONE mechanism, no second "same book" rule);
+accept/decline rows are NEVER deleted (the DELETE rides the same
+state='new' guard as the duppar merge), a full-swap of ZERO rows is
+REFUSED fail-loud (`EMPTY_GENERATION`, rows kept) and the answer gains
+`deleted_n`. A payload WITHOUT the "generation" key is today's upsert,
+byte-identical, posture unchanged (fail-closed 503, 64-hex 401, generic
+disarmed copy, uniform 302).
 """
 import hmac
 import math
@@ -61,6 +78,12 @@ LENGTH_REQUIRED = (
     " Ingen rekommendation är lagrad")   # the /pris F-E2 posture, same rule
 ROWS_TOO_BIG = ("AI-listan är {antal} rader — budgetet är {max} rader per "
                 "anrop; dela upp den. Ingen rekommendation är lagrad")
+EMPTY_GENERATION = ("Generationen är tom — ett fullständigt byte måste "
+                    "innehålla minst en rad; dörren vägrar radera "
+                    "befintliga 'new'-rader utifrån noll rader. Ingen "
+                    "rekommendation är lagrad och inga befintliga rader "
+                    "har rörts")            # MC 12616, fail-loud: mass-delete
+# by an empty payload is the footgun the card names — refused BEFORE the DB.
 NOT_A_LIST = ("AI-listan är inte en JSON-array av objekt — dörren tar emot "
               "[{title, author_name, isbn13, year, reason, source, fit,"
               " kategori}, …]. Ingen rekommendation är lagrad")
@@ -145,6 +168,20 @@ def _obs(row):
                   "fit": float(fit), "kategori": kategori}
 
 
+def _samma_bock(identitet, obs):
+    """MC 12616 — the fix-wave matcher's identity UNION extracted verbatim
+    as a predicate (MC 12602 F-P1-1): the UNIQUE `rec_key` lane, the isbn
+    lane when BOTH sides carry one, and the §5.3 normalized title+author
+    lane through `onska.wish_key`. ONE mechanism, two callers: `_bok_rad`
+    uses it to FIND the row of a book, `_sweepa` uses it INVERTED to find
+    the `new` rows absent from a complete generation. No second "same book"
+    rule may ever be written beside it."""
+    rec_key, isbn, titel, forfattare = identitet
+    return (rec_key == obs["rec_key"]
+            or (obs["isbn13"] is not None and isbn == obs["isbn13"])
+            or onska.wish_key(titel, forfattare or "") == obs["boknyckel"])
+
+
 def _bok_rad(conn, obs):
     """The row that already carries THIS BOOK, or None — MC 12602 F-P1-1's
     whole-identity match: the UNIQUE `rec_key` lane, the isbn lane (when
@@ -159,15 +196,15 @@ def _bok_rad(conn, obs):
     to decline again, nor walk a decision back. Later `new` matches are
     returned as `duppar`: the pre-fix identity split, merged (deleted) by
     the caller BEFORE the refresh lands the shared rec_key on the target —
-    only `new` rows can ever be merged, the guarded DELETE says so."""
+    only `new` rows can ever be merged, the guarded DELETE says so. The
+    lane predicate itself lives in `_samma_bock` — ONE mechanism shared
+    with `_sweepa`, never a second copy."""
     ny = None
     duppar = []
     for id_, state, rkey, isbn, titel, forf in conn.execute(
             "SELECT id, state, rec_key, isbn13, title, author_name"
             " FROM ai_rek ORDER BY id"):
-        if not (rkey == obs["rec_key"]
-                or (obs["isbn13"] is not None and isbn == obs["isbn13"])
-                or onska.wish_key(titel, forf or "") == obs["boknyckel"]):
+        if not _samma_bock((rkey, isbn, titel, forf), obs):
             continue
         if state in ("accept", "decline"):
             return state, id_, ()
@@ -193,7 +230,32 @@ def _uppdatera(conn, obs, nu, rad_id):
          obs["kategori"], nu, rad_id))
 
 
-def ingest(conn, rows):
+def _sweepa(conn, payload):
+    """MC 12616 (PLAN §d completion) — the full-swap sweep: DELETE the
+    state='new' rows whose identity is ABSENT from the COMPLETE new
+    generation. Identity is THE SAME union the fix-wave matcher `_bok_rad`
+    matches on, asked INVERTED through `_samma_bock` — one mechanism, two
+    callers. accept/decline rows are NEVER deleted: the DELETE rides the
+    same `AND state = 'new'` guard as the duppar merge (decline permanence
+    holds on every identity, absent or variant). The empty payload is the
+    door's own 400 refusal (`EMPTY_GENERATION` — mass-delete by zero rows
+    is the footgun the card names); the belt stands HERE too: zero VALID
+    identities sweep NOTHING, so 500 shape-garbage rows cannot retire a
+    single live row either."""
+    if not payload:
+        return 0
+    bort = 0
+    for id_, rec_key, isbn, titel, forfattare in conn.execute(
+            "SELECT id, rec_key, isbn13, title, author_name FROM ai_rek"
+            " WHERE state = 'new' ORDER BY id"):
+        if not any(_samma_bock((rec_key, isbn, titel, forfattare), obs)
+                   for obs in payload):
+            bort += conn.execute("DELETE FROM ai_rek WHERE id = ?"
+                                 " AND state = 'new'", (id_,)).rowcount
+    return bort
+
+
+def ingest(conn, rows, *, generation=False):
     """One POST's rows through shape + whole-identity upsert; returns the
     aggregate counters and ZERO book data (the echo rule, pris.py's
     response). The upsert asks for the book BEFORE the write (the pris
@@ -203,16 +265,22 @@ def ingest(conn, rows):
     book can arrive under. The INSERT rides `ON CONFLICT(rec_key) DO
     NOTHING` (MC 12602 F-P3-7, the /pris race posture): a concurrent POST
     that won the UNIQUE lane is RE-ASKED, never an IntegrityError and
-    never a whole lost generation."""
+    never a whole lost generation. `generation=True` (MC 12616, the
+    envelope the door unwraps) makes the SAME upsert a FULL SWAP: after
+    every row is settled, `_sweepa` deletes the `new` rows whose identity
+    is absent from this complete generation and the answer gains
+    `deleted_n`; mode OFF the answer is byte-identical to today."""
     counts = {k: 0 for k in ("accepted", "inserted", "updated",
                              "kept_accept", "kept_decline",
                              "rejected_shape")}
     nu = auth.utcnow_iso()               # SERVER clock only, one read/POST
+    payload = []                         # the generation's VALID identities
     for row in rows:
         reject, obs = _obs(row)
         if reject:
             counts["rejected_shape"] += 1
             continue
+        payload.append(obs)
         match = _bok_rad(conn, obs)
         if match is not None:
             state, rad_id, duppar = match
@@ -245,6 +313,8 @@ def ingest(conn, rows):
             else:
                 counts["inserted"] += 1
         counts["accepted"] += 1
+    if generation:
+        counts["deleted_n"] = _sweepa(conn, payload)   # same transaction
     conn.commit()
     return counts
 
@@ -272,7 +342,14 @@ def init_ai_rek(app):
         payload that is not a JSON array is a payload-shape 400. Foreign
         Origin already 400s at the GUARD (auth.TOKENLESS_POSTS: origin-
         checked, token-exempt); GET and every other method on /ai-rek keep
-        the guard's uniform 302 (auth._is_ai_rek_door is POST-only)."""
+        the guard's uniform 302 (auth._is_ai_rek_door is POST-only).
+        MC 12616: a JSON OBJECT carrying the key "generation" is the
+        full-swap envelope — its row list is unwrapped and must be a
+        non-empty array (an empty one is the named 400 `EMPTY_GENERATION`
+        BEFORE any row is read), and the ingest that follows is a COMPLETE
+        generation whose absent `new` rows are swept (deleted_n in the
+        answer). Every other payload keeps today's upsert path byte-for-
+        byte, envelope checks included."""
         refused = _door_refused()
         if refused is not None:
             return refused
@@ -284,12 +361,19 @@ def init_ai_rek(app):
                     f"{MAX_AI_REK_BODY} byte per anrop; dela upp den. "
                     "Ingen rekommendation är lagrad"), 413
         rows = request.get_json(force=True, silent=True)
+        generation = isinstance(rows, dict) and "generation" in rows
+        if generation:                       # MC 12616 full-swap envelope
+            rows = rows["generation"]
+            if not isinstance(rows, list):
+                return NOT_A_LIST, 400
+            if not rows:                     # the footgun, refused BEFORE
+                return EMPTY_GENERATION, 400  # a single row is read
         if not isinstance(rows, list):
             return NOT_A_LIST, 400
         if len(rows) > MAX_AI_REK_ROWS:
             return ROWS_TOO_BIG.format(antal=len(rows),
                                         max=MAX_AI_REK_ROWS), 400
-        return jsonify(ingest(db.get_db(), rows))
+        return jsonify(ingest(db.get_db(), rows, generation=generation))
 
     @app.post("/ai-rek/<int:rek_id>/accept")
     def ai_rek_accept(rek_id):

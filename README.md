@@ -550,7 +550,19 @@ LEADING `YYMMDD` token, 45 rows). Trust the plan's §5 rules, never the header.
   malformed means DISARMED (503, fail-closed, owner session included), wrong
   or absent token ⇒ 401 in one uniform copy; a valid owner session rides
   without the token; GET keeps the guard's uniform 302 (MC 12546's posture
-  verbatim).
+  verbatim). The payload has one OPTIONAL envelope (MC 12616, PLAN §d):
+  a JSON object `{"generation": [ …rows… ]}` declares the list the COMPLETE
+  new generation — the door then deletes the `state='new'` rows whose
+  identity is ABSENT from it (identity = the same `rec_key` ∪ isbn ∪
+  `wish_key` union the upsert matches on, one mechanism) and the answer
+  gains `deleted_n`; `accept`/`decline` rows are NEVER deleted, and an
+  EMPTY generation is refused fail-loud (400, rows kept). Without the key
+  the payload is today's upsert, byte-identical. Fleet-side runner
+  `scripts/ai_rek_pass.py`: `--full` sends the envelope (DEFAULT off —
+  explicit opt-in); `--lane-timeout` sizes the Lane E ask budget (default
+  600 s — the shipped 300 died mid-generation, DA c4 P3). The runner's
+  door token never crosses argv: it rides a per-call 0600 `--config`
+  tmpfile, `/proc/<curl>/cmdline` clean (MC 12616, DA c3 P2).
 - `POST /backfill?n=5&after=<id>[&mode=candidates]` — the cover/ISBN retry and
   candidate-pool builder, resumable by `last_id` (cursor advances past
   permanent failures; wrap = fresh pass). Shares one pipeline with

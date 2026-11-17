@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# 468 lines > 400 (MC 12601 c3 fix-wave): the WHOLE generation contract —
+# 505 lines > 400 (MC 12601 c3 fix-wave, MC 12616 on top): the WHOLE generation contract —
 # corpus shape, the join, the ONE lane envelope, every code gate and the
 # door delivery — is one unchecked-nothing-can-pass chain; splitting it
 # scatters the single guarantee ("between corpus.tsv and the door there is
@@ -71,20 +71,29 @@ Gates BEFORE a byte reaches the door (all in code, none in the prompt):
                  current graded library" must be real).
 
 Delivery: POST {base}/ai-rek through curl_transport (ONE transport for
-both door runners — this card's shared extraction), `X-Ai-Rek-Token: ` from
-env AI_REC_DOOR_TOKEN, 64-hex asserted through the door's OWN TOKEN_SHAPE,
-the value never echoed. --dry-run prints the ranked JSON and POSTS NOTHING
-(the door POST is the ONLY thing dry-run skips — the shelf read and the
-lane ask still run, else the demo would prove nothing).
+both door runners — this card's shared extraction). The credential from
+env AI_REC_DOOR_TOKEN rides the `X-Ai-Rek-Token` header through curl's
+`--config @<per-call 0600 tmpfile>` (MC 12616, DA c3 P2 — the reproduced
+/proc/<curl>/cmdline leak: ZERO token bytes on the child's argv, leg-
+proved against a live curl child), 64-hex asserted through the door's OWN
+TOKEN_SHAPE, the value never echoed. --dry-run prints the ranked JSON and
+POSTS NOTHING (the door POST is the ONLY thing dry-run skips — the shelf
+read and the lane ask still run, else the demo would prove nothing).
+--full (DEFAULT off, MC 12616) sends the door's full-swap envelope: the
+POSTed list then IS the complete new generation and the door deletes the
+state='new' rows absent from it (server-side sweep, deleted_n in the
+receipt); --lane-timeout (default 600 s, DA c4 P3) sizes the lane ask —
+the 300 s it shipped with died mid-generation on the live DA run.
 
 KNOWN LIMITS, documented not papered over:
-  FULL-REPLACEMENT SWEEP (MC 12602 scope row 1): the door supports NO
-  delete verb — app/ai_rek.ingest is upsert-only and no route retires a
-  state='new' row. Rows still `new` that are ABSENT from this generation's
-  output therefore survive on the page (accept/decline rows are never
-  touched here, as required). The contract gap, named exactly: DELETE-by-
-  absence needs a door route (or an ingest flag) that does not exist;
-  building it means touching app code, which this card forbids.
+  FULL-REPLACEMENT SWEEP (MC 12602 scope row 1) — CLOSED by MC 12616: the
+  door now takes the optional full-swap envelope `{"generation": rows}`
+  and this runner's `--full` flag (DEFAULT off — explicit opt-in) sends
+  it. Rows still `new` that are ABSENT from this generation's output are
+  deleted door-side (state accept/decline are NEVER deleted; empty
+  generation is refused fail-loud, rows kept); the answer gains
+  deleted_n. The default upsert path (no `--full`) is byte-identical to
+  MC 12601, so the shipped mode keeps working unchanged.
   DECLINE-FLIP RACE (carry N2, app-side P3): unreachable from this runner
   lane — the runner is the single writer; the race needs the owner's
   browser flip landing mid-ingest, which is app-side.
@@ -119,11 +128,14 @@ sys.path.insert(0, str(ROOT))
 
 from app import ai_rek, onska                # THE door's vocabulary + identity
 from scripts import pris_parse as pp         # THE shelf-page parser
-from scripts.curl_transport import _curl     # THE shared door transport
+from scripts.curl_transport import _curl, _curl_config   # THE shared transport
 
 ENV_URL, ENV_TOKEN = "LISELOTT_URL", ai_rek.AI_REK_TOKEN_ENV
 BASE_DEFAULT = "https://sibbamala.com/liselott"
-GET_TIMEOUT_S, POST_TIMEOUT_S, LANE_TIMEOUT_S = 15, 30, 300
+GET_TIMEOUT_S, POST_TIMEOUT_S = 15, 30
+LANE_TIMEOUT_S = 600            # MC 12616 (DA c4 P3): the shipped 300 s
+#                                 died mid-generation on the live DA run;
+#                                 --lane-timeout moves this default
 TOKEN_SHAPE = ai_rek.TOKEN_SHAPE            # the door's 64-hex shape, ONE shape
 LANE_URL = os.environ.get("AI_REK_LANE_URL",
                           "http://192.168.5.223:8888/v1/chat/completions")
@@ -253,11 +265,13 @@ def build_prompt(graded, kandidater):
         "ordgrant i\ncorpus ovan.\n")
 
 
-def lane_ask(prompt):
+def lane_ask(prompt, timeout_s=LANE_TIMEOUT_S):
     """ONE Lane E call, cover_pass._vision_post's envelope in shape (one
     model id, temp 0, reasoning_effort low on BOTH layers, content falling
     back to reasoning). Raises on any transport or shape failure — the
     runner answers with a refusal, never a retry loop (the §3 posture).
+    `timeout_s` is the lane budget (MC 12616: the 300 s default died
+    mid-generation, DA c4 P3 — now 600 s, moved by `--lane-timeout`).
     """
     payload = {"model": LANE_MODEL, "max_tokens": LANE_MAX_TOKENS,
                "temperature": 0,
@@ -267,7 +281,7 @@ def lane_ask(prompt):
     req = urllib.request.Request(
         LANE_URL, data=json.dumps(payload).encode(),
         headers={"Content-Type": "application/json"})
-    with urllib.request.urlopen(req, timeout=LANE_TIMEOUT_S) as r:
+    with urllib.request.urlopen(req, timeout=timeout_s) as r:
         msg = json.loads(r.read().decode("utf-8"))["choices"][0]["message"]
         return msg.get("content") or msg.get("reasoning") or ""
 
@@ -358,26 +372,37 @@ def dedupe_identitet(godkanda, *, say):
     return ut
 
 
-def door_post(url, token, rows):
+def door_post(url, token, rows, *, full=False):
     """The ONE delivery, the pris_vakt.door_post posture on the shared
-    transport: JSON array on stdin via --data-binary @-, the token on
-    `X-Ai-Rek-Token`, one try then loud. Returns (status, body-bytes)."""
-    return _curl(
-        ["--request", "POST", "--header", "Content-Type: application/json",
-         "--header", "X-Ai-Rek-Token: " + token,
-         "--data-binary", "@-", url],
+    transport: JSON on stdin via --data-binary @-, the token on
+    `X-Ai-Rek-Token`, one try then loud. Returns (status, body-bytes).
+    `full=True` (MC 12616, CLI `--full`) wraps the rows in the door's
+    full-swap envelope `{"generation": rows}` — the POSTed list then IS
+    the complete new generation; default mode is today's bare array."""
+    payload = {"generation": rows} if full else rows
+    return _curl_config(
+        [("X-Ai-Rek-Token", token)],        # MC 12616: the secret rides a
+        lambda config: ["--request", "POST",  # per-call 0600 --config file,
+                        "--header",            # NEVER argv (DA c3 P2, the
+                        "Content-Type: application/json",  # /proc/<curl> leak)
+                        "--config", config,
+                        "--data-binary", "@-", url],
         timeout_s=POST_TIMEOUT_S,
-        stdin_data=json.dumps(rows).encode("utf-8"))
+        stdin_data=json.dumps(payload).encode("utf-8"))
 
 
 def run_pass(corpus_path, library_url, base, *, dry_run=False,
              get_library=read_library, lane=lane_ask, post=door_post,
-             say=None):
+             say=None, full=False):
     """One generation end-to-end; returns the process exit code. Seam
     layout is pris_vakt.run_tick's: every external touch injectable, so the
     whole contract tests with zero network. Exit: 0 ok; 2 input/config
     refused; 3 lane answer refused; 4 floor not met; 5 door refused;
-    6 mix condition not met (nyhet AND klassiker owed, one not delivered)."""
+    6 mix condition not met (nyhet AND klassiker owed, one not delivered).
+    `full=True` (MC 12616, the CLI's `--full`, DEFAULT off) rides the
+    door's full-swap envelope — every gate above is IDENTICAL, only the
+    delivery mode changes; the rows this run validates ARE the complete
+    new generation the door sweeps against."""
     say = say or (lambda line: print(line, flush=True))
 
     rows, fel = read_corpus(corpus_path)
@@ -440,7 +465,7 @@ def run_pass(corpus_path, library_url, base, *, dry_run=False,
         say(f"ALARM {ENV_TOKEN} saknas eller har fel form (64 hex) "
             "— vägrar POST")                  # VALUE is never echoed
         return 2
-    status, body = post(f"{base}/ai-rek", token, godkanda)
+    status, body = post(f"{base}/ai-rek", token, godkanda, full=full)
     if not 200 <= status < 300:
         say(f"ALARM dörren svarade {status}: {body[:200]!r} — generationen "
             "landade inte")
@@ -458,10 +483,22 @@ def main(argv=None):
     ap.add_argument("--corpus", required=True, help="corpus.tsv path")
     ap.add_argument("--dry-run", action="store_true",
                     help="print the ranked rows; POST nothing")
+    ap.add_argument("--full", action="store_true",
+                    help="MC 12616: POST the rows as the COMPLETE new "
+                         "generation (full-swap envelope) — the door "
+                         "deletes state='new' rows absent from it; DEFAULT "
+                         "off = today's plain upsert")
+    ap.add_argument("--lane-timeout", type=int, default=LANE_TIMEOUT_S,
+                    help=f"Lane E ask budget in seconds (default "
+                         f"{LANE_TIMEOUT_S}; the shipped 300 died mid-"
+                         "generation, DA c4 P3)")
     args = ap.parse_args(argv)
     base = (os.environ.get(ENV_URL) or BASE_DEFAULT).rstrip("/")
     library = args.library or f"{base}/bibliotek"
-    return run_pass(args.corpus, library, base, dry_run=args.dry_run)
+    return run_pass(args.corpus, library, base, dry_run=args.dry_run,
+                    full=args.full,
+                    lane=lambda prompt: lane_ask(prompt,
+                                                 timeout_s=args.lane_timeout))
 
 
 if __name__ == "__main__":

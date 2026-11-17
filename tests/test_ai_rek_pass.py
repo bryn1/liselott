@@ -28,9 +28,16 @@ sha-verified restore) is mapped in the commit body.
   N3 merge input       one isbn repeated across two corpus books => corpus
                        refused (the merge lane never runs on its input)
   floor                accepted rows < MIN_OUTPUT_ROWS => exit 4, ZERO POSTs
-  door argv            the POST is curl argv on the shared transport:
-                       X-Ai-Rek-Token header, --data-binary @- stdin,
-                       body == the ranked JSON rows, {base}/ai-rek
+  door argv            the delivery-shape weld MOVED to
+                       tests/test_door_transport.py at MC 12616 (config
+                       transport, ZERO token bytes in argv, live /proc
+                       leg) — one concern per file under the 600-line
+                       test ceiling; the fixtures here are imported there
+  full mode            --full / run_pass(full=True) rides the door's
+                       generation envelope, DEFAULT off (MC 12616)
+  lane timeout         lane_ask budget: default 600 s (the shipped 300
+                       died mid-generation, DA c4 P3), --lane-timeout
+                       threaded through main
   token shape          malformed AI_REC_DOOR_TOKEN => refuse before the
                        door; the VALUE never appears in any output line
   mix gate             nyhet-only refuses (exit 6), klassiker-only refuses
@@ -122,8 +129,8 @@ class FakePost:
     def __init__(self, status=200, body=b'{"inserted": 21}'):
         self.status, self.body, self.calls = status, body, []
 
-    def __call__(self, url, token, rows):
-        self.calls.append((url, token, rows))
+    def __call__(self, url, token, rows, *, full=False):
+        self.calls.append((url, token, rows, full))
         return self.status, self.body
 
 
@@ -136,7 +143,8 @@ GRADERADE = [{"title": "En helt annan bok", "author": "Annat Namn",
 
 
 def kör(mp, tmp_path, *, n=21, graded=GRADERADE, lane_text=None, post=None,
-        dry=False, token="a" * 64, category=lambda i: KATERS[i % 3]):
+        dry=False, token="a" * 64, category=lambda i: KATERS[i % 3],
+        full=False):
     """One full run over faked seams; `mp` owns the token env (the delivery
     legs ride a VALID 64-hex token unless a leg names its own)."""
     mp.setenv(rp.ENV_TOKEN, token)
@@ -148,7 +156,7 @@ def kör(mp, tmp_path, *, n=21, graded=GRADERADE, lane_text=None, post=None,
                        "https://sibbamala.test/liselott",
                        dry_run=dry,
                        get_library=library_med_html(shelf_html(graded)),
-                       lane=lane, post=post, say=lines.append)
+                       lane=lane, post=post, say=lines.append, full=full)
     return code, lines, lane, post
 
 
@@ -327,45 +335,6 @@ def test_floor_thin_generation(tmp_path, monkeypatch):
     assert any("för tunn generation" in ln for ln in lines)
 
 
-def test_door_post_rides_shared_curl_argv(tmp_path, monkeypatch):
-    """The delivery argv shape ONE LEVEL BELOW the transport (the pris_vakt
-    FakeCurl posture): curl argv list, never a shell — X-Ai-Rek-Token on
-    the header, --data-binary @- on stdin, {base}/ai-rek last, the body IS
-    the ranked rows and kategori rides every one of them (MC 12602
-    F-P4-1)."""
-    from types import SimpleNamespace
-    from scripts import curl_transport as ct
-    anrop = []
-
-    class FakeCurl:
-        """subprocess.run replaced wholesale; the --output file gets the
-        canned door receipt — the real _curl runs above it."""
-
-        def __call__(self, argv, **kw):
-            anrop.append((argv, kw))
-            with open(argv[argv.index("--output") + 1], "wb") as fh:
-                fh.write(b'{"inserted": 21}')
-            return SimpleNamespace(returncode=0, stdout=b"200", stderr=b"")
-    monkeypatch.setattr(ct.subprocess, "run", FakeCurl())
-    monkeypatch.setenv(rp.ENV_TOKEN, "a" * 64)
-    lines = []
-    code = rp.run_pass(korpus_tsv(tmp_path / "corpus.tsv"),
-                       "https://sibbamala.test/bibliotek",
-                       "https://sibbamala.test",
-                       get_library=library_med_html(shelf_html(GRADERADE)),
-                       lane=FakeLane(svar_alla(21)), say=lines.append)
-    assert code == 0 and len(anrop) == 1
-    argv, kw = anrop[0]
-    assert argv[0] == "curl" and argv[-1] == "https://sibbamala.test/ai-rek"
-    assert "X-Ai-Rek-Token: " + "a" * 64 in argv
-    assert argv[argv.index("--data-binary") + 1] == "@-"
-    assert argv[argv.index("--max-time") + 1] == str(rp.POST_TIMEOUT_S)
-    assert kw["timeout"] == rp.POST_TIMEOUT_S + ct.WATCHDOG_GRACE_S
-    rows = json.loads(kw["input"])
-    assert len(rows) == 21
-    assert all(r["kategori"] in rp.ai_rek.KATEGORIER for r in rows)
-
-
 def test_token_shape_guarded_never_echoed(tmp_path, monkeypatch):
     """A malformed AI_REC_DOOR_TOKEN => refuse BEFORE the door (the 64-hex
     shape is the door's own), and the secret VALUE never lands in any
@@ -409,6 +378,37 @@ def test_mix_gate_mixed_rides(tmp_path, monkeypatch):
     assert {"nyhet", "klassiker"} <= kats
 
 
+def test_full_flag_defaults_off_and_rides_the_seam(tmp_path, monkeypatch):
+    """MC 12616: the runner's generation mode is EXPLICIT opt-in — the
+    default POST rides the seam with full=False (plain array, today's
+    mode), --full/full=True rides the SAME seam with full=True; identical
+    rows either way, only the mode differs."""
+    post = FakePost()
+    code, _, _, post = kör(monkeypatch, tmp_path, post=post)
+    assert code == 0 and post.calls[0][3] is False
+    post2 = FakePost()
+    code, _, _, post2 = kör(monkeypatch, tmp_path, post=post2, full=True)
+    assert code == 0 and post2.calls[0][3] is True
+    assert [r["isbn13"] for r in post.calls[0][2]] == \
+        [r["isbn13"] for r in post2.calls[0][2]]      # same rows, mode only
+
+
+def test_main_parses_full_defaulting_off(monkeypatch):
+    """CLI face of the opt-in: no flag ⇒ full=False, `--full` ⇒ True,
+    threaded into run_pass by main and by nothing else."""
+    anrop = {}
+
+    def fake_run_pass(corpus, library, base, **kw):
+        anrop.update(kw)
+        return 0
+
+    monkeypatch.setattr(rp, "run_pass", fake_run_pass)
+    assert rp.main(["--corpus", "c.tsv"]) == 0
+    assert anrop["full"] is False
+    assert rp.main(["--corpus", "c.tsv", "--full"]) == 0
+    assert anrop["full"] is True
+
+
 def test_owned_book_named_back_is_refused(tmp_path, monkeypatch):
     """F-C3-1 (the tester's L11): the model names back the isbn of a corpus
     row the JOIN dropped as owned — post-parse the belt refuses it even
@@ -423,6 +423,50 @@ def test_owned_book_named_back_is_refused(tmp_path, monkeypatch):
     assert any(isbn(0) in ln and "F-C3-1" in ln for ln in lines)
     posted = [r["isbn13"] for r in post.calls[0][2]]
     assert isbn(0) not in posted and len(posted) == 21
+
+
+def test_lane_timeout_defaults_600_and_flag_threads_through(monkeypatch):
+    """MC 12616 bonus (DA c4 P3): the 300 s shipped budget died mid-
+    generation on the live DA run — lane_ask's timeout now DEFAULTS to 600
+    s and main's `--lane-timeout` moves it, threaded through the lane
+    seam. urllib is faked: the legs read WHICH timeout was asked for."""
+    import urllib.request
+
+    class Svar:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def read(self):
+            return json.dumps({"choices": [{"message":
+                                            {"content": "[]"}}]}).encode()
+
+    tidsgranser = []
+
+    def fake_urlopen(req, timeout=None):
+        tidsgranser.append(timeout)
+        return Svar()
+
+    monkeypatch.setattr(urllib.request, "urlopen", fake_urlopen)
+    assert rp.lane_ask("x") == "[]"
+    assert tidsgranser == [rp.LANE_TIMEOUT_S] == [600]
+    assert rp.lane_ask("x", timeout_s=42) == "[]"
+    assert tidsgranser[-1] == 42
+    anrop = {}
+
+    def fake_run_pass(corpus, library, base, **kw):
+        anrop.update(kw)
+        return 0
+
+    monkeypatch.setattr(rp, "run_pass", fake_run_pass)
+    assert rp.main(["--corpus", "c.tsv"]) == 0
+    assert anrop["lane"]("prompt") == "[]"
+    assert tidsgranser[-1] == 600                      # default threads too
+    assert rp.main(["--corpus", "c.tsv", "--lane-timeout", "77"]) == 0
+    assert anrop["lane"]("prompt") == "[]"
+    assert tidsgranser[-1] == 77                      # the flag threads too
 
 
 @pytest.mark.skipif(os.environ.get("AI_REK_LIVE") != "1",

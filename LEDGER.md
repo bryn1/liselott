@@ -1079,3 +1079,44 @@ postdating a line make that line STALE — de-stale before quoting it.
   both callers). Suite: before 765+1skip, after **769 passed + 1 skipped**
   exit 0, zero regressions. exposure_check 0 findings exit 0. Nothing
   pushed. docs/ left untouched.
+- **MC 12616 M11-N8a — the /ai-rek door full-swap + the token out of
+  argv (2026-11-17)** — `POST /ai-rek` gains the OPTIONAL full-swap
+  envelope `{"generation": [ …rows… ]}` (PLAN §d completion): the POSTed
+  list IS the complete new generation and `_sweepa` deletes the
+  state='new' rows whose identity is ABSENT from it — identity is THE
+  SAME union the fix-wave matcher `_bok_rad` matches on, extracted
+  verbatim as `_samma_bock` (ONE mechanism, two callers — no second
+  "same book" rule was written). accept/decline rows are NEVER deleted:
+  two belts, the sweep SELECT scopes to `state='new'` AND the DELETE
+  re-guards it (each single removal stayed GREEN — the red mutant had to
+  take BOTH out, `test_full_swap_never_deletes_accept_or_decline_incl_identity_variants`
+  then goes red). An EMPTY generation is REFUSED fail-loud (400
+  `EMPTY_GENERATION`, rows kept) and the belt stands inside ingest too:
+  zero VALID identities sweep nothing (500 shape-garbage rows retire
+  nothing, `rejected_shape` answers loudly). The answer gains `deleted_n`
+  ONLY in full mode; mode-off is byte-identical (all 29 existing door
+  legs green UNTOUCHED). Runner: `--full` (DEFAULT off) sends the
+  envelope; the door posture is unchanged behind the envelope (disarmed
+  503 / uniform 401 / uniform 302 legs ride both payload shapes).
+  TOKEN OUT OF ARGV (DA c3 P2, the reproduced /proc/<curl>/cmdline
+  leak): `curl_transport._curl_config` writes the secret headers to a
+  per-call `mkstemp` 0600 file, curl reads them via `--config @<path>`,
+  the file is unlinked in the finally and the content is never echoed;
+  the AI-rec door post rides it — ZERO token bytes (not even the header
+  NAME) reach the child's argv, leg-proved against the LIVE
+  /proc/<curl-pid>/cmdline of the execed child (the leg first
+  reproduced the leak verbatim RED on the old shape, then gated it
+  GREEN). pris_vakt keeps its header-as-argv path byte-identical —
+  `_curl`'s signature is unchanged (stated reading: the card pins that
+  caller's behaviour; the shared mechanism is the transport MODULE, one
+  transport with two call shapes, its legs green). BONUS (DA c4 P3):
+  lane ask budget default 300 → 600 s + `--lane-timeout` flag. RETIRED
+  CLAIM rewritten the same commit: the runner's "the door supports NO
+  delete verb" KNOWN-LIMITS paragraph (grep-to-zero). Docs: README door
+  section carries envelope + deleted_n + `--full` + `--lane-timeout` +
+  transport lines. Suite: before 769+1skip, after **782 passed +
+  1 skipped** exit 0 (+13 net legs: 8 `tests/test_ai_rek_sweep.py`,
+  3 `tests/test_door_transport.py` — split out at the 600-line test
+  ceiling, fixtures imported — 3 `tests/test_ai_rek_pass.py`);
+  planted-red map in the commit body. exposure_check 0 findings.
+  Nothing pushed. docs/ left untouched.
