@@ -1,8 +1,10 @@
-# 438 lines > 400 (MC 12616): the door's ONE ingest chain — shape pass,
-# identity matcher, full-swap sweep, the settle and its commit — is one
-# atomic "new generation" transaction; cutting the sweep into a sibling
-# file would scatter that guarantee (coding-discipline header REASON; the
-# split stays scheduled, a REASON never absolves it).
+# 529 lines > 400 (MC 12616; MC 12643's read door rides THIS module, the
+# door's ONE credential family — not a sibling): the door's ONE ingest
+# chain — shape pass, identity matcher, full-swap sweep, the settle and
+# its commit — is one atomic "new generation" transaction, and cutting the
+# sweep into a sibling file would scatter that guarantee
+# (coding-discipline header REASON; the split stays scheduled, a REASON
+# never absolves it).
 """M11 (MC 12597, design MC 12590) — the "AI rekommenderar" category.
 
 One module, one concern: the recommendation SURFACE. It owns the machine
@@ -46,6 +48,17 @@ REFUSED fail-loud (`EMPTY_GENERATION`, rows kept) and the answer gains
 `deleted_n`. A payload WITHOUT the "generation" key is today's upsert,
 byte-identical, posture unchanged (fail-closed 503, 64-hex 401, generic
 disarmed copy, uniform 302).
+
+MC 12643 (M11-N9a, the owner's ruling "A" — chat 2026-11-17, accepting:
+the generator gets the COMPLETE read-title list via the existing machine
+door; public scope unchanged, graded + wishlist only; read books are
+never re-recommended) adds the door's READ twin: GET /ai-rek/library-keys
+answers EVERY `bok` row as {titel, forfattare, status} — read AND
+wishlist — through THE SAME `_door_refused` credential checked FIRST.
+This route joins NO public allow-list (public scope UNCHANGED): the
+guard lets the GET through only with the door header riding
+(auth._is_ai_rek_keys), so an anonymous reader without it gets the
+guard's uniform 302, the identical answer GET /ai-rek gives.
 """
 import hmac
 import math
@@ -334,6 +347,30 @@ def for_page(conn):
     return [dict(zip(kolumner, rad)) for rad in rader]
 
 
+def läs_nycklar(conn):
+    """MC 12643 (M11-N9a, the owner's ruling "A") — the COMPLETE read-title
+    list the door's GET answers: EVERY `bok` row, ALL statuses (read AND
+    wishlist — the runner excludes both, she is never offered a book she
+    owns), as {titel, forfattare, status} objects ONLY. The runner needs
+    the §5.3 identity fields and nothing else, so the body carries ZERO
+    secret bytes: no isbn, no dates, no `book_key`, no notes, no rating.
+    Authors are the book's OWN names joined with ", " — the delimiter
+    `seed.split_authors` splits on — so the runner re-keys the list
+    through THE SAME `onska.wish_key` chain `_samma_bock`'s identity law
+    uses (alias table authors-only, the ONE spelling mechanism, never a
+    second)."""
+    rader = []
+    for titel, status, författare in conn.execute(
+            "SELECT b.title, b.status,"
+            " (SELECT group_concat(a.name, ', ') FROM author a"
+            "   JOIN book_author ba ON ba.author_id = a.id"
+            "  WHERE ba.book_id = b.id ORDER BY a.name)"
+            " FROM book b ORDER BY b.id"):
+        rader.append({"titel": titel, "forfattare": författare,
+                      "status": status})
+    return rader
+
+
 def init_ai_rek(app):
 
     @app.post("/ai-rek")
@@ -377,6 +414,26 @@ def init_ai_rek(app):
             return ROWS_TOO_BIG.format(antal=len(rows),
                                         max=MAX_AI_REK_ROWS), 400
         return jsonify(ingest(db.get_db(), rows, generation=generation))
+
+    @app.get("/ai-rek/library-keys")
+    def ai_rek_library_keys():
+        """MC 12643 (M11-N9a) — the read-title door, THE SAME credential
+        posture as the POST, `_door_refused` FIRST and verbatim: disarmed
+        env ⇒ the GENERIC 503 (zero ai-rek bytes, MC 12602 F-P3-6 — a GET
+        is an anonymous-reachable answer the moment its header rides),
+        present-but-empty-or-wrong token ⇒ the ONE uniform 401 copy (no
+        oracle), a valid owner session rides WITHOUT the header exactly as
+        on the POST. An anonymous request WITHOUT the header never gets
+        here at all: auth._is_ai_rek_keys lets the GET through only when
+        the credential rides, so the no-header face is the guard's uniform
+        302 — byte-for-byte what an anonymous GET /ai-rek answers TODAY
+        (that route's POST-only door allow is untouched). 200 ⇒
+        `läs_nycklar`: every bok row as {titel, forfattare, status}, zero
+        secret bytes, ZERO writes (a read door)."""
+        refused = _door_refused()
+        if refused is not None:
+            return refused
+        return jsonify(läs_nycklar(db.get_db()))
 
     @app.post("/ai-rek/<int:rek_id>/accept")
     def ai_rek_accept(rek_id):

@@ -281,7 +281,7 @@ that gates every push.
 | `LISELOTT_DATA_DIR` | data-dir override — dev/test/build use only |
 | `LISELOTT_BACKUP_DIR` | where `scripts/backup.sh` writes its pairs; default `$HOME/liselott-backups` (§11). `GET /backup` never writes here — it streams from a temp dir |
 | `LISELOTT_ENV=dev` | local/test only — turns the session cookie's `Secure` flag off; UNSET means production (Secure ON, debug OFF) |
-| `AI_REC_DOOR_TOKEN` | MC 12597 — the dedicated credential of the `POST /ai-rek` AI-recommendation door (header `X-Ai-Rek-Token`, constant-time compare), and the **64-hex requirement ON THE VALUE**: unset, empty or malformed = the door is DISARMED — 503 for every POST, fail-closed, the owner's session included (a malformed env is never a weaker door; `openssl rand -hex 32` is the shape). Rotation = set the new value + restart the door. Liselott's site password is never involved. Read per request by `app/ai_rek.py`, never by any other route |
+| `AI_REC_DOOR_TOKEN` | MC 12597 — the dedicated credential of the `/ai-rek` AI-recommendation door — the `POST /ai-rek` ingest and its `GET /ai-rek/library-keys` read face (MC 12643) alike (header `X-Ai-Rek-Token`, constant-time compare), and the **64-hex requirement ON THE VALUE**: unset, empty or malformed = the door is DISARMED — 503 for every POST, fail-closed, the owner's session included (a malformed env is never a weaker door; `openssl rand -hex 32` is the shape). Rotation = set the new value + restart the door. Liselott's site password is never involved. Read per request by `app/ai_rek.py`, never by any other route |
 | `LISELOTT_SEED_FILE` | test suite ONLY (MC 12451 c5) — points at the personal seed export so the `personal` corpus CASE runs; unset, the locator falls back to `data-import/seed-books-raw.md`; with neither, only the synthetic cases run. The app never reads it |
 | `LISELOTT_ALIASES_FILE` | MC 12523 — the personal author-alias CSV (off-repo state data, `canonical,alias` rows); default `/home/claudecode/liselott-data/author_aliases.csv`; ABSENT = no aliases (clean no-op, tested). Read by the importer CLI, the /bundle door and the add/edit doors through `app/seed.py` |
 | `LISELOTT_OVERRIDE_FILE` | MC 12523 — the personal date-override CSV (`exact title,ISO-date` rows); default `/home/claudecode/liselott-data/import_overrides.csv`; ABSENT = no date fixes (clean no-op, tested). Same readers |
@@ -393,7 +393,11 @@ The guard (`app/auth.py::_auth_gate`) answers in three states, measured in
   with its OWN dedicated door credential
   (503 disarmed / 401 wrong key, see *Machine routes*) — never a session,
   never the site password; every other method on `/ai-rek` keeps
-  the uniform 302. (MC 12606 retired the second exception this paragraph
+  the uniform 302. MC 12643 (owner ruling "A") adds the door's READ face,
+  GET `/ai-rek/library-keys`: the guard lets THAT path through only with the
+  `X-Ai-Rek-Token` header RIDING (presence opens the way, correctness is
+  answered in the door), so its no-header face is the same uniform 302 —
+  nothing joins the public read surface. (MC 12606 retired the second exception this paragraph
   named, `POST /pris`; `/pris` is not a door any more and keeps the uniform
   302 like every other path.) Owner surfaces —
   `/onska`, `/lagg-till`, `/redigera/<id>`, `/rapa/*`, `/backup`,
@@ -514,8 +518,8 @@ LEADING `YYMMDD` token, 45 rows). Trust the plan's §5 rules, never the header.
   env name is inert. Everything this bullet documented — the row contract, the
   day-dedup index, the counters, the 60% `suspect` flag, the 2-day backdate
   residual — is history, carried by the LEDGER rows of MC 12542/12546/12547/
-  MC 12549 and by git, not by code. `POST /ai-rek` below is now the ONLY
-  door-token machine route standing.
+  MC 12549 and by git, not by code. The `/ai-rek` door below (POST + its
+  MC 12643 read face) is now the ONLY door-token machine route standing.
 - `POST /ai-rek` (M11, MC 12597) — the AI-recommendation ingest door. A JSON
   array of `{title, author_name, isbn13, year, reason, source, fit, kategori}`
   in, the six counters (`accepted`, `inserted`, `updated`, `kept_accept`,
@@ -555,8 +559,23 @@ LEADING `YYMMDD` token, 45 rows). Trust the plan's §5 rules, never the header.
   path on the command line carries a secret, so `/proc/<curl>/cmdline` is
   clean (MC 12616, DA c3 P2 + c5 F-P2-1; the weld was cut for TWO runners
   and MC 12606 retired the second, `X-Pris-Token` — the shared transport in
-  `scripts/curl_transport.py` stays, `ai_rek_pass` is its one caller and
-  `tests/test_door_transport.py` carries the byte-identity leg now).
+  `scripts/curl_transport.py` stays, `ai_rek_pass` is its one runner (its
+  MC 12643 keys reader in `scripts/ai_rek_belt.py` rides the same halves)
+  and `tests/test_door_transport.py` carries the byte-identity leg now).
+- `GET /ai-rek/library-keys` (M11-N9a, MC 12643, owner ruling "A" — chat
+  2026-11-17, accepting: the generator gets the COMPLETE read-title list via
+  the existing machine door; public scope UNCHANGED) — the door's READ face
+  for the recommendation runner: a JSON list of `{"titel", "forfattare",
+  "status"}` for EVERY `bok` row, all statuses (read AND wishlist — books
+  she has READ are never recommended again, and the runner drops matching
+  candidates before the Lane E ask). THE SAME credential as the POST
+  (`X-Ai-Rek-Token` vs the 64-hex `AI_REC_DOOR_TOKEN`): unset/malformed env
+  ⇒ the generic 503, empty-or-wrong header ⇒ the one uniform 401, a valid
+  owner session rides without the token. THE GUARD lets the GET through ONLY
+  with the header riding — the no-header face is the guard's uniform 302,
+  byte-identical to an anonymous GET `/ai-rek`: this route joins NO public
+  allow-list, the public read surface stays graded + wishlist. Zero secret
+  bytes in the body (no isbn, no dates, no keys), zero writes.
 - `POST /backfill?n=5&after=<id>[&mode=candidates]` — the cover/ISBN retry and
   candidate-pool builder, resumable by `last_id` (cursor advances past
   permanent failures; wrap = fresh pass). Shares one pipeline with

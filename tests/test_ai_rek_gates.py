@@ -137,6 +137,7 @@ def test_near_miss_candidate_refuses_whole_generation(tmp_path, monkeypatch):
     code = rp.run_pass(ts, "https://sibbamala.test/bibliotek",
                        "https://sibbamala.test",
                        get_library=library_med_html(shelf_html(graded)),
+                       get_keys=lambda url, _t: ([], None),
                        lane=lane, post=post, say=lines.append)
     assert code == 2 and lane.calls == 0 and post.calls == []
     assert any("near-miss" in ln and "vägrar generation" in ln
@@ -210,11 +211,13 @@ def test_rehearsal_belt_rejects_stale_window_and_changed_corpus(tmp_path,
     base = "https://sibbamala.test"
     ledd = library_med_html(shelf_html(GRADERADE))
     code = rp.run_pass(ts, biblio, base, dry_run=True, get_library=ledd,
+                       get_keys=lambda url, _t: ([], None),
                        lane=FakeLane(svar_alla(21)), post=FakePost(),
                        say=lambda line: None)
     assert code == 0                                   # stamp written
     lines = []
     code = rp.run_pass(ts, biblio, base, full=True, get_library=ledd,
+                       get_keys=lambda url, _t: ([], None),
                        lane=FakeLane(svar_alla(21)), post=FakePost(),
                        say=lines.append)
     assert code == 2 and any("äldre än fönstret" in ln for ln in lines)
@@ -223,6 +226,7 @@ def test_rehearsal_belt_rejects_stale_window_and_changed_corpus(tmp_path,
     open(ts, "w", encoding="utf-8").write(data)        # corpus changed!
     lines = []
     code = rp.run_pass(ts, biblio, base, full=True, get_library=ledd,
+                       get_keys=lambda url, _t: ([], None),
                        lane=FakeLane(svar_alla(21)), post=FakePost(),
                        say=lines.append)
     assert code == 2 and any("annan korpus" in ln for ln in lines)

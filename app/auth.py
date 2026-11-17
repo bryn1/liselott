@@ -1,8 +1,9 @@
 """Auth core (§6) — setup window, guard allow-list, mount-aware redirects.
 reason: the §6 auth core is ONE concern (state matrix, guard, CSRF, password
 lifecycle) — the MC 12497 sec-wave grew this file past 400, and MC 12597
-(the /ai-rek machine door's guard legs) added to it; the split is scheduled
-beside the LEDGER row, not smuggled into a security fix. Original:
+(the /ai-rek machine door's guard legs) added to it, MC 12643 (that door's
+read-face guard term) on top; the split is scheduled beside the LEDGER row,
+not smuggled into a security fix. Original:
 The §6.1 three-state matrix is pinned here (P2-c): /healthz answers 200 `ok`
 in EVERY state; /satt-loesenord exists only while the password is unset AND
 within SETUP_WINDOW_S of process start (F-5: no public land-grab — fest40
@@ -272,6 +273,24 @@ def _is_ai_rek_door() -> bool:
     return request.path == "/ai-rek" and request.method == "POST"
 
 
+def _is_ai_rek_keys() -> bool:
+    """MC 12643 (M11-N9a, the owner's ruling "A"): GET
+    /ai-rek/library-keys — the read-title door the recommendation runner
+    reads — reaches its route on EXACTLY one face: the GET METHOD with the
+    door header PRESENT (the literal name is app/ai_rek.AI_REK_HEADER,
+    repeated here because app/ai_rek.py imports this module, never the
+    other way). Presence opens the WAY only — whether the token is RIGHT
+    is answered IN THE DOOR, never here. Every other face keeps the
+    guard's answer for an unknown path verbatim: no header ⇒ the uniform
+    302 to /logga-in, identical to today's anonymous GET /ai-rek;
+    HEAD/POST/anything else ⇒ the same 302 or the session's own CSRF
+    gate. A prober reaches the door's 401/503 only by already sending the
+    door's header — the exposure POST /ai-rek has always had, no wider."""
+    return (request.path == "/ai-rek/library-keys"
+            and request.method == "GET"
+            and request.headers.get("X-Ai-Rek-Token") is not None)
+
+
 def _file_shaped() -> bool:
     """M8-hotfix-2 (MC 12451): the lane staging gate (vm106-staging-gate.sh
     §6) probes every root file the mirror DROPS (DESIGN.md, README.md,
@@ -391,7 +410,7 @@ def init_auth(app):
         if request.path == "/satt-loesenord":
             abort(404)  # configured -> gone forever (§6.1)
         if (request.path in UNAUTHENTICATED_ALLOW or _is_public_read()
-                or _is_ai_rek_door()
+                or _is_ai_rek_door() or _is_ai_rek_keys()
                 or request.path.startswith(STATIC_PREFIX)):
             return _csrf_gate()
         if session.get(SESSION_FLAG):

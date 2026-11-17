@@ -1311,3 +1311,59 @@ postdating a line make that line STALE — de-stale before quoting it.
   schedule (the wave was manual by scope), the corpus-growth row count
   toward 24→30+ (rebase costs a row per ownership ambiguity). NOTHING
   pushed. `docs/` left untouched.
+
+- **MC 12643 (M11-N9a) — the read-title door + the OFFER-SIDE read
+  exclusion (closes DA c9 F-P1-1)**. Owner ruling verbatim (chat 2026-11-17,
+  the single letter "A" accepting the option presented): "A" — the generator
+  gets the COMPLETE read-title list through the existing machine door;
+  public scope UNCHANGED (graded + wishlist only); read books never
+  re-recommended; the 3 read books of the live wave drop on the RE-RUN —
+  the live re-run is the ORCHESTRATOR's job after deploy; this row is the
+  mechanism, fixture-legs only, no live host and no door-over-the-network
+  was touched here. APP: `GET /ai-rek/library-keys` IN `app/ai_rek.py` (the
+  door's ONE module — extend, never a sibling mechanism): `_door_refused`
+  FIRST, the POST's posture family verbatim (un-armed env ⇒ the generic 503
+  with zero ai-rek bytes; empty-or-wrong header ⇒ the ONE uniform 401 copy;
+  the owner's session rides WITHOUT the token); the guard term
+  `auth._is_ai_rek_keys` lets the GET reach the door ONLY with the
+  `X-Ai-Rek-Token` header RIDING — presence opens the way, correctness is
+  answered in the door — so the no-header face is the guard's uniform 302,
+  status AND Location identical to today's anonymous GET /ai-rek; HEAD and
+  the other methods keep the unknown-path answer. NO public allow-list
+  joins (public scope UNCHANGED). 200 ⇒ `läs_nycklar`: {titel, forfattare,
+  status} for EVERY bok row, all statuses — the unrated `read` class that
+  F-P1-1 measured IS in the list; authors ", "-joined = the delimiter
+  `seed.split_authors` splits on, so the list re-keys through THE SAME
+  `onska.wish_key` chain `_samma_bock` matches on (alias table authors-only
+  — one identity law, never a second normalizer); zero secret bytes, zero
+  writes. RUNNER: `scripts/ai_rek_belt.read_library_keys` fetches through
+  the SAME door + token (the GET variant of `_curl_config` — zero token
+  bytes on argv); `run_pass` reads it FIRST (before the shelf read, before
+  the lane ask; the 64-hex token-shape assert moved up WITH it, so a
+  malformed env never touches a door and a --dry-run now rehearses over the
+  SAME join), builds the exclusion keyset by `wish_key`, and drops every
+  candidate matching a read-list key BEFORE the Lane E ask (counter
+  `dropped_read`); fail-closed: an unreadable keys list ⇒ exit 5, zero
+  network, an UNfiltered generation is NEVER posted. TESTS:
+  `tests/test_ai_rek_keys.py` 14 legs — anon-302, disarmed-503,
+  401-uniform, payload-shape+count, exclusion×2 (read AND wishlist,
+  wish_key-normalized spellings), fail-closed, reader-shape×6 + reader-
+  accepts — ALL red-first on mutants: auth disjunct removed ⇒
+  `assert 302 == 503`/`assert 302 == 401`; header condition removed ⇒
+  `assert 401 == 302` (the door answers the street); route's door check
+  removed ⇒ `assert 200 == 401`; payload filtered to status='read' ⇒ the
+  wishlist rows missing from the list; exclusion removed ⇒ `dropped_read`
+  never reaches 1; exclusion moved AFTER the ask ⇒
+  `assert '9999100000000' not in 'Du är rekom…'` (the offered prompt — the
+  F-P4 near-miss face, author-blank-adjacent same-module, does NOT stay
+  green); keys refusal swallowed ⇒ `assert 0 == 5` (a POST landed);
+  reader shape-check removed ⇒ 3 garbage answers accepted — every mutant
+  restored sha-verified. Existing seams updated for the new injectable
+  (kör + the direct gates/transport/dedupe calls); public pins green;
+  grep: the new route appears in NO public-scope test's lists (0 hits).
+  README + curl_transport caller rows updated with the change. Suite
+  **716 passed + 1 skipped** (the 702+1 base + 14 new legs), exposure gate
+  run pre-commit. File hygiene: `ai_rek_pass.py` 599 < 600 (history prose
+  compacted — the LEDGER and CORPUS.md carry the full detail), `ai_rek.py`
+  529, `auth.py` 498 (their >400 REASON headers stand, splits scheduled),
+  belt 174. NOTHING pushed.

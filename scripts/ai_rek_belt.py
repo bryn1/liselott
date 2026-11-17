@@ -1,6 +1,7 @@
-"""MC 12617 (M11-N8b) — the two generation belts the DA rounds put on the
-runner, one module, two concerns that ride together because both answer the
-same question BEFORE a byte reaches the door: "is this generation allowed?"
+"""MC 12617 (M11-N8b) — the generation belts the DA rounds put on the
+runner, one module; MC 12643 (M11-N9a) adds the third. The concerns ride
+together because all answer the same question BEFORE a byte reaches the
+door: "is this generation allowed?"
 
   near-miss (DA c3 F-P2-2c, the correction the alias-table idea died of):
   a candidate whose wish_key does NOT join a graded shelf card but whose
@@ -27,10 +28,23 @@ same question BEFORE a byte reaches the door: "is this generation allowed?"
   The plain upsert mode needs no stamp — MC 12616's byte-identical default
   path stays byte-identical.
 
-Stdlib only, no network: the shelf bytes arrive as arguments, the stamp is
-a 0600 local file. The math here is verbatim the DA c3 probe's
-(out/.tmp/da-c3/probe_join.py) — thresholds included — so a corpus that
-passes the gate passes the probe that certified it.
+  read-title list (MC 12643, M11-N9a, the owner's ruling "A"): the
+  graded-only join could not SEE the books she read without rating them
+  (DA c9 F-P1-1: 3 of 23 live rows were exactly that class), so the door
+  now answers GET /ai-rek/library-keys — every `bok` row as {titel,
+  forfattare, status} — and this module reads it through the SAME door
+  credential (the GET variant of curl_transport's `_curl_config`, ZERO
+  token bytes on argv). Unreadable list = the reader REFUSES; the caller
+  refuses the whole pass, fail-closed — an UNfiltered generation is
+  never posted. The near-miss math and the stamp stay network-free:
+  the corpus rebase (OUT/lane/n8b_rebase.py) imports the classifier and
+  never calls this reader.
+
+The near-miss math and the stamp are stdlib only; the shelf bytes arrive
+as arguments and the stamp is a 0600 local file — only the keys reader
+touches the wire, through curl_transport. The math here is verbatim the
+DA c3 probe's (out/.tmp/da-c3/probe_join.py) — thresholds included — so a
+corpus that passes the gate passes the probe that certified it.
 """
 import difflib
 import hashlib
@@ -41,6 +55,7 @@ import time
 from pathlib import Path
 
 from app import seed  # THE fold (seed.py §5.7), not a second one
+from scripts.curl_transport import _curl_config   # THE door transport (MC 12643)
 
 NEAR_MISS_TITLE_RATIO = 0.62   # the DA c3 probe's measured threshold
 NEAR_MISS_AUTHOR_RATIO = 0.5
@@ -129,3 +144,31 @@ def rehearsal_held(base, library_url, corpus_path):
     if time.time() - float(stamp.get("ts") or 0) > fönster:
         return False, f"repetitionen är äldre än fönstret ({fönster:.0f} s)"
     return True, None
+
+
+def read_library_keys(url, token, *, timeout_s=15):
+    """MC 12643 (M11-N9a, the owner's ruling "A") — the COMPLETE read-title
+    list through the SAME door and the SAME token the POST rides: the GET
+    variant of the shared `_curl_config` transport (credential in the
+    per-call 0600 config file, ZERO token bytes on argv — MC 12616; the
+    default budget mirrors the runner's shelf GET). FAIL-CLOSED by
+    construction: anything but a 200 whose body is a JSON LIST of
+    {titel, forfattare, status} objects with a non-empty `titel` is an
+    ERROR — the caller (run_pass) refuses the whole pass, exit 5. An
+    unreadable list never becomes an unfiltered generation; the empty
+    list is a legitimate answer (a shelf with zero bok rows)."""
+    status, body = _curl_config([("X-Ai-Rek-Token", token)],
+                                lambda config: ["--config", config, url],
+                                timeout_s=timeout_s)
+    if status != 200:
+        return None, f"library-keys {status}"
+    try:
+        data = json.loads(body.decode("utf-8"))
+    except (ValueError, UnicodeDecodeError):
+        return None, "library-keys: svaret är inte JSON"
+    if (not isinstance(data, list)
+            or any(not isinstance(n, dict)
+                   or not isinstance(n.get("titel"), str)
+                   or not n["titel"].strip() for n in data)):
+        return None, "library-keys: inte en lista av {titel,…}-rader"
+    return data, None

@@ -105,6 +105,7 @@ def test_door_post_rides_shared_curl_argv(tmp_path, monkeypatch):
                        "https://sibbamala.test/bibliotek",
                        "https://sibbamala.test",
                        get_library=library_med_html(shelf_html(GRADERADE)),
+                       get_keys=lambda url, _t: ([], None),
                        lane=FakeLane(svar_alla(21)), say=lines.append)
     assert code == 0 and len(anrop) == 1
     argv, kw, cfg, mode, innehall = anrop[0]

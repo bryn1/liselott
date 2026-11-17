@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-# 595 lines > 400 (MC 12601 c3 fix-wave, MC 12616 + MC 12617 on top; the
+# 599 lines > 400 (MC 12601 c3 fix-wave, MC 12616/12617/12643 on top; the
 # MC 12617 belts moved to scripts/ai_rek_belt.py precisely to keep this file
-# under the 600 ceiling): the WHOLE generation contract —
-# corpus shape, the join, the ONE lane envelope, every code gate and the
-# door delivery — is one unchecked-nothing-can-pass chain; splitting it
-# scatters the single guarantee ("between corpus.tsv and the door there is
-# exactly one path") across files, which is the failure mode the gate list
-# in the docstring exists to prevent (coding-discipline header reason).
+# under the 600 ceiling): the WHOLE generation contract — corpus shape, the
+# graded+read join, the ONE lane envelope, every code gate and the door
+# delivery — is one unchecked-nothing-can-pass chain; splitting it scatters
+# the single guarantee ("between corpus.tsv and the door there is exactly
+# one path") across files, which is the failure mode the gate list in the
+# docstring exists to prevent (coding-discipline header reason).
 """MC 12601 (M11-N5R) — the generation runner for "AI rekommenderar".
 
 Runs FLEET-side (VM350), never inside the app: it reads the PUBLIC shelf
@@ -24,11 +24,15 @@ Inputs:
              .audits/202611161817-aae834ce-n1/out/corpus.tsv)
 
 Join (vs library): corpus rows whose BOOK the shelf already grades are
-DROPPED — she is never recommended a book she has read and rated. Identity
-is the app's OWN normalization, imported read-only: `onska.wish_key` (the
-§5.3 seed.book_key chain) on title+author, plus the isbn13 lane when both
-sides carry one (the shelf card markup carries no isbn, so the wish_key
-lane is what bites today — one identity mechanism, the door's twin).
+DROPPED, and since MC 12643 (owner ruling "A" — chat 2026-11-17, accepting:
+the generator gets the COMPLETE read-title list via the existing machine
+door; public scope unchanged, graded + wishlist only; books she has READ
+are never recommended again) so is EVERY bok row GET /ai-rek/library-keys
+answers, all statuses — DA c9 F-P1-1 closed: 485 read-but-unrated books
+were invisible to the graded-only join. Identity is the app's OWN
+normalization, imported read-only: `onska.wish_key` (the §5.3
+seed.book_key chain, alias table authors-only) on title+author, plus the
+isbn13 lane when both sides carry one — ONE mechanism, `_samma_bock` twin.
 
 The ask (Lane E http://192.168.5.223:8888/v1/chat/completions): the ONE
 compiled-default envelope idiom of scripts/cover_pass.py — one model id,
@@ -71,77 +75,62 @@ Gates BEFORE a byte reaches the door (all in code, none in the prompt):
   taste          zero graded rows from --library => REFUSE, loud, non-zero,
                  BEFORE the lane ask (MC 12602 scope row 2: "based on the
                  current graded library" must be real).
-  near-miss      (MC 12617, DA c3 F-P2-2c) a candidate whose wish_key does
-                 NOT join a graded shelf card but whose folded title/author
-                 LOOKS like one is an owned-book spelling the ONE identity
-                 mechanism can never join (aliases resolve authors only).
-                 There is no legal repair beside the corpus itself, so the
-                 WHOLE generation is REFUSED, loud, non-zero, before the
-                 lane ask — the data lane rebases, the runner never
-                 invents a title normalizer. Math + thresholds ride in
-                 scripts/ai_rek_belt (the DA c3 probe's, one classifier
-                 for the gate and the rebase).
-  rehearsal      (MC 12617, DA c5 F-P4-1) a live --full — the sweep mode —
-                 requires a COMPLETED --dry-run of the SAME corpus against
-                 the SAME library inside the same run window (the 0→1
-                 cliff: one bad generation could delete every standing
-                 `new` row; a full-swap that never rehearsed is refused
-                 before the shelf read, the lane ask and the door). The
-                 plain upsert mode needs no stamp — MC 12616's byte-
-                 identical default path stays byte-identical.
+  near-miss      (MC 12617, DA c3 F-P2-2c) a candidate that LOOKS like a
+                 graded shelf card without joining it is an ownership
+                 ambiguity the ONE identity law can never join: the WHOLE
+                 generation is REFUSED before the lane ask (math and the
+                 shared classifier ride in scripts/ai_rek_belt).
+  read-list      (MC 12643, owner ruling "A") EVERY bok row the door
+                 answers on GET /ai-rek/library-keys (all statuses)
+                 excludes by the ONE wish_key law, OFFER-SIDE — dropped
+                 BEFORE the lane ask, counter dropped_read; an unreadable
+                 list refuses the WHOLE pass (exit 5): an UNfiltered
+                 generation is NEVER posted.
+  rehearsal      (MC 12617, DA c5 F-P4-1) a live --full requires a
+                 COMPLETED --dry-run of the SAME corpus against the SAME
+                 library inside the same run window (the 0→1 sweep cliff —
+                 refused before any network). The plain upsert mode needs
+                 no stamp; MC 12616's default path stays byte-identical.
 
 Delivery: POST {base}/ai-rek through curl_transport (ONE transport for
-both door runners — this card's shared extraction). The credential from
-env AI_REC_DOOR_TOKEN rides the `X-Ai-Rek-Token` header through curl's
-PLAIN `--config <per-call 0600 tmpfile>` form (MC 12616, DA c3 P2 — the
-reproduced /proc/<curl>/cmdline leak: ZERO token bytes on the child's
-argv, leg-proved against a live curl child; DA c6 F-P1-1: NOT the `@`
-form — curl silently ignores it and the header never arrives, the
-real-wire delivery legs in tests/test_door_transport.py hold arrival),
-64-hex asserted through the door's OWN
-TOKEN_SHAPE, the value never echoed. --dry-run prints the ranked JSON and
-POSTS NOTHING (the door POST is the ONLY thing dry-run skips — the shelf
-read and the lane ask still run, else the demo would prove nothing).
---full (DEFAULT off, MC 12616) sends the door's full-swap envelope: the
-POSTed list then IS the complete new generation and the door deletes the
-state='new' rows absent from it (server-side sweep, deleted_n in the
-receipt); since MC 12617 a live --full ALSO requires the dry-run
+both door runners). The credential from env AI_REC_DOOR_TOKEN rides the
+`X-Ai-Rek-Token` header through curl's PLAIN `--config <per-call 0600
+tmpfile>` form — ZERO token bytes on the child's argv (MC 12616, DA c3
+P2, leg-proved against a live curl child; NOT the `@` form — DA c6
+F-P1-1; the wire-arrival legs live in tests/test_door_transport.py),
+64-hex asserted through the door's OWN TOKEN_SHAPE, the value never
+echoed. --dry-run prints the ranked JSON and POSTS NOTHING — every gate
+still runs, the keys read, the shelf read and the lane ask included
+(else the demo would prove nothing; since MC 12643 the rehearsal rides
+the SAME join as the live run, keys included). --full (DEFAULT off, MC
+12616) sends the door's full-swap envelope (server-side sweep, deleted_n
+in the receipt); since MC 12617 a live --full ALSO requires the dry-run
 rehearsal stamp named above. --lane-timeout (default 600 s, DA c4 P3)
-sizes the lane ask — the 300 s it shipped with died mid-generation on the
-live DA run.
+sizes the lane ask — the 300 s it shipped with died mid-generation on
+the live DA run.
 
 KNOWN LIMITS, documented not papered over:
-  FULL-REPLACEMENT SWEEP (MC 12602 scope row 1) — CLOSED by MC 12616: the
-  door now takes the optional full-swap envelope `{"generation": rows}`
-  and this runner's `--full` flag (DEFAULT off — explicit opt-in) sends
-  it. Rows still `new` that are ABSENT from this generation's output are
-  deleted door-side (state accept/decline are NEVER deleted; empty
-  generation is refused fail-loud, rows kept); the answer gains
-  deleted_n. The default upsert path (no `--full`) is byte-identical to
-  MC 12601, so the shipped mode keeps working unchanged.
+  FULL-REPLACEMENT SWEEP (MC 12602 scope row 1) — CLOSED by MC 12616:
+  `--full` sends the door's full-swap envelope; absent `new` rows are
+  deleted door-side (state accept/decline NEVER; an empty generation is
+  refused fail-loud, rows kept). The default upsert path is
+  byte-identical to MC 12601, the shipped mode keeps working unchanged.
   DECLINE-FLIP RACE (carry N2, app-side P3): unreachable from this runner
   lane — the runner is the single writer; the race needs the owner's
   browser flip landing mid-ingest, which is app-side.
-  OWNED-BOOK TITLE SPELLINGS (measured on the live demo 2026-11-17, the
-  claim corrected by DA c3 F-P2-2c): the corpus ships some titles with a
-  subtitle tail while the shelf grades the plain title — wish_key cannot
-  unify the two spellings, so one already-graded book was offered (the
-  lane's own reason even cited her rating for it). RETIRED HERE: the earlier
-  sentence pointing at the alias table as the repair was DEAD for this
-  class — seed.book_key alias-resolves AUTHOR names only, titel is never
-  looked up (DA probe3), so no alias row can ever repair a TITLE misspelling
-  (and the table is NOT empty — 15 off-repo entries; the "empty on this
-  host" claim was also false). The repair that WORKS is data-side: the
-  shelf-exact corpus rebase (MC 12617). This runner deliberately adds NO
-  second title normalizer beside the §5.3 chain. (The diary's own strings
-  are named nowhere here: the exposure gate counts this file.)
-  MC 12617 LANDED BOTH HALVES of that repair: the fleet corpus was rebased
-  shelf-exact (the two owned rows — the exact join and the one near-miss —
-  dropped fail-closed, out/CORPUS.md 2026-11-17 section), AND this runner
-  now enforces the probe that certified it: ai_rek_belt.near_miss_kandidater
-  refuses any generation whose candidates still look like graded cards
-  (exit 2, before the lane ask) — a drift back into the hole fails closed
-  instead of recommending an owned book again.
+  OWNED-BOOK TITLE SPELLINGS (live demo 2026-11-17, corrected by DA c3
+  F-P2-2c): a corpus title carrying a subtitle tail cannot join the
+  shelf's plain spelling through wish_key — `seed.book_key` alias-resolves
+  AUTHORS only (DA probe3), so no alias row repairs a title; the FULL
+  corrected story, dead claims included, is the LEDGER's and CORPUS.md's,
+  not this file's. The repair that works is data-side: the shelf-exact
+  corpus rebase (MC 12617). This runner deliberately adds NO second title
+  normalizer beside the §5.3 chain. (The diary's own strings are named
+  nowhere here: the exposure gate counts this file.)
+  MC 12617 LANDED BOTH HALVES of that repair: the fleet corpus rebased
+  shelf-exact (out/CORPUS.md names the fail-closed drops) AND this runner
+  enforces the certifying probe (ai_rek_belt.near_miss_kandidater, exit 2
+  before the lane ask) — drift back into the hole fails closed.
 """
 import argparse
 import csv
@@ -161,6 +150,7 @@ sys.path.insert(0, str(ROOT))
 from app import ai_rek, onska                # THE door's vocabulary + identity
 from scripts import pris_parse as pp         # THE shelf-page parser
 from scripts.ai_rek_belt import (near_miss_kandidater,   # MC 12617 belts
+                                 read_library_keys,       # MC 12643 keys
                                  rehearsal_held, rehearsal_skriv)
 from scripts.curl_transport import _curl, _curl_config   # THE shared transport
 
@@ -269,13 +259,11 @@ def smakprov(graded):
 def build_prompt(graded, kandidater):
     """The ask as a (system, user) PAIR — MC 12617 (DA c3 F-P3-4): her
     graded cards and the corpus quotes are DATA and travel in the user
-    turn, away from the instructions; the system turn says so out loud
-    (a review quote can no longer sit in the same turn as the contract
-    it could try to steer). The OUTPUT CONTRACT — the "Ranka VARJE
-    kandidat ... corpus ovan." block — is BYTE-IDENTICAL to the one-turn
-    prompt MC 12601 shipped (pinned by tests, sha too): what moved is
-    placement, never wording. The reason field's duty to cite HER OWN
-    graded books rides in that contract, unchanged."""
+    turn, away from the contract they could try to steer. The OUTPUT
+    CONTRACT — the "Ranka VARJE kandidat ... corpus ovan." block — is
+    BYTE-IDENTICAL to MC 12601's one-turn prompt (pinned by tests, sha
+    too): what moved is placement, never wording — the reason field's
+    duty to cite HER OWN graded books included."""
     rader = [
         f"ISBN {r['isbn13']} | {r['title']} | {r['author']} | å {r['year'] or '?'}"
         f" | kategori {r['kategori']}\n  varför den kandideras: {r['why']}"
@@ -314,13 +302,10 @@ def lane_ask(prompt, timeout_s=LANE_TIMEOUT_S):
     model id, temp 0, reasoning_effort low on BOTH layers, content falling
     back to reasoning). Raises on any transport or shape failure — the
     runner answers with a refusal, never a retry loop (the §3 posture).
-    `timeout_s` is the lane budget (MC 12616: the 300 s default died
-    mid-generation, DA c4 P3 — now 600 s, moved by `--lane-timeout`).
+    `timeout_s` is the lane budget (600 s since DA c4 P3, `--lane-timeout`).
     MC 12617 (DA c3 F-P3-4): a (system, user) PAIR from build_prompt rides
-    as ONE system message + ONE user message — the graded data and the
-    quotes never share a turn with the contract; a plain str keeps the
-    single user message MC 12601 shipped (the seam's legacy shape).
-    """
+    as ONE system + ONE user message — data never shares a turn with the
+    contract; a plain str keeps the legacy single user message."""
     if isinstance(prompt, str):
         meddelanden = [{"role": "user", "content": prompt}]
     else:
@@ -408,11 +393,10 @@ def _validera(ranking, by_isbn, agnas_isbn, *, say):
 
 
 def dedupe_identitet(godkanda, *, say):
-    """Carry N1, the citation for \"the runner MUST dedupe its OUTPUT by
-    book identity (isbn UNION wish_key-normalized title+author) BEFORE
-    POST\": the best-ranked row of each identity rides the POST, a twin is
-    dropped — one identity per generation, never two rows whose rec_keys
-    differ for one book."""
+    """Carry N1: the OUTPUT is deduped by book identity (isbn UNION
+    wish_key-normalized title+author) BEFORE POST — the best-ranked row
+    of each identity rides, a twin is dropped. One identity per
+    generation, never two rec_keys for one book."""
     sedda, ut = set(), []
     for post in godkanda:
         identiteter = {"i:" + post["isbn13"],
@@ -427,13 +411,11 @@ def dedupe_identitet(godkanda, *, say):
 
 
 def door_post(url, token, rows, *, full=False):
-    """The ONE delivery, the retired pris runner's `door_post` posture
-    (scripts/pris_vakt.py, deleted by MC 12606) on the shared transport:
-    JSON on stdin via --data-binary @-, the token on
-    `X-Ai-Rek-Token`, one try then loud. Returns (status, body-bytes).
-    `full=True` (MC 12616, CLI `--full`) wraps the rows in the door's
-    full-swap envelope `{"generation": rows}` — the POSTed list then IS
-    the complete new generation; default mode is today's bare array."""
+    """The ONE delivery on the shared transport (the retired pris runner's
+    `door_post` posture, pris_vakt.py deleted by MC 12606): JSON on stdin
+    via --data-binary @-, the token on `X-Ai-Rek-Token`, one try then
+    loud, (status, body-bytes) back. `full=True` (MC 12616, CLI `--full`)
+    wraps the rows in the door's full-swap envelope; default = bare array."""
     payload = {"generation": rows} if full else rows
     return _curl_config(
         [("X-Ai-Rek-Token", token)],        # MC 12616: the secret rides a
@@ -447,13 +429,16 @@ def door_post(url, token, rows, *, full=False):
 
 
 def run_pass(corpus_path, library_url, base, *, dry_run=False,
-             get_library=read_library, lane=lane_ask, post=door_post,
+             get_library=read_library, get_keys=read_library_keys,
+             lane=lane_ask, post=door_post,
              say=None, full=False):
     """One generation end-to-end; returns the process exit code. Seam
     layout is the retired pris runner's `run_tick` (every external touch
     injectable — the shape MC 12547 proved), so the
     whole contract tests with zero network. Exit: 0 ok; 2 input/config
-    refused; 3 lane answer refused; 4 floor not met; 5 door refused;
+    refused; 3 lane answer refused; 4 floor not met; 5 door refused —
+    the read-title door's unreadable list INCLUDED (MC 12643,
+    fail-closed: an unfiltered generation is never posted);
     6 mix condition not met (nyhet AND klassiker owed, one not delivered).
     `full=True` (MC 12616, the CLI's `--full`, DEFAULT off) rides the
     door's full-swap envelope — every gate above is IDENTICAL, only the
@@ -474,6 +459,21 @@ def run_pass(corpus_path, library_url, base, *, dry_run=False,
             say(f"ALARM --full vägras: {anledning} — kräver fullbordad "
                 "--dry-run i samma körningsfönster (N8b) — noll POST")
             return 2
+    token = os.environ.get(ENV_TOKEN) or ""
+    if not TOKEN_SHAPE.fullmatch(token):      # the env NAME is named, the
+        say(f"ALARM {ENV_TOKEN} saknas eller har fel form (64 hex) "
+            "— vägrar POST")                  # VALUE is never echoed
+        return 2
+    # MC 12643 (owner ruling "A"): the COMPLETE read-title list rides the
+    # SAME door on the SAME token, read FIRST — before the shelf read and
+    # the lane ask. An unreadable list costs the refusal and nothing else;
+    # a --dry-run now rehearses over the SAME join as the live run (a
+    # malformed env refuses at the check above, before any door touch).
+    nycklar, fel = get_keys(f"{base}/ai-rek/library-keys", token)
+    if nycklar is None:
+        say(f"ALARM läsnycklar avvisade: {fel} — fail-closed: EN OUTFILTRERAD "
+            "generation POSTAS ALDRIG — noll POST, ingen lane-ask")
+        return 5
     graded, fel = get_library(library_url)
     if graded is None:
         say(f"ALARM bibliotek avvisat: {fel} — noll POST")
@@ -485,9 +485,16 @@ def run_pass(corpus_path, library_url, base, *, dry_run=False,
 
     agda_nycklar = {onska.wish_key(c["title"], c["author"]) for c in graded}
     agda_isbn = {c["isbn13"] for c in graded if c.get("isbn13")}
+    # MC 12643 (owner ruling "A"): EVERY bok row the door answered — read
+    # AND wishlist — keyed by THE SAME wish_key law `_samma_bock` uses, so
+    # a book she owns is invisible to the lane, not just to the POST.
+    lästa = {onska.wish_key(n["titel"], n.get("forfattare") or "")
+             for n in nycklar}
     kandidater = [r for r in rows
                   if r["nyckel"] not in agda_nycklar
                   and r["isbn13"] not in agda_isbn]
+    före_läs = len(kandidater)
+    kandidater = [r for r in kandidater if r["nyckel"] not in lästa]
     # F-C3-1 (DA c3 item 3, the tester's L11): the accepted set IS the
     # OFFERED set — an isbn naming a corpus row the join DROPPED as owned
     # is refused post-parse even when the model names it back (the belt
@@ -495,8 +502,10 @@ def run_pass(corpus_path, library_url, base, *, dry_run=False,
     # is the guarantee).
     by_isbn = {r["isbn13"]: r for r in kandidater}
     agnas_isbn = {r["isbn13"] for r in rows if r["isbn13"] not in by_isbn}
-    say(f"REK korpus={len(rows)} drogs_bort={len(rows) - len(kandidater)} "
-        f"kandidater={len(kandidater)} betygssatta={len(graded)}")
+    say(f"REK korpus={len(rows)} drogs_bort={len(rows) - före_läs} "
+        f"dropped_read={före_läs - len(kandidater)} "
+        f"läsnycklar={len(nycklar)} kandidater={len(kandidater)} "
+        f"betygssatta={len(graded)}")
     if not kandidater:
         say("ALARM alla kandidater finns redan på hyllan — noll POST")
         return 2
@@ -542,11 +551,6 @@ def run_pass(corpus_path, library_url, base, *, dry_run=False,
         say(f"DRY-RUN: {len(godkanda)} rankade rader utskrivna, INGET POSTAT")
         return 0
 
-    token = os.environ.get(ENV_TOKEN) or ""
-    if not TOKEN_SHAPE.fullmatch(token):      # the env NAME is named, the
-        say(f"ALARM {ENV_TOKEN} saknas eller har fel form (64 hex) "
-            "— vägrar POST")                  # VALUE is never echoed
-        return 2
     if full:
         # Belt before the byte: the corpus may have changed since the
         # window check above (the lane ask takes minutes) — re-hash.

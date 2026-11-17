@@ -169,22 +169,27 @@ GRADERADE = [{"title": "En helt annan bok", "author": "Annat Namn",
 
 def kör(mp, tmp_path, *, n=21, graded=GRADERADE, lane_text=None, post=None,
         dry=False, token="a" * 64, category=lambda i: KATERS[i % 3],
-        full=False, rehearse=True):
+        full=False, rehearse=True, reads=None):
     """One full run over faked seams; `mp` owns the token env (the delivery
     legs ride a VALID 64-hex token unless a leg names its own). MC 12617:
     the rehearsal stamp dir is per-leg tmp (no /tmp litter, no cross-leg
     bleed), and a `full=True` run is REHEARSED FIRST by a plain dry-run on
-    the same corpus/library — pass `rehearse=False` to attack the belt."""
+    the same corpus/library — pass `rehearse=False` to attack the belt.
+    MC 12643: the read-title seam is faked too — `reads` is the door's
+    {titel, forfattare, status} list (default: the empty, legitimate one,
+    which keeps every MC 12601-12617 leg intent byte-identical)."""
     mp.setenv(rp.ENV_TOKEN, token)
     mp.setenv("AI_REK_REHEARSAL_DIR", str(tmp_path))
     ts = korpus_tsv(tmp_path / "corpus.tsv", n=n, category=category)
     lane = FakeLane(lane_text if lane_text is not None else svar_alla(n))
     post = post or FakePost()
     lines = []
+    nycklar = lambda url, _t: (reads if reads is not None else [], None)
     if full and rehearse:
         rr = rp.run_pass(ts, "https://sibbamala.test/liselott/bibliotek",
                          "https://sibbamala.test/liselott", dry_run=True,
                          get_library=library_med_html(shelf_html(graded)),
+                         get_keys=nycklar,
                          lane=FakeLane(lane.text), post=FakePost(),
                          say=lambda line: None)
         assert rr == 0, "rehearsal must pass before the --full leg runs"
@@ -192,6 +197,7 @@ def kör(mp, tmp_path, *, n=21, graded=GRADERADE, lane_text=None, post=None,
                        "https://sibbamala.test/liselott",
                        dry_run=dry,
                        get_library=library_med_html(shelf_html(graded)),
+                       get_keys=nycklar,
                        lane=lane, post=post, say=lines.append, full=full)
     return code, lines, lane, post
 
@@ -310,6 +316,7 @@ def test_twin_pair_deduped_by_identity(tmp_path, monkeypatch):
     code = rp.run_pass(ts, "https://sibbamala.test/bibliotek",
                        "https://sibbamala.test",
                        get_library=library_med_html(shelf_html(GRADERADE)),
+                       get_keys=lambda url, _t: ([], None),
                        lane=lane, post=post, say=lines.append)
     assert code == 0
     rows = post.calls[0][2]

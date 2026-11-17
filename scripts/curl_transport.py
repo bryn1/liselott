@@ -8,10 +8,12 @@ MC 12570 original; the patch surface moved with it (tests monkeypatch
 
 CALLERS TODAY (MC 12606, M11-N4b): ONE — `scripts/ai_rek_pass.py`, the
 /ai-rek runner, which rides BOTH halves (`_curl` for its plain GETs,
-`_curl_config` for the door POST). The second caller this file named for two
-cards, `pris_vakt` (the nightly pris runner), is RETIRED with the price/sale
-feature by the owner's ruling; the transport STAYS because the runner that
-outlived the feature still needs it.
+`_curl_config` for the door POST). Since MC 12643 the runner's read-title
+reader (`scripts/ai_rek_belt.read_library_keys`) rides `_curl_config` too —
+still the ONE caller family, one secret delivery for every door call. The
+second caller this file named for two cards, `pris_vakt` (the nightly pris
+runner), is RETIRED with the price/sale feature by the owner's ruling; the
+transport STAYS because the runner that outlived the feature still needs it.
 
 MC 12616 (DA c3 P2) adds `_curl_config` beside `_curl`: header delivery
 whose SECRET bytes never reach argv (the reproduced /proc/<curl>/cmdline
