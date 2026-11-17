@@ -32,6 +32,10 @@ wires the real ones in main (importing the runner HERE would only create
 a cycle), tests hand in stubs. The wrapper (scripts/ai_rek_refresh_tick.sh)
 and the systemd unit files (agent-town infra/services/ai-rek/) are the
 production callers; installing the timer stays the orchestrator's.
+ONE tick at a time is a DEPLOYMENT property: the wrapper's flock IS the
+serializer, and a concurrent full-swap is legal door-side (the later wave
+wins, never a mixed generation) — the residual window is a manual
+--check-refresh beside the timer (DA c12 F-DA12-7, accepted-and-recorded).
 """
 import hashlib
 import json
@@ -45,9 +49,13 @@ STATE_DIR_DEFAULT = "/home/claudecode/.liselott-rek"
 
 
 def state_dir():
-    """The shared runner state dir (accepted-wave records; the wrapper
-    points the rehearsal stamps here too). Tests move it with env
-    AI_REK_STATE_DIR."""
+    """The shared fleet state dir for the accepted-wave RECORDS (+ the
+    wrapper's tick.log/tick.lock). Rehearsal stamps are NOT here: they
+    stay in the belt's own rehearsal-dir (env AI_REK_REHEARSAL_DIR, else
+    system tmp — under systemd's PrivateTmp that is the tick's private
+    tmp, which is exactly right: a stale stamp never authorizes a later
+    --full. DA c12 F-DA12-6, docs fixed to truth). Tests move this dir
+    with env AI_REK_STATE_DIR."""
     return Path(os.environ.get("AI_REK_STATE_DIR") or STATE_DIR_DEFAULT)
 
 
@@ -140,6 +148,16 @@ def check_refresh(corpus_path, library_url, base, *, run_pass, get_library,
     graded, fel = get_library(library_url)
     if graded is None:
         say(f"ALARM bibliotek avvisat: {fel} — noll POST")
+        return 2
+    if not graded:
+        # F-DA12-4 (DA c12): zero parsed cards on a 200 page is a CF
+        # interstitial / reader-template break, NOT a shelf that shrank —
+        # the delta math below would answer "not due (-221)" and the unit
+        # would report success on a library read that FAILED. Same
+        # fail-closed floor as the runner's own taste gate, same words.
+        say("ALARM smakprofil tom: biblioteket gav noll betygssatta rader "
+            "— vägrar refresh (ingen 'baserat på hyllan' utan hyllan; en "
+            "tom läsning är ett läsfel, inte ett delta) — noll POST")
         return 2
     delta = len(graded) - record["graded_count"]
     if delta < REFRESH_GRADED_DELTA:

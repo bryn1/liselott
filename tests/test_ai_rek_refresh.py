@@ -27,6 +27,7 @@ the systemd unit FILES + systemd-analyze verify land agent-town-side
 (infra/services/ai-rek/, MC 12647) — installing stays the orchestrator's.
 """
 import json
+import os
 import socket
 import stat
 import subprocess
@@ -270,3 +271,116 @@ def test_wrapper_script_is_valid_bash():
     assert p.is_file(), "scripts/ai_rek_refresh_tick.sh saknas"
     r = subprocess.run(["bash", "-n", str(p)], capture_output=True, text=True)
     assert r.returncode == 0, r.stderr
+
+
+# --- c12 FIX WAVE legs (DA-verdict-c12.md, all RED-first) ---------------------
+
+def _wrapper_env(tmp_path, stub_rc):
+    """A fake ROT whose .venv/bin/python is a stub exiting ${STUB_RC} — the
+    stub value travels INSIDE the env file, exactly where the token lives."""
+    rot = tmp_path / "rot"
+    (rot / ".venv" / "bin").mkdir(parents=True)
+    stub = rot / ".venv" / "bin" / "python"
+    stub.write_text("#!/bin/sh\nexit \"${STUB_RC:-0}\"\n", encoding="utf-8")
+    stub.chmod(0o755)
+    state = tmp_path / "state"
+    envfil = tmp_path / "door.env"
+    envfil.write_text(f"STUB_RC={stub_rc}\n", encoding="utf-8")
+    return {"LISELOTT_ROT": str(rot), "AI_REK_STATE_DIR": str(state),
+            "AI_REK_ENV_FILE": str(envfil),
+            "AI_REK_CORPUS": str(tmp_path / "corpus.tsv")}
+
+
+def _kör_wrapper(tmp_path, stub_rc):
+    env = {**os.environ, **_wrapper_env(tmp_path, stub_rc)}
+    p = Path(rp.__file__).with_name("ai_rek_refresh_tick.sh")
+    r = subprocess.run(["bash", str(p)], env=env, capture_output=True,
+                       text=True, timeout=30)
+    return r, (tmp_path / "state" / "tick.log")
+
+
+@pytest.mark.parametrize("rc", [2, 5, 6])   # F-DA12-1: drift / door 5 / mix 6
+def test_wrapper_exit_code_rides_out(tmp_path, rc):
+    """The gate clause the c1 wrapper FAILED: a dead trigger may not call
+    itself success. The runner's code must be the WRAPPER's code — and the
+    log line must stay."""
+    r, logg = _kör_wrapper(tmp_path, rc)
+    assert r.returncode == rc
+    assert f"exit={rc}" in logg.read_text(encoding="utf-8")
+
+
+def test_wrapper_zero_when_runner_zero(tmp_path):
+    r, logg = _kör_wrapper(tmp_path, 0)
+    assert r.returncode == 0 and "exit=0" in logg.read_text(encoding="utf-8")
+
+
+def test_wrapper_missing_env_exits_2(tmp_path):
+    env = {**os.environ, **_wrapper_env(tmp_path, 0)}
+    env["AI_REK_ENV_FILE"] = str(tmp_path / "saknas.env")
+    p = Path(rp.__file__).with_name("ai_rek_refresh_tick.sh")
+    r = subprocess.run(["bash", str(p)], env=env, capture_output=True,
+                       text=True, timeout=30)
+    assert r.returncode == 2
+    assert "AVVISAT" in (tmp_path / "state" / "tick.log").read_text(
+        encoding="utf-8")
+
+
+def test_empty_shelf_refused_not_not_due(tmp_path, monkeypatch):
+    """F-DA12-4: a CF challenge / reader-template break parses to ZERO
+    cards — delta -N would read as a benign not-due and the unit would
+    report success on a library that failed to load. Same fail-closed floor
+    as the runner's own taste gate."""
+    d = state_dir(monkeypatch, tmp_path)
+    rf.refresh_record_skriv(BASE, BIBL, graded_count=221, accepted=20)
+    lines = []
+    kod = rf.check_refresh(korpus_tsv(tmp_path / "corpus.tsv"), BIBL, BASE,
+                           run_pass=StubPass(),
+                           get_library=lambda url: ([], None),
+                           get_keys=_nej, lane=_nej, post=_nej,
+                           say=lines.append)
+    assert kod == 2
+    assert any("smakprofil tom" in ln for ln in lines)
+    assert not any("INTE DUE" in ln for ln in lines)   # never a fake not-due
+
+
+def test_missing_corpus_named_not_traceback(tmp_path):
+    """F-DA12-2: every input face in this module gets a name — the default
+    $AI_REK_STATE_DIR/corpus.tsv is not staged on a fresh box, and the first
+    DUE tick must NOT be a bare FileNotFoundError traceback."""
+    rows, fel = rp.read_corpus(str(tmp_path / "saknas" / "corpus.tsv"))
+    assert rows is None and "saknas" in fel
+
+
+def test_missing_corpus_run_pass_alarm_exit_2(tmp_path, monkeypatch):
+    monkeypatch.setenv(rp.ENV_TOKEN, "a" * 64)
+    lines = []
+    kod = rp.run_pass(str(tmp_path / "saknas.tsv"), BIBL, BASE,
+                      get_library=hyll_cards, get_keys=_nej, lane=_nej,
+                      post=_nej, say=lines.append)
+    assert kod == 2
+    assert any("ALARM korpus avvisad" in ln and "noll POST" in ln
+               for ln in lines)
+
+
+@pytest.mark.parametrize("face", [["--dry-run"], ["--full"]])
+def test_check_refresh_refuses_combining(tmp_path, monkeypatch, face,
+                                         capsys):
+    """F-DA12-3: the README's --dry-run row promises POSTS NOTHING — that
+    is only true if the CLI refuses to let --check-refresh swallow the
+    preview flags (c1 silently ran the whole refresh, wave included)."""
+    monkeypatch.setenv("AI_REK_STATE_DIR", str(tmp_path / "state"))
+    with pytest.raises(SystemExit) as e:
+        rp.main(["--corpus", str(korpus_tsv(tmp_path / "corpus.tsv")),
+                 "--check-refresh", *face])
+    assert e.value.code == 2                     # parser.error: loud usage,
+    assert "--check-refresh" in capsys.readouterr().err   # both names named
+
+
+def test_import_surface_names_are_exported():
+    """F-DA12-8: the c1 header promised "re-exports every name" — the four
+    real names that leaked into the pre-split namespace ride again (a
+    future caller of rp.LANE_URL gets the SAME object the lane reads)."""
+    for name in ("LANE_URL", "LANE_MODEL", "LANE_MAX_TOKENS", "smakprov"):
+        assert hasattr(rp, name), name
+    import scripts.ai_rek_lane as lane
+    assert rp.LANE_URL is lane.LANE_URL          # one object, no second copy

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # coding-discipline header reason (DA c11 F-DA11-3 closed: the clause sits
-# INSIDE the gate's first-5-line window): 455 lines > 400 — the WHOLE
+# INSIDE the gate's first-5-line window): 474 lines > 400 — the WHOLE
 # generation contract (corpus shape, graded+read join, code gates, door
 # delivery, refresh baseline) is one unchecked-nothing-can-pass chain:
 # "between corpus.tsv and the door there is exactly one path". The split
@@ -155,7 +155,12 @@ from scripts.ai_rek_belt import (near_miss_kandidater,   # MC 12617 belts
 from scripts.ai_rek_lane import (ISBN_FULL, _har_kontrolltecken,  # MC 12647
                                  LANE_TIMEOUT_S, build_prompt,     # ask +
                                  lane_ask, parse_ranking,          # answer
-                                 _validera, dedupe_identitet)      # gates
+                                 _validera, dedupe_identitet,      # gates
+                                 LANE_URL, LANE_MODEL,             # F-DA12-8:
+                                 LANE_MAX_TOKENS, smakprov)        # the FULL
+#                                 pre-split surface rides again — every name
+#                                 the old module held (math/re/unicodedata
+#                                 were leaked stdlib aliases, not contract)
 from scripts.ai_rek_refresh import check_refresh, refresh_record_skriv
 from scripts.curl_transport import _curl, _curl_config   # THE shared transport
 
@@ -185,7 +190,13 @@ def read_corpus(path):
     title/review_source_url non-empty (the door's shape duty at load).
     Every kept row carries its door values: kategori + wish_key."""
     rows, isbns = [], {}
-    with open(path, newline="", encoding="utf-8") as fh:
+    try:
+        fh = open(path, newline="", encoding="utf-8")
+    except OSError as e:                    # F-DA12-2 (DA c12): the default
+        return None, (f"korpusfilen saknas eller går inte att läsa: "      # fleet corpus is
+                      f"{path} ({type(e).__name__})")                      # not staged on a
+    with fh:                                # fresh box — named at load,
+                                            # never a traceback down the lane
         reader = csv.reader(fh, delimiter="\t")
         header = next(reader, None)
         if header != CORPUS_COLS:
@@ -437,6 +448,14 @@ def main(argv=None):
                          f"{LANE_TIMEOUT_S}; the shipped 300 died mid-"
                          "generation, DA c4 P3)")
     args = ap.parse_args(argv)
+    if args.check_refresh and (args.dry_run or args.full):
+        # F-DA12-3 (DA c12): the modes answer different questions — a
+        # --check-refresh must not silently swallow a preview flag (c1 let
+        # --dry-run ride and then ran the WAVE anyway; the README's
+        # --dry-run row only holds if the CLI REFUSES the combination).
+        ap.error("--check-refresh kan inte kombineras med --dry-run/--full "
+                 "— refresh läser recorden och kör själv sin repetition + "
+                 "våg; välj ett läge")
     base = (os.environ.get(ENV_URL) or BASE_DEFAULT).rstrip("/")
     library = args.library or f"{base}/bibliotek"
     if args.check_refresh:

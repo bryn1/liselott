@@ -605,8 +605,11 @@ LEADING `YYMMDD` token, 45 rows). Trust the plan's §5 rules, never the header.
   ZERO network. Every door-ACCEPTED full wave REBASES the record. THE
   RECORD PATH (fleet state, NEVER the repo): `$AI_REK_STATE_DIR`, default
   `/home/claudecode/.liselott-rek/` — 0700 dir, 0600 files, counts +
-  timestamp only, no secret bytes; the rehearsal stamps ride the same dir
-  in production. The systemd tick: wrapper `scripts/ai_rek_refresh_tick.sh`
+  timestamp only, no secret bytes; it holds the accepted-wave record,
+  `tick.log` and `tick.lock` — the rehearsal stamps stay in the belt's own
+  rehearsal dir (system tmp; under systemd that is the tick's PRIVATE tmp,
+  so a stale stamp never authorizes a later `--full` — DA c12 F-DA12-6).
+  The systemd tick: wrapper `scripts/ai_rek_refresh_tick.sh`
   (flock one-at-a-time, the door credential read from the env file
   `/home/claudecode/.secrets/ai-rec-door.env`, NEVER echoed, `tick.log`
   rotated at 1 MB) + the unit/timer FILES in agent-town

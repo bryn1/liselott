@@ -14,14 +14,14 @@ KORPUS="${AI_REK_CORPUS:-$STAT/corpus.tsv}"
 LOGG="$STAT/tick.log"
 mkdir -p "$STAT" && chmod 700 "$STAT"
 export AI_REK_STATE_DIR="$STAT"
-if [ -f "$LOGG" ] && [ "$(stat -c %s "$LOGG" 2>/dev/null || echo 0)" -gt 1048576 ]; then
-    mv "$LOGG" "$LOGG.1"                       # rotated-at-1MB, one generation
-fi
 exec 9>"$STAT/tick.lock" || exit 1
 if ! flock -n 9; then                          # en tick i taget — aldrig två
     echo "$(date -u +%FT%TZ) REDAN IGANG — ticken skipas" >> "$LOGG"
     exit 0
 fi
+if [ -f "$LOGG" ] && [ "$(stat -c %s "$LOGG" 2>/dev/null || echo 0)" -gt 1048576 ]; then
+    mv "$LOGG" "$LOGG.1"                       # rotated-at-1MB, one generation —
+fi                                             # F-DA12-5: ONLY under the flock
 {
     echo "== $(date -u +%FT%TZ) ai-rek refresh tick =="
     if [ ! -f "$ENVFIL" ]; then
@@ -31,5 +31,7 @@ fi
     set -a; . "$ENVFIL"; set +a                # NEVER set -x: the token must
     cd "$ROT" || exit 1                        # never reach the log; only
     .venv/bin/python -m scripts.ai_rek_pass --corpus "$KORPUS" --check-refresh
-    echo "exit=$?"
-} >> "$LOGG" 2>&1
+    rc=$?                                      # F-DA12-1: capture NOW — a dead
+    echo "exit=$rc"                            # trigger may not call itself
+} >> "$LOGG" 2>&1                              # success; the code rides out
+exit "${rc:-0}"

@@ -1513,3 +1513,53 @@ postdating a line make that line STALE — de-stale before quoting it.
   at base 302a5c0 (byte-identical there); every file this commit adds or
   edits greps CLEAN against the real-titles/real-isbns lists (zero new
   hits). NOTHING pushed.
+
+- **MC 12647 (M11-N11) c12 FIX WAVE — DA verdict FIX, all ten items, one
+  commit on 706e028 (no amend) (2026-11-17).** (1) F-DA12-1 P1: the tick
+  wrapper now EXITS with the runner's code (`rc=$?` captured immediately
+  after the runner, log echo kept, `exit ${rc:-0}`) — the c1 wrapper ended
+  in `echo`, so drift/door/refusal/crash all rode out as systemd
+  `Succeeded`, contradicting its own header. Legs: a stub runner at 2/5/6
+  makes the WRAPPER exit identical, the ok face 0, the missing-env face 2,
+  log lines asserted. (2) F-DA12-2: a missing/unreadable corpus is NAMED
+  at load (`read_corpus` OSError -> "korpusfilen saknas..." -> the runner's
+  existing `ALARM korpus avvisad: ... — noll POST` exit 2) — the default
+  `$AI_REK_STATE_DIR/corpus.tsv` is not staged on a fresh box, and the
+  first DUE tick must never be a bare FileNotFoundError (which F-DA12-1
+  then painted green). Two legs. (3) F-DA12-3: `--check-refresh` with
+  `--dry-run` or `--full` is now `ap.error` exit 2 — the README's
+  POSTS-NOTHING --dry-run row is TRUE at the CLI (c1 silently ran the
+  refresh incl. the wave). Two legs. (4) F-DA12-4: check_refresh has the
+  empty-shelf floor — ZERO parsed graded cards is ALARM exit 2 reusing the
+  runner's "smakprofil tom" wording (a CF interstitial / template break
+  read as a benign "delta -221 not-due"; never a fake not-due). Leg pins
+  exit 2 + no INTE-DUE line. (5) F-DA12-5: the 1 MB rotation runs ONLY
+  under the flock. (6) F-DA12-6: docs fixed to TRUTH at all three sites
+  (state_dir docstring, README row, agent-town infra/services/ai-rek/
+  README — landed agent-town-side 94076065..NEW): rehearsal stamps are NOT
+  state-dir files; they live in the belt's own rehearsal dir — system tmp,
+  and under systemd the tick's PRIVATE tmp, which is the better property
+  (a stale stamp never authorizes a later --full); chose the doc-fix over
+  the wrapper export. (7) F-DA12-8: import surface RESTORED by RE-EXPORT —
+  LANE_URL/LANE_MODEL/LANE_MAX_TOKENS/smakprov ride on the runner again
+  (chose the re-export over amending the claim; leg pins the four names
+  AND object identity vs the lane module). Named: math/re/unicodedata
+  leaked into the pre-split namespace as stdlib aliases — never contract,
+  not resurrected. (8) F-DA12-9 WORDING CORRECTED here (c1's sentence
+  stands as history): "every existing leg UNTOUCHED" was true of LEGS but
+  tests/conftest.py was ADDED-TO — an additive protective session pin
+  (_suite_refresh_state_pin), zero legs edited, zero sealed files touched.
+  (9) F-DA12-7 ACCEPT-AND-RECORDED: one-wave-at-a-time is the wrapper's
+  flock (the residual window is a manual --check-refresh beside the timer);
+  concurrent full-swaps are legal door-side — the later wave wins, never a
+  mixed generation — now stated in the ai_rek_refresh module docstring.
+  (10) F-DA12-10 ACCEPTED: refresh_record_skriv is non-atomic (O_TRUNC); a
+  torn write reads back as DRIFT — fail-closed, loud, cannot silently
+  mis-baseline; tmp+rename noted for the convention lane, not this card.
+  RED-first again: all 11 new legs ran RED on the c1 code first (the five
+  wrapper legs failed for the real assert, not the harness — an `os`
+  import slip in the test file was fixed before reading the reds). Suite
+  761 passed + 1 skipped AT this commit (750+1 c1, +11);
+  dod_hygiene.check_project_hygiene (base 302a5c0): UNMET [] VERIFY_EXIT=0;
+  exposure gate: held list UNCHANGED vs base (LEDGER.md pre-exists; every
+  file this wave adds/edits greps zero-hit). NOTHING pushed.
