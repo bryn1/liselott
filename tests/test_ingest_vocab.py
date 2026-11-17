@@ -325,26 +325,22 @@ def test_bundle_decompression_bomb_cover_refused_naming_the_image(authed):
 
 
 # ── F-E2: no Content-Length, no deal — the doors refuse to GUESS the body ───
-def test_doors_refuse_a_body_they_cannot_measure_with_411(authed, monkeypatch):
+def test_doors_refuse_a_body_they_cannot_measure_with_411(authed):
     """F-E2 (shipped: a POST whose envelope carries NO Content-Length —
     the chunked shape — reached the door with the app unable to bound
     what the transport never delimited: caps compared against nothing,
     and the door answered 200 about bytes it had not honestly seen).
     Every machine door now answers 411 Length Required (named, Swedish
     copy) and imports NOTHING — whatever the stream itself happens to
-    carry: the two importers and, since MC 12542, the price door, whose
-    byte budget is worth nothing against a stream the transport never
-    delimited. A normal client POST always carries Content-Length; this
+    carry: both importers hold this rule. A
+    normal client POST always carries Content-Length; this
     leg overrides wsgi.input WITHOUT it, exactly the F-E2 shape.
-    MC 12546 keeps the sweep sweeping for /pris too: the door is ARMED
-    (synthetic token via monkeypatch) and the caller here is the owner
-    session, so the credential stage passes through — this leg must
-    still reach the 411, proving the envelope rule stands behind the
-    new first word rather than behind it being skipped."""
+    (MC 12606: the sweep's third path, /pris, left with the price door —
+    the deleted route cannot answer 411, it answers the guard's 302 now.)
+    """
     tmp, client = authed
-    monkeypatch.setenv("PRIS_DOOR_TOKEN", "syntetisk-dorr-token-979")
     chunk = bundle_bytes(line(book_key="kChunk", title="Chunkbok"))
-    for path in ("/liselott/bundle", "/liselott/seed", "/liselott/pris"):
+    for path in ("/liselott/bundle", "/liselott/seed"):
         r = client.post(path,
                         environ_overrides={"wsgi.input": io.BytesIO(chunk)},
                         headers={"Transfer-Encoding": "chunked"},

@@ -102,7 +102,9 @@ def create_app():
         return response
 
     # Late import: app.auth imports app.db, never the factory (no cycle).
-    from app import (ai_rek, auth, backfill, bundle, onska, pris, redigera,
+    # MC 12606 (M11-N4b): the fourth machine door `pris` is RETIRED — the
+    # owner ruling behind it is quoted on the LEDGER row, not here.
+    from app import (ai_rek, auth, backfill, bundle, onska, redigera,
                      report, routes, tillagg)
     auth.init_auth(app)
 
@@ -128,7 +130,6 @@ def create_app():
     report.init_report(app)
     backfill.init_backfill(app)
     bundle.init_bundle(app)
-    pris.init_pris(app)
     ai_rek.init_ai_rek(app)
 
     @app.get("/healthz")

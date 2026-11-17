@@ -281,7 +281,6 @@ that gates every push.
 | `LISELOTT_DATA_DIR` | data-dir override — dev/test/build use only |
 | `LISELOTT_BACKUP_DIR` | where `scripts/backup.sh` writes its pairs; default `$HOME/liselott-backups` (§11). `GET /backup` never writes here — it streams from a temp dir |
 | `LISELOTT_ENV=dev` | local/test only — turns the session cookie's `Secure` flag off; UNSET means production (Secure ON, debug OFF) |
-| `PRIS_DOOR_TOKEN` | MC 12546 — the dedicated credential of the `POST /pris` price door (header `X-Pris-Token`, constant-time compare). UNSET or empty = the door is DISARMED: 503 for every POST, fail-closed (the shipped default until the runner's 0600 env file lands with M9a-2). Rotation = set the new value + restart the door. Liselott's site password is never involved. Read per request by `app/pris.py`, never by any other route |
 | `AI_REC_DOOR_TOKEN` | MC 12597 — the dedicated credential of the `POST /ai-rek` AI-recommendation door (header `X-Ai-Rek-Token`, constant-time compare), and the **64-hex requirement ON THE VALUE**: unset, empty or malformed = the door is DISARMED — 503 for every POST, fail-closed, the owner's session included (a malformed env is never a weaker door; `openssl rand -hex 32` is the shape). Rotation = set the new value + restart the door. Liselott's site password is never involved. Read per request by `app/ai_rek.py`, never by any other route |
 | `LISELOTT_SEED_FILE` | test suite ONLY (MC 12451 c5) — points at the personal seed export so the `personal` corpus CASE runs; unset, the locator falls back to `data-import/seed-books-raw.md`; with neither, only the synthetic cases run. The app never reads it |
 | `LISELOTT_ALIASES_FILE` | MC 12523 — the personal author-alias CSV (off-repo state data, `canonical,alias` rows); default `/home/claudecode/liselott-data/author_aliases.csv`; ABSENT = no aliases (clean no-op, tested). Read by the importer CLI, the /bundle door and the add/edit doors through `app/seed.py` |
@@ -292,9 +291,17 @@ that gates every push.
 | `DESCRIBE_IMAGE_MODEL` | the S12 cover pass ONLY — the model the vision gate asks to report the cover's printed words; default `qwen3.8-flash-next`. The app never reads it |
 
 **Production needs zero custom env.** The lane unit sets only `HOME` and `PORT`;
-everything else falls out of the defaults above — which is also why the price
-door ships fail-closed: until the runner's own env file lands with M9a-2,
-`PRIS_DOOR_TOKEN` is unset on the server and every `POST /pris` answers 503.
+everything else falls out of the defaults above.
+
+**`PRIS_DOOR_TOKEN` is RETIRED (MC 12606, M11-N4b)** and belongs to no row of
+that table any more: the owner ruled the price feature away — "Books on sale
+can be removed. No interest in buying books." — so `POST /pris`, its door
+credential and its `X-Pris-Token` header are gone from the code, and
+`/pris` is now an ordinary unknown path (anonymous 302 to the login page,
+owner 404). Nothing in this tree reads that env name; a host unit or env file
+that still exports it is INERT, and the teardown of the vm106 side (the
+pris-vakt unit/timer and its 0600 token file) is the orchestrator's follow-up
+row, named in the LEDGER.
 
 ### Where the data lives
 
@@ -340,23 +347,20 @@ The guard (`app/auth.py::_auth_gate`) answers in three states, measured in
   sets a session cookie. `robots.txt` says `Allow: /` here — the site
   publishes its public set (the private half is unreachable to a crawler
   regardless of what the file says).
-- **Configured site, the wishlist's price line** (MC 12542, owner ruling
-  2026-11-15, verbatim: "every graded book displayed, every book on whishlist
-  displayed, current price and a 'on sale' if on sale for vooks on whishlist"):
-  the public shelf's "Att läsa" cards — and the owner's `/onska` rows, through
-  the same ONE macro — carry the book's CURRENT stored price
-  (`99 kr · Bokus`), a `REA` badge when the FLOOR-EVENT rule (design §4) says
-  today sits under any ACCEPTED price of the last 90 days, and the WORDED date
-  the price was checked. A price not seen today renders with its date and "kan
-  ha ändrats" and NEVER a badge; a wish with no observation renders NO element
-  (no dash, no empty chrome). It is a display and nothing else: the link is
-  derived by the server from the stored isbn
-  (`https://www.bokus.com/bok/<isbn13>` — no query, no affiliate or tracking
-  param, no stored URL column at all) and no card buys, carts or reserves.
-  Read-year cards are never handed price data, so every other card on the page
-  renders the bytes it had before prices existed (measured, not assumed:
-  `tests/test_pris_display.py`). The price of a READ book is neither public nor
-  shown anywhere: the door refuses an isbn no wish carries.
+- **RETIRED — the wishlist's price line** (M9a, MC 12542/12546; retired by
+  MC 12606, M11-N4b, owner rulings 2026-11-16 verbatim: "Books on sale can be
+  removed. No interest in buying books." and the older "rea, om inte nu så
+  sen"). The price line and the `REA` badge are OFF the cards: the "Att läsa"
+  rows and the owner's `/onska` rows carry title, author, format and stars —
+  no price, no "Lägsta pris på 90 dagar", no "pris kollat" date, no Bokus
+  link. The ruling kept the wishlist ITSELF whole (every wish still renders,
+  public and owner alike) and kept the stored history: the `price` table and
+  its columns stay in `app/schema.sql` behind a RETIRED comment, with NO
+  destructive migration and no `DROP`. What the card below this one used to
+  describe is now a claim with no implementation; `tests/test_pris_retired.py`
+  pins the opposite — the wishlist page carries ZERO bytes matching
+  `streckpris|rea|lägga|pris|90 dagar` (case-insensitive) for the owner AND
+  the anonymous reader, even with a price row planted in the kept table.
 - **Configured site, the public reader's filters** (MC 12551, owner
   2026-11-15, verbatim: "The public page needs filter by score, year, search by
   author, title and year"): above `/bibliotek` the anonymous reader gets ONE
@@ -377,19 +381,21 @@ The guard (`app/auth.py::_auth_gate`) answers in three states, measured in
   `betyg`/`ar` param speaks for it. The OWNER is never filtered (her params are
   inert) and the landing carries no form row — both render the bytes they had
   before the filters existed, pinned by `tests/test_public_filter.py`. Public
-  stays exactly the ruling's list — rated books, the wishlist, the price/REA
-  line (MC 12542) and now PUBLIC FILTERING over those rows; NOTHING else
-  becomes public.
+  stays exactly the ruling's list — rated books, the wishlist (without the
+  price line MC 12606 retired) and PUBLIC FILTERING over those
+  rows; NOTHING else becomes public.
 - **Configured site, anonymous writes:** every POST stays the guard's 302 to
   `/logga-in` (the `/satt-loesenord` door answers its §6.1 404) — including
   POSTs aimed at the READ paths: the method rule in `_is_public_read` is what
-  makes "public to read" not mean "public to write". The named exceptions
-  are `POST /pris` (M9a-1b, MC 12546) and `POST /ai-rek` (M11, MC 12597):
-  the guard lets those POST methods reach their doors, which then answer
-  with their OWN dedicated door credentials
+  makes "public to read" not mean "public to write". The ONE named exception
+  is `POST /ai-rek` (M11, MC 12597):
+  the guard lets that POST method reach its door, which then answers
+  with its OWN dedicated door credential
   (503 disarmed / 401 wrong key, see *Machine routes*) — never a session,
-  never the site password; every other method on `/pris` or `/ai-rek` keeps
-  the uniform 302. Owner surfaces —
+  never the site password; every other method on `/ai-rek` keeps
+  the uniform 302. (MC 12606 retired the second exception this paragraph
+  named, `POST /pris`; `/pris` is not a door any more and keeps the uniform
+  302 like every other path.) Owner surfaces —
   `/onska`, `/lagg-till`, `/redigera/<id>`, `/rapa/*`, `/backup`,
   `/byter-losenord`, `/logga-ut` and the machine doors `/seed`, `/bundle`,
   `/backfill` — stay behind her session, as do search and
@@ -466,7 +472,7 @@ nowhere and carries two false claims (it says no grades exist — 6 rating rows
 do; it advertises a date-suffix form — no row uses it; the real form is a
 LEADING `YYMMDD` token, 45 rows). Trust the plan's §5 rules, never the header.
 
-### Machine routes (behind the owner session — `/pris` behind its own door token, MC 12546)
+## Machine routes (behind the owner session — `/ai-rek` behind its own door token, MC 12597; `/pris` retired by MC 12606)
 
 - `POST /seed` — the raw markdown in, `parsed=725 stored=724 duplicates=1` out
   (the loader/CLI pins the `parsed`/`duplicates` triple; the door's own legs
@@ -498,40 +504,18 @@ LEADING `YYMMDD` token, 45 rows). Trust the plan's §5 rules, never the header.
   every cover won since the last export travels. Dated snapshot 2026-11-14: a
   724-line export of 2 765 194 B in 4 chunks — 856 873 / 889 325 / 879 626 /
   139 370 B, each ≤ 900 000.
-- `POST /pris` (M9a-1, MC 12542) — the price door. A JSON array of
-  `{isbn, retailer, price, currency, checked_at}` and NOTHING else about a row
-  is client-owned: `book_id` is resolved here, `ok` is constant, `suspect` is
-  computed here, the public link is derived at display time, and the dedup is
-  the UNIQUE day index (`ux_price_isbn_day`) — a same-day re-ask overwrites
-  today's row and is ONE history point. Body ≤ `MAX_PRIS_BODY` = 65 536 B
-  (named 413) and ≤ `MAX_PRIS_ROWS` = 500 rows (named 400), both judged before
-  a row is parsed; a POST whose envelope carries no `Content-Length` is a 411
-  (the F-E2 posture the other two doors already hold). Per-row contract, one
-  class per row: `isbn` exactly 13 ASCII digits resolving to a WISHLIST row,
-  `retailer` `bokus`, `currency` `SEK`, `price` an integer 1..20000,
-  `checked_at` inside the CLAMPED window [now − 2 d, now + 5 min] (§4 rule 5,
-  the backdate defence — the named residual: a holder of the credential can
-  still backdate by ≤ 2 days). The response is the seven counters
-  (`accepted`, `inserted`, `updated`, `suspect`, `rejected_unknown`,
-  `rejected_shape`, `rejected_date`) and echoes no book data. A single-step
-  drop past 60 % is STORED FLAGGED (`suspect=1`, G1 computed before the
-  upsert against the latest observation strictly before that row's day) and a
-  suspect row enters no floor and mints no badge. One prune per accepted POST
-  keeps `RETENTION_DAYS` = 730 days. CSRF-tokenless like the other machine
-  doors, never guardless: a foreign Origin 400s at the guard (which runs
-  before the door's own credential), the route joins no read allow-list, and
-  every non-POST method keeps the uniform 302. The credential (M9a-1b,
-  MC 12546, owner ruling 2026-11-15) is a DEDICATED DOOR TOKEN, never the
-  site password: the header `X-Pris-Token` is compared to the env
-  `PRIS_DOOR_TOKEN` with a constant-time, byte-exact compare — inside the
-  door, before any body parse. Unset (or empty) env ⇒ 503 for EVERY POST
-  (fail-closed, the shipped default until the runner env is wired; the
-  owner's own session included — an unset env never means open); wrong or
-  absent token ⇒ 401 in ONE uniform copy (no absent-vs-wrong oracle).
-  A valid owner session rides the door WITHOUT the token — her own tools
-  post through the session she already holds — and rotation is set the new
-  env value + restart the door. Her password is never copied anywhere:
-  she can change it whenever she likes without affecting the watcher.
+- **RETIRED — `POST /pris`, the price door** (M9a-1/M9a-1b, MC 12542/12546;
+  deleted by MC 12606, M11-N4b, on the owner's ruling "Books on sale can be
+  removed. No interest in buying books."). The route, `app/pris.py`, its read
+  model `app/priskort.py`, the `PRIS_DOOR_TOKEN`/`X-Pris-Token` credential and
+  the guard's POST-method door allow are ALL OUT of the tree: `/pris` is now
+  answered by the guard before routing, exactly like any other unknown path
+  (anonymous 302 to `/logga-in` in status AND Location, owner 404), and the
+  env name is inert. Everything this bullet documented — the row contract, the
+  day-dedup index, the counters, the 60% `suspect` flag, the 2-day backdate
+  residual — is history, carried by the LEDGER rows of MC 12542/12546/12547/
+  MC 12549 and by git, not by code. `POST /ai-rek` below is now the ONLY
+  door-token machine route standing.
 - `POST /ai-rek` (M11, MC 12597) — the AI-recommendation ingest door. A JSON
   array of `{title, author_name, isbn13, year, reason, source, fit, kategori}`
   in, the six counters (`accepted`, `inserted`, `updated`, `kept_accept`,
@@ -562,14 +546,17 @@ LEADING `YYMMDD` token, 45 rows). Trust the plan's §5 rules, never the header.
   the payload is today's upsert, byte-identical. Fleet-side runner
   `scripts/ai_rek_pass.py`: `--full` sends the envelope (DEFAULT off —
   explicit opt-in); `--lane-timeout` sizes the Lane E ask budget (default
-  600 s — the shipped 300 died mid-generation, DA c4 P3). Both fleet-side
-  door runners' tokens (this one and `X-Pris-Token`) never cross argv: the
+  600 s — the shipped 300 died mid-generation, DA c4 P3). The fleet-side
+  door runner's token never crosses argv: the
   secret header rides a per-call 0600 `--config` tmpfile — the PLAIN path
   form, NOT `--config @<path>`: curl silently ignores the `@` form and
   posts WITHOUT the header (DA c6 F-P1-1; real-wire delivery legs pin
   arrival) — unlinked when the call returns, its content never echoed, no
   path on the command line carries a secret, so `/proc/<curl>/cmdline` is
-  clean on BOTH doors (MC 12616, DA c3 P2 + c5 F-P2-1).
+  clean (MC 12616, DA c3 P2 + c5 F-P2-1; the weld was cut for TWO runners
+  and MC 12606 retired the second, `X-Pris-Token` — the shared transport in
+  `scripts/curl_transport.py` stays, `ai_rek_pass` is its one caller and
+  `tests/test_door_transport.py` carries the byte-identity leg now).
 - `POST /backfill?n=5&after=<id>[&mode=candidates]` — the cover/ISBN retry and
   candidate-pool builder, resumable by `last_id` (cursor advances past
   permanent failures; wrap = fresh pass). Shares one pipeline with
@@ -634,19 +621,18 @@ remain vm106-ROOT actions — owner decision, never assumed.
 
 ### Known limits (all measured or plan-stated, 2026-11-13)
 
-- **The price door has no fetcher yet (M9a-1 shipped the door; M9a-2 ships
-  the pass).** Nothing in this repo reads Bokus, so `price` is empty on a fresh
-  site and every wishlist card renders exactly the page it rendered before
-  prices existed: the price line and the REA badge are live the moment a POST
-  lands, and they stay dark until the daily runner is installed. The door
-  IS credentialed separately since M9a-1b (MC 12546, owner ruling
-  2026-11-15): a dedicated door token (`X-Pris-Token` compared to env
-  `PRIS_DOOR_TOKEN`, constant-time), never Liselott's site password — her
-  password is copied nowhere and she can change it whenever she likes
-  without affecting the watcher; rotation = set the new env value and
-  restart the door. UNSET env fails the door CLOSED (503 for every POST),
-  so `/pris` stays dark — not open, not half-open — until M9a-2 wires that
-  env into the runner's 0600 env file.
+- **RETIRED (MC 12606): the price feature has no code left to fetch.** This
+  bullet used to carry the M9a-2 promise — the door stood but no runner read
+  Bokus, so `price` stayed empty on a fresh site. The owner's ruling
+  ("Books on sale can be removed. No interest in buying books.") retired the
+  feature instead: the door, the display and `scripts/pris_vakt.py` +
+  `scripts/pris_state.py` (the nightly pass and its state file, which the
+  LEDGER never pinned as installed — no unit or timer row for them exists in
+  LEDGER or README, and the first REAL Bokus visit recorded by MC 12549 never
+  ran) are deleted. The `price` table keeps whatever a live site already
+  stored: no migration touches it. HOST-SIDE RESIDUAL, not this tree: any
+  vm106 systemd unit/timer and the runner's 0600 token/env file still naming
+  pris-vakt belong to the orchestrator's teardown row, named in the LEDGER.
 - Cover coverage: build DB 74/724 at T9.1 time (47 books provider-exhausted,
   `enrich_fail=1`); production serves 80/724 (orchestrator rapport-measured
   in the M8 run). The residual misses ride the fix-me loop (`/rapa/omslag`),

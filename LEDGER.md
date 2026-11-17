@@ -1207,3 +1207,54 @@ postdating a line make that line STALE — de-stale before quoting it.
   and the gate caught the LEDGER too — the gate caught exposures INSIDE
   MC 12616's own wave twice, pre-commit; that is the instrument working.
   Nothing pushed. docs/ left untouched.
+- **MC 12606 (M11-N4b) — the price/sale feature RETIRED (2026-11-17, one
+  commit on top of 52b87c4; base HEAD verified before touching anything).**
+  OWNER RULINGS, verbatim: "Books on sale can be removed. No interest in
+  buying books." + the selected option (the price line and the REA badge
+  disappear; the wishlist rows ALL STAY; the nightly pris-vakt runner/timer is
+  retired) + the older "rea, om inte nu så sen". UI: the price line, the REA
+  badge, the "Lägsta pris på 90 dagar" copy and the "pris kollat" date are OUT
+  of `app/templates/_bokkort.html` (the ONE card macro) and its four CSS rules
+  out of `app/static/css/app.css`; `{%-` made the deletion byte-neutral, so
+  every card that never had a price renders the SAME bytes. Route+door OUT:
+  `app/pris.py`, its read model `app/priskort.py`, the guard's POST-method word
+  for it and `PRIS_DOOR_TOKEN` out of `app/auth.py`, its mount out of
+  `app/__init__.py`. READINGS STATED, not hidden: `/pris` is not special any
+  more — the guard answers before routing, so it is EXACTLY today's unknown
+  extension-less path (anonymous 302 to `/logga-in`, owner 404), pinned by
+  `tests/test_pris_retired.py` against a control path, and a still-exported
+  `PRIS_DOOR_TOKEN` is INERT. Runner OUT: `scripts/pris_vakt.py` +
+  `scripts/pris_state.py` (state had exactly ONE importer — the runner — so the
+  runner going orphaned it; no LEDGER or README row ever pinned either as
+  installed: MC 12616 c5 already reads "N4b (MC 12606) retires pris_vakt
+  wholesale", README's own Known limits said the door "stays dark until M9a-2
+  wires" the runner, and MC 12549's first REAL Bokus visit never ran).
+  `scripts/pris_parse.py` and `scripts/curl_transport.py` STAY: the /ai-rek
+  runner imports `pris_parse.read_graded` (`scripts/ai_rek_pass.py:224`) and
+  delivers through `_curl_config`; `dead_code.py --lib app --live server.py
+  --live scripts/ai_rek_pass.py …` reads 26/27 reached, 11 findings BEFORE→AFTER
+  minus exactly the one `app/pris.py init_pris` finding this commit removed, and
+  names NEITHER kept module as orphaned (name-based reach caveat: the same run
+  on a HEAD snapshot is the comparison, /tmp/mc12606-head). Its dead half went
+  with the feature: the Bokus buy-box classifier + §2 scope/isbn readers are
+  deleted, the graded-shelf reader stays. DB: NO destructive migration — the
+  `price` table, its columns and its indexes stay, with a RETIRED block in
+  `app/schema.sql` quoting both rulings. Tests: 119 legs removed, 98 named test
+  functions (every name in the commit body), 10 new legs in
+  `tests/test_pris_retired.py`; suite 800+1skip → **691 passed + 1 skipped**,
+  exit 0. THE GATES PROVED RED: 5 mutants (price line back; the guard's door
+  word + a 503/401 /pris door back; DROP TABLE after the indexes; the runner
+  file re-created; the price map wired back into the shelf read) reddened
+  ALL TEN new legs — 10/10 coverage, byte-copy sha-verified restores
+  (`.tmp/mc12606-planted-red*.py`). The ai_rek/ai-rek legs are UNTOUCHED green
+  and `tests/test_public_filter.py`'s byte pins are UNTOUCHED green (its inert
+  `PRIS_DOOR_TOKEN` delenv went, nothing measured did). Docs swept in the same
+  commit: README's env row, public-set bullet, machine-route bullet, Known
+  limits bullet and the "BOTH door runners" transport claim are REWRITTEN as
+  retired-with-ruling (versioned truth, no silent deletion), `VERSION` bumped
+  2026.11-4 → 2026.11-5 (app.css bytes changed, deploy rule). NOT DONE HERE,
+  named as follow-ups: the vm106 systemd unit/timer + 0600 token-file teardown
+  (orchestrator), the two host-side `docs/DESIGN-prisbevakning*.md` SUPERSEDED
+  banners (untracked — never in git, bannered in place, NOT added), the
+  `pris_parse` rename/naming hygiene row, and MC 12616's /tmp 0600 tmpfile
+  clearing. Exposure gate 0 findings pre-commit. NOTHING pushed.

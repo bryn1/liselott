@@ -1,19 +1,25 @@
 """MC 12601 (M11-N5R) — the ONE curl-subprocess transport the fleet-side
 runners ride. MC 12570's `_curl` moved VERBATIM out of scripts/pris_vakt.py
 (the measured CF fact that made it: Cloudflare 403s python-urllib on
-sibbamala.com, curl passes the edge), so ai_rek_pass (the /ai-rek runner)
-and pris_vakt (the /pris runner) share ONE transport instead of forking a
-second one — one mechanism, two callers. The body is byte-identical to the
+sibbamala.com, curl passes the edge), so the runners shared ONE transport
+instead of forking a second one. The body is byte-identical to the
 MC 12570 original; the patch surface moved with it (tests monkeypatch
 `curl_transport.subprocess.run`).
+
+CALLERS TODAY (MC 12606, M11-N4b): ONE — `scripts/ai_rek_pass.py`, the
+/ai-rek runner, which rides BOTH halves (`_curl` for its plain GETs,
+`_curl_config` for the door POST). The second caller this file named for two
+cards, `pris_vakt` (the nightly pris runner), is RETIRED with the price/sale
+feature by the owner's ruling; the transport STAYS because the runner that
+outlived the feature still needs it.
 
 MC 12616 (DA c3 P2) adds `_curl_config` beside `_curl`: header delivery
 whose SECRET bytes never reach argv (the reproduced /proc/<curl>/cmdline
 leak). `_curl`'s signature is UNCHANGED — it stays the plain path the
 GETs ride. MC 12616 c5 (DA F-P2-1): the first wave's "pris keeps the
 header-as-argv path" reading was VOID — the card append and LEDGER:1079
-charge BOTH callers and no ruling ever pinned pris — so BOTH door
-runners now ride `_curl_config`: one secret delivery, not two.
+charge BOTH callers and no ruling ever pinned pris — so both door
+runners then rode `_curl_config`: one secret delivery, not two.
 MC 12616 fix-wave 2 (DA c6 F-P1-1 P1) TRUTHS the wire claim: c5's
 "byte-identical ON THE WIRE" was asserted on FABRICATED curl results and
 was FALSE — `--config @<path>` is silently ignored by curl (the @ form
@@ -21,8 +27,9 @@ is include-syntax for inside config files), so the header NEVER arrived.
 The transport ships the PLAIN `--config <path>` form now, and WIRE
 ARRIVAL + byte-identity to the header-as-argv form are held by REAL-
 REQUEST legs against a local listener (tests/test_door_transport.py:
-the two …delivers_the_token_header_on_the_wire legs + the argv-form
-byte-comparison leg), not by in-process fixtures.
+the …delivers_the_token_header_on_the_wire leg + the argv-form
+byte-comparison leg, both re-cut on the surviving /ai-rek door by
+MC 12606), not by in-process fixtures.
 """
 import os
 import re
@@ -33,7 +40,7 @@ CURL = "curl"                               # the production transport (MC 12570
 WATCHDOG_GRACE_S = 5                        # hard subprocess stop, wedged curl
 _HOKNAVN = re.compile(r"[A-Za-z0-9:-]+")    # the config guard's name shape
 #                                         (MC 12616 c5, DA F-P3-1) — the
-#                                         shape BOTH door headers carry
+#                                         shape the door header carries
 
 
 def _curl(args, *, timeout_s, stdin_data=b""):
@@ -101,7 +108,7 @@ def _curl_config(secret_headers, build_args, *, timeout_s, stdin_data=b""):
     (tmpreaper/tmpfiles.d/handler) is a future runner card, NOT this
     transport's promise; `build_args(config_arg)` takes the PLAIN path,
     and the argv that reaches /proc carries ZERO secret bytes (legs: the
-    live-curl-cmdline pair, both doors)."""
+    live-curl-cmdline leg and the wire-delivery leg)."""
     for namn, varde in secret_headers:                # EVERY pair, BEFORE
         if not _HOKNAVN.fullmatch(namn):              # a single byte of
             raise ValueError("confighögardet ur formen — vägrar skriva")

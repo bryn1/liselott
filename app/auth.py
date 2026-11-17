@@ -90,22 +90,16 @@ QUARANTINED_NAMESPACES = (".git",)
 # first, so no session could ever carry a token) stays true as written. The
 # exemption is TOKENLESS, not guardless: foreign Origin still 400s and the
 # routes keep their own guards (rate limit + password / window + rate limit).
-# M9a-1 (DESIGN-prisbevakning-v2 §6e) adds a FOURTH machine door, POST /pris,
-# under exactly this reading: the daily runner posts JSON, so it can carry no
-# browser token. M9a-1b (MC 12546, owner ruling 2026-11-15) took the runner
-# OFF the owner's session: its credential is the DEDICATED DOOR TOKEN, checked
-# in the DOOR (app/pris.py) BEFORE any body parse, fail-closed — so the guard's
-# session rule no longer answers this POST; _is_pris_door below lets the POST
-# METHOD through instead. Everything else the guard enforces stays: the Origin
-# rule runs BEFORE the door ever compares a token, /pris joins NO read
-# allow-list (§6.4), and every other method on /pris keeps the uniform 302.
 CSRF_METHODS = ("POST", "PUT", "PATCH", "DELETE")
-# M11 (MC 12597): POST /ai-rek is the FIFTH machine door, the same reading —
+# M11 (MC 12597): POST /ai-rek is the ONLY door-token machine route standing —
 # the AI-pass runner posts JSON, carries no browser token, and its credential
 # is the dedicated door token checked IN THE DOOR (app/ai_rek.py), so
 # _is_ai_rek_door below lets the POST METHOD through and nothing else.
+# (MC 12606, M11-N4b: the fourth door-token route this reading was cut for,
+# POST /pris, is RETIRED — its method-exact guard allow, its door module and
+# its TOKENLESS_POSTS entry are gone with it.)
 TOKENLESS_POSTS = ("/logga-in", "/satt-loesenord", "/seed", "/bundle",
-                   "/backfill", "/pris", "/ai-rek")
+                   "/backfill", "/ai-rek")
 CSRF_TOKEN_COPY = "Säkerhetsmärket saknas — ladda om sidan och försök igen."
 FOREIGN_ORIGIN_COPY = "Fel — formuläret skickades från en annan webbplats."
 
@@ -266,27 +260,15 @@ def _is_public_read() -> bool:
     return path in PUBLIC_READ_PATHS or path.startswith(PUBLIC_READ_PREFIXES)
 
 
-def _is_pris_door() -> bool:
-    """MC 12546 (owner ruling 2026-11-15): POST /pris reaches its route
-    WITHOUT an owner session — the daily runner's credential is the dedicated
-    door token (app/pris.py compares it BEFORE any body parse, 503 fail-closed
-    when the env is unset), never Liselott's password. The allow is the POST
-    METHOD ONLY, an exhaustive-list rule for exactly one route: the door is a
-    write door, so GET/HEAD on /pris keep the guard's uniform 302 the §6.4
-    sweep pins, no other route joins any allow-list through this door, and
-    the CSRF/Origin machinery (_csrf_gate, run on this branch too) is
-    untouched — the door only ever sees same-origin-or-curl requests."""
-    return request.path == "/pris" and request.method == "POST"
-
-
 def _is_ai_rek_door() -> bool:
     """MC 12597 (M11, design MC 12590): POST /ai-rek reaches its route
     WITHOUT an owner session — the AI-pass runner's credential is the
     dedicated door token (app/ai_rek.py compares it BEFORE any body parse,
     503 fail-closed when the env is unset or malformed, 64-hex enforced).
-    _is_pris_door's rule re-stated for the fifth door, and it stands for
-    exactly one route: the POST METHOD ONLY, so GET/HEAD on /ai-rek keep
-    the guard's uniform 302 and no other route joins any allow-list here."""
+    The rule the M9a price door pioneered (RETIRED by MC 12606), re-stated
+    for the door that outlived it, and it stands for exactly one route: the
+    POST METHOD ONLY, so GET/HEAD on /ai-rek keep the guard's uniform 302
+    and no other route joins any allow-list here."""
     return request.path == "/ai-rek" and request.method == "POST"
 
 
@@ -409,7 +391,7 @@ def init_auth(app):
         if request.path == "/satt-loesenord":
             abort(404)  # configured -> gone forever (§6.1)
         if (request.path in UNAUTHENTICATED_ALLOW or _is_public_read()
-                or _is_pris_door() or _is_ai_rek_door()
+                or _is_ai_rek_door()
                 or request.path.startswith(STATIC_PREFIX)):
             return _csrf_gate()
         if session.get(SESSION_FLAG):

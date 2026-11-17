@@ -17,7 +17,7 @@ from pathlib import Path
 from flask import (Response, abort, jsonify, render_template, request,
                    send_file, session)
 
-from app import (auth, backup, books, db, filtrering, omslag, priskort,
+from app import (auth, backup, books, db, filtrering, omslag,
                  search, seed)
 
 # F-2 (SEC-verdict-12497): werkzeug's int converter matches \d+ WITHOUT
@@ -111,25 +111,15 @@ def init_routes(app):
         return (books.group_for_shelf(filtrering.narrow(bocker, filtr)),
                 filtrering.years(bocker))
 
-    def _prisar(grupper):
-        """M9a-1 (DESIGN §5): the price rows the shelf's WISHLIST cards show,
-        composed HERE — the template looks up a map, it never computes a
-        verdict. Only the "Att läsa" books are ever in it (priskort decides
-        that, by the wish predicate), so every read-year card keeps the exact
-        bytes it had before prices existed. One query for the whole page."""
-        return priskort.card_prices(
-            db.get_db(), [b for _ar, bocker in grupper for b in bocker])
-
     def _hylla(filtr=None):
-        """One read, one render — shared by the two rules below. The price map
-        rides the SAME shelf read (_prisar reuses its rows, never re-fetches
-        the shelf), so the landing and /bibliotek stay one query path.
+        """One read, one render — shared by the two rules below (MC 12606:
+        with the price map gone this is ONE read again, the shelf's own).
         MC 12551: `filtrering`/`ar` ride along for the public reader only (the
         form partial); the owner's render passes neither and carries ZERO new
         bytes — the pin in tests/test_public_filter.py."""
         grupper, ar = _hylldata(filtr)
         return render_template("bibliotek.html", grupper=grupper,
-                               prisar=_prisar(grupper), current="hylla",
+                               current="hylla",
                                filtrering=filtr, ar_all=ar)
 
     @app.get("/")
@@ -142,9 +132,7 @@ def init_routes(app):
         /bibliotek and the landing never pointed there, so the promise had no
         entrance. An anonymous GET now answers 200 with the intro AND the same
         public shelf /bibliotek serves: _hylldata() — the same fetch, the
-        same grouping, _hyllan.html the same markup, no second query path
-        (M9a-1: and the same _prisar map, so a wish carries the same price
-        line here and there — one price read per page, in either state).
+        same grouping, _hyllan.html the same markup, no second query path.
         The ONE door legal in the current §6.1 state stays, as the landing's
         small footer line: window-open → /satt-loesenord "Välj ditt lösenord",
         configured → /logga-in "Logga in". The setup state keeps its data-free
@@ -160,11 +148,9 @@ def init_routes(app):
         if auth.is_configured(db.get_db()):
             grupper, _ = _hylldata(_publik_filtrering())
             return render_template("start.html", dorren="logga_in",
-                                   etiketten="Logga in", grupper=grupper,
-                                   prisar=_prisar(grupper))
+                                   etiketten="Logga in", grupper=grupper)
         return render_template("start.html", dorren="satt_losenord",
-                               etiketten="Välj ditt lösenord", grupper=[],
-                               prisar={})
+                               etiketten="Välj ditt lösenord", grupper=[])
 
     @app.get("/bibliotek")
     def bibliotek():

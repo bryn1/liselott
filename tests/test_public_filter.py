@@ -97,7 +97,9 @@ def konfigurerad(tmp_path, monkeypatch):
     monkeypatch.setenv("LISELOTT_DATA_DIR", str(tmp_path))
     monkeypatch.delenv("LISELOTT_PREFIX", raising=False)
     monkeypatch.delenv("LISELOTT_ENV", raising=False)
-    monkeypatch.delenv("PRIS_DOOR_TOKEN", raising=False)
+    # (MC 12606: this fixture also deleted PRIS_DOOR_TOKEN, a name the retired
+    # price door read; nothing reads it now, so the pin is gone. The byte pins
+    # below are UNTOUCHED — measured at 6d4d576 and green here.)
     conn_seed = sqlite3.connect(tmp_path / "liselott.db")
     conn_seed.close()
     seed_shelf(tmp_path / "liselott.db")

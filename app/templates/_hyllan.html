@@ -9,18 +9,16 @@
    `grupper` belongs to the view (routes._hylldata: the owner's full shelf,
    the public set for an anonymous reader — books.PUBLIC_SET_SQL, the ONE
    filter); this partial adds no second gate and no page h1: each page keeps
-   its own. `prisar` is the view's {book_id: price row} from
-   priskort.card_prices (M9a-1) — a lookup, never a query from here, and only
-   the wishlist's ids are ever IN it, so the year sections' cards pass
-   `pris=None` and render the card exactly as before. A view that forgets to
-   pass the map fails LOUD (Jinja raises on the missing lookup), never
-   silently price-less. -#}
+   its own. Every card is the plain `bokkort(b)` call — MC 12606 retired the
+   price/sale feature with the owner's ruling, so the `prisar` map this used
+   to look up per card is gone from the view, the macro and this file at the
+   same time. -#}
 {% from "_bokkort.html" import bokkort with context -%}
 {% for ar, bocker in grupper %}
 <section class="grupp" aria-labelledby="grupp-{{ loop.index }}">
   <h2 id="grupp-{{ loop.index }}">{{ ar }}</h2>
   <ul class="hylla">
-    {% for b in bocker %}{{ bokkort(b, pris=prisar.get(b.id)) }}{% endfor %}
+    {% for b in bocker %}{{ bokkort(b) }}{% endfor %}
   </ul>
 </section>
 {% endfor %}

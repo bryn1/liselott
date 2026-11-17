@@ -12,7 +12,7 @@ from datetime import date
 
 from flask import abort, render_template, request
 
-from app import auth, books, db, priskort, redigera, search, seed
+from app import auth, books, db, redigera, search, seed
 
 
 def wish_key(titel, forfattare):
@@ -53,8 +53,7 @@ def skapa_onska(conn, titel, forfattare, isbn13=None, year=None,
         # /lagg-till performs via form_to_fields, now living with the writer
         # so the machine caller cannot skip what the form caller pays. A
         # check-digit failure is NO isbn, not a string: the wish row gets
-        # NULL, never the machine's un-validated token into book identity
-        # (the /pris price resolve joins on book.isbn13).
+        # NULL, never the machine's un-validated token into book identity.
         got = search.normalize_isbn(isbn13)
         isbn13 = got[0] if got else None
     nu = auth.utcnow_iso()
@@ -79,12 +78,11 @@ def init_onska(app):
 
     def _onska(vyan, fel):
         """ONE render of the page for its three states (the list, a validation
-        error, a duplicate). `prisar` rides with all three (M9a-1, DESIGN §5):
-        the owner's rows carry the SAME price line /bibliotek's wishlist
-        section does, from the same one read — a fourth render that forgot it
-        is exactly the second mechanism this file exists to avoid."""
+        error, a duplicate) — the reason MC 12542's price map once cost this
+        file nothing to add (and why MC 12606's retirement costs it nothing
+        to remove): a fourth hand-written render is the second mechanism this
+        file exists to avoid."""
         return render_template("onska.html", onska=vyan, fel=fel,
-                               prisar=priskort.card_prices(db.get_db(), vyan),
                                current="onska")
 
     @app.get("/onska")

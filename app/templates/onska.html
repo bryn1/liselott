@@ -4,10 +4,9 @@
 {% block content %}
 {# T5.4 — "Att läsa": the wishlist, ONE card macro with the shelf, and the
    two honest doors (add a wish, mark read). The row buttons post through the
-   §6.6 gate like everything else. M9a-1 (DESIGN §5): the card is the SAME
-   `bokkort(b, pris=…)` call /bibliotek's wishlist section makes — the owner's
-   rows carry the same price line, from the same one read, no second
-   mechanism beside it. #}
+   §6.6 gate like everything else. The card is the plain `bokkort(b)` call the
+   shelf makes — the price line M9a-1 put here was retired by MC 12606 with
+   the owner's ruling, and this page gained no second mechanism for it. #}
 <h1>Att läsa</h1>
 {% if fel %}<p class="fel-meddelande">{{ fel }}</p>{% endif %}
 
@@ -24,7 +23,7 @@
 <ul class="hylla onska-lista">
   {% for b in onska %}
   <li class="onska-rad">
-    {{ bokkort(b, pris=prisar.get(b.id)) }}
+    {{ bokkort(b) }}
     <form method="post" action="{{ url_for('onska_las', id=b.id) }}">
       <input type="hidden" name="csrf" value="{{ csrf_token() }}">
       <button type="submit">Läst nu</button>

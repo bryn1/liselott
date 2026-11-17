@@ -23,12 +23,20 @@ CREATE TABLE IF NOT EXISTS book_genre (book_id INTEGER NOT NULL, genre_id INTEGE
 CREATE TABLE IF NOT EXISTS candidate (id INTEGER PRIMARY KEY, title TEXT NOT NULL, author_name TEXT, isbn13 TEXT,
   year INTEGER, cover_path TEXT, cover_source TEXT CHECK (cover_source IN ('libris','googlebooks','openlibrary','manual','manual-url')),
   fetched_at TEXT NOT NULL);
--- M9a-1 (DESIGN-prisbevakning-v2 §1, verbatim DDL): the price series the
--- /pris door writes and the wishlist card reads. The UNIQUE day index IS the
--- dedup (no SELECT-then-INSERT anywhere), which is what makes a same-day
--- re-ask land in ONE history point; `book_id` is ingest-resolved metadata and
--- rides the one delete door (ON DELETE CASCADE). `url` is GONE by design: the
--- public deep-link is server-derived from `isbn`, never client-supplied.
+-- RETIRED (MC 12606, M11-N4b; owner rulings 2026-11-16, verbatim: "Books on
+-- sale can be removed. No interest in buying books." and "rea, om inte nu så
+-- sen"): the price/sale feature is GONE — the /pris door, the card's price
+-- line and the REA badge, and the nightly pris-vakt runner. This table is
+-- KEPT VERBATIM, columns included: NO destructive migration, no DROP, no
+-- rewrite of data she owns. Nothing in the app writes or reads it any more
+-- (app/pris.py and app/priskort.py were deleted with this ruling), so the DDL
+-- below is idempotent history for a re-opened question, not a live mechanism.
+-- ── history (M9a-1, DESIGN-prisbevakning-v2 §1, verbatim DDL) ──────────────
+-- The UNIQUE day index IS the dedup (no SELECT-then-INSERT anywhere), which
+-- is what makes a same-day re-ask land in ONE history point; `book_id` was
+-- ingest-resolved metadata and rides the one delete door (ON DELETE CASCADE).
+-- `url` is GONE by design: the public deep-link was server-derived from
+-- `isbn`, never client-supplied.
 CREATE TABLE IF NOT EXISTS price (
   id INTEGER PRIMARY KEY,
   isbn TEXT NOT NULL,

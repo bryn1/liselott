@@ -6,11 +6,14 @@
 """M11 (MC 12597, design MC 12590) — the "AI rekommenderar" category.
 
 One module, one concern: the recommendation SURFACE. It owns the machine
-ingest door POST /ai-rek (the fifth door, the /pris credential posture
+ingest door POST /ai-rek (the ONLY door-token route standing since MC 12606
+retired the price door /pris, whose credential posture this file copied
 verbatim — MC 12546's dedicated door token, checked IN THE DOOR before any
 body parse, fail-closed 503 when the env is unset, one uniform 401 copy for
-absent-or-wrong), the owner's accept/decline POSTs (session + CSRF like
-every browser POST — NOT a TOKENLESS route), the page view GET
+absent-or-wrong. Every `/pris`/`pris.py` citation further down names THAT
+retired door as the design precedent, never a live route), the owner's
+accept/decline POSTs (session + CSRF like every browser POST — NOT a
+TOKENLESS route), the page view GET
 /rekommendationer and the classic list's dismiss POST /djem — both MOVED
 out of routes.py unchanged (endpoint names, URLs and behaviour stand;
 routes.py ends at <=400 lines, MC 12597's hygiene move).

@@ -296,21 +296,9 @@ a, button, input, .omslag {
   padding-top: var(--s4); }
 .uppladdning { margin-top: var(--s4); }
 
-/* ── M9a-1 §5: the price line on a WISHLIST card only (_bokkort.html's one
-   optional block). Existing tokens only — DESIGN.md §9's set is closed, and
-   every pair used here is a pair scripts/contrast_check.py already gates
-   (--link/--paper 6.5, --muted/--paper 7.1). The calm posture holds: the
-   badge is a bordered chip in --link, never the .overopande red, and a card
-   with no observation carries no element here at all (§5: no dashes-chrome).
-   A price whose date is not today stays on the page: §5 promises the last
-   stored price, visibly stale, during an outage — the worded check date and
-   its "kan ha ändrats" suffix, in .pris-kollad, are what say it; no class or
-   colour is invented for it. ── */
-.prisrad { margin: var(--s1) 0 0; font-size: .8125rem; color: var(--muted); }
-.pris-lank { color: var(--link); font-weight: 600; }
-.rea { border: 1px solid var(--link); color: var(--link); font-weight: 700;
-  font-size: .9375rem; padding: 0 var(--s2); margin-left: var(--s2); }
-.rea-arsak { color: var(--muted); }
-.pris-kollad { display: block; }
+/* MC 12606 (M11-N4b): the price line and the REA badge that used to be styled
+   between .uppladdning and this marker are GONE with the retired price/sale
+   feature — no class is left behind here or in _bokkort.html, and DESIGN.md's
+   §9 token set is unchanged by the removal (closed set, nothing invented). */
 
 /* deploy-marker cycle-5: owner standing order 2026-11-13 'Keep the window open' — restart keeps the first-login window continuously open until the password is set. */

@@ -18,14 +18,15 @@ test_ai_rek_pass.py when that file grew past the 600-line test ceiling
 
 MC 12616 c5 FIX WAVE (DA F-P2-1): the "pris keeps header-as-argv" reading
 was VOID — the card append and LEDGER:1079 charge BOTH callers and no
-ruling ever pinned pris; pris_vakt.door_post now rides `_curl_config`
+ruling ever pinned pris; pris_vakt.door_post then rode `_curl_config`
 too, its weld updated in tests/test_pris_vakt.py red-first, and the PRIS
-token gets its own live /proc leg below. c5 CLAIMED "byte-identical ON
+token got its own live /proc leg (both gone with MC 12606 — see below).
+c5 CLAIMED "byte-identical ON
 THE WIRE" — FALSE (DA c6 F-P1-1: asserted on fabricated curl results;
 the `--config @<path>` form is silently ignored, the header never
 arrived). Fix-wave 2 ships the PLAIN `--config <path>` form and the
-claim's REAL backing lives at the bottom of this file: the two …delivers_
-the_token_header_on_the_wire legs capture the actual request against a
+claim's REAL backing lives at the bottom of this file: the …delivers_
+the_token_header_on_the_wire leg captures the actual request against a
 local listener and the argv-form comparison leg pins byte-identity to
 the replaced shape — in-process fixtures prove the shape, WIRE legs
 prove the arrival. DA F-P3-1: the config guard also rejects BACKSLASH
@@ -38,7 +39,16 @@ transient first failure no longer propagates nor strands the file.
   (mkstemp boomer proves it) and curl never runs.
 * unlink-best-effort — the first unlink failing once still leaves the
   file gone and the call returning normally.
-* pris-live-curl-cmdline — the same live /proc read for the PRIS door.
+
+MC 12606 (M11-N4b) retired the price/sale feature and its runner with the
+owner's ruling, which took this file's two PRIS legs with it
+(`test_pris_door_post_token_absent_from_the_live_curl_cmdline` and
+`test_pris_door_delivers_the_token_header_on_the_wire` — both deleted, their
+mechanism deleted with them). The transport they shared with the /ai-rek door
+STAYS (ai_rek_pass is its one remaining caller), so the byte-comparison leg
+that ran the PRIS door through it was RE-CUT on the /ai-rek door rather than
+silently dropped: the claim "the config-file form is wire-identical to the
+replaced header-as-argv form" still has a leg.
 """
 import json
 import os
@@ -52,7 +62,6 @@ import pytest
 
 from scripts import ai_rek_pass as rp
 from scripts import curl_transport as ct
-from scripts import pris_vakt as pv
 from tests.test_ai_rek_pass import (GRADERADE, FakeLane, korpus_tsv,
                                     library_med_html, shelf_html, svar_alla)
 
@@ -190,51 +199,8 @@ def test_full_mode_posts_the_generation_envelope(tmp_path, monkeypatch):
 
 
 # ── MC 12616 c5 fix wave (DA-verdict-c5) ──────────────────────────────────
-def test_pris_door_post_token_absent_from_the_live_curl_cmdline(monkeypatch):
-    """DA c5 F-P2-1, mirroring the AI-rec leg: the NIGHTLY pris tick execs
-    curl with ZERO token bytes on the child's cmdline now. RED-FIRST on
-    the old header-as-argv shape (the DA measured `X-Pris-Token: <secret>`
-    verbatim there); green on the config transport. This leg proves the
-    LEAK is gone — ARRIVAL is proven by the pris wire leg at the bottom
-    of this file, byte-identity to the argv form by the comparison leg
-    (c5's "byte-identical on the wire" here rested on fabricated curl
-    results; DA c6 F-P1-1 named it FALSE — the @-form never delivered)."""
-    import subprocess
-    mottagare = socket.socket()
-    mottagare.bind(("127.0.0.1", 0))
-    mottagare.listen(1)
-    port = mottagare.getsockname()[1]
-    token = "d" * 64
-    kommandorader = []
-
-    class LevandeCurl:
-        def __call__(self, argv, **kw):
-            process = subprocess.Popen(argv, stdin=subprocess.PIPE,
-                                       stdout=subprocess.PIPE,
-                                       stderr=subprocess.PIPE)
-            try:
-                for _ in range(200):                   # wait out the exec
-                    with open(f"/proc/{process.pid}/cmdline", "rb") as fh:
-                        kommandorad = fh.read()
-                    if kommandorad.startswith(b"curl"):
-                        break
-                    time.sleep(0.05)
-                kommandorader.append(kommandorad)
-            finally:
-                process.kill()
-                process.wait()
-            with open(argv[argv.index("--output") + 1], "wb") as fh:
-                fh.write(b"{}")                # the pris runner parses counters
-            return SimpleNamespace(returncode=0, stdout=b"200", stderr=b"")
-
-    monkeypatch.setattr(ct.subprocess, "run", LevandeCurl())
-    status, counters = pv.door_post(f"http://127.0.0.1:{port}/pris", token, [])
-    assert status == 200 and counters == {} and len(kommandorader) == 1
-    kommandorad = kommandorader[0]
-    assert kommandorad.startswith(b"curl")             # the exec really ran
-    assert token.encode() not in kommandorad           # ZERO token bytes
-    assert b"X-Pris-Token" not in kommandorad          # not even the name
-    mottagare.close()
+# (MC 12606 deleted this section's PRIS live-cmdline leg with its runner; the
+# AI-rec leg above is the surviving half of the same /proc proof.)
 
 
 @pytest.mark.parametrize("varde", ['a"b', "a\nb", "a\rb", "a\\b", "a\\nb",
@@ -254,15 +220,16 @@ def test_config_guard_rejects_values_before_any_file(monkeypatch, varde):
     monkeypatch.setattr(ct.subprocess, "run",
                         lambda *a, **k: körd.append(a))
     with pytest.raises(ValueError):
-        ct._curl_config([("X-Pris-Token", varde)],
+        ct._curl_config([("X-Ai-Rek-Token", varde)],
                         lambda config: [config], timeout_s=1)
     assert körd == []
 
 
 @pytest.mark.parametrize("namn", ["X Pris", "X-T\n", "", "X-T;", "X-T;g=1"])
 def test_config_guard_rejects_malformed_header_names(monkeypatch, namn):
-    """Names are held to [A-Za-z0-9:-]+ — the shape BOTH door headers
-    have; nothing else ever reaches a config line, before any file."""
+    """Names are held to [A-Za-z0-9:-]+ — the shape the door header has,
+    the one this transport still delivers; nothing else ever reaches a
+    config line, before any file."""
     def boomer(*args, **kwargs):
         raise AssertionError("tmpfile skapades — guarden måste neka FÖRE den")
 
@@ -347,26 +314,6 @@ class _TraddFaangst:
             pass
 
 
-def test_pris_door_delivers_the_token_header_on_the_wire():
-    """F-P1-1's DELIVERY leg, pris door: the REAL subprocess.run (no fake
-    anywhere in this leg) execs curl against the local listener; the leg
-    asserts the exact header line sits on the wire. RED-FIRST on the
-    `--config @<path>` shape (the header never arrived — DA measured it,
-    this leg reproduces it), GREEN on the plain `--config <path>`."""
-    kanari = "e" * 64
-    server = _TraddFaangst()
-    status, counters = pv.door_post(
-        server.url("/pris"), kanari,
-        [{"id": "B1", "isbn": "9781234567890", "titel": "T",
-          "pris": "1 kr", "url": "u"}])
-    server.stoek()
-    assert status == 200 and counters == {"accepted": 1}
-    assert len(server.wire) == 1
-    traad = server.wire[0]
-    assert f"X-Pris-Token: {kanari}\r\n".encode() in traad   # byte-exact
-    assert b"Content-Type: application/json\r\n" in traad    # non-secret too
-
-
 def test_ai_rek_door_delivers_the_token_header_on_the_wire():
     """The same class for the /ai-rek door — broken by the SAME `@` since
     b7b5a86 (zero wire headers, DA live-runner measurement). RED-FIRST on
@@ -389,25 +336,32 @@ def test_config_delivery_is_wire_identical_to_the_argv_header_form():
     form capture is byte-identical to the header-as-argv parent request,
     port-normalized — measured, not asserted on fabricated fixtures).
     Run A: the transport (config file). Run B: raw `_curl` with the old
-    `--header X-Pris-Token: <canary>` argv shape. Same rows, same URL,
-    same curl — the captures may differ ONLY in the port digits."""
+    `--header X-Ai-Rek-Token: <canary>` argv shape. Same rows, same URL,
+    same curl — the captures may differ ONLY in the port digits.
+
+    MC 12606 RE-CUT this leg on the /ai-rek door: it ran the PRIS door
+    before, and the retired feature took that door with it. The claim is
+    about the TRANSPORT, which stayed (ai_rek_pass is its one caller), so
+    the leg moved instead of being deleted — the replaced shape still has
+    a witness."""
 
     def normalisera(bad):
         return re.sub(rb"127\.0\.0\.1:\d+", b"127.0.0.1:P", bad)
 
     kanari = "a" * 64
-    rader = [{"id": "B1", "isbn": "9781234567890", "titel": "T",
-              "pris": "1 kr", "url": "u"}]
+    rader = [{"title": "T", "author_name": "A", "isbn13": "9781234567890",
+              "year": 2024, "reason": "r", "source": "s", "fit": 0.5,
+              "kategori": "nyhet"}]
     kropp = json.dumps(rader).encode("utf-8")
     a = _TraddFaangst()
-    pv.door_post(a.url("/pris"), kanari, rader)
+    rp.door_post(a.url("/ai-rek"), kanari, rader)
     a.stoek()
     b = _TraddFaangst()
     ct._curl(["--request", "POST",
               "--header", "Content-Type: application/json",
-              "--header", "X-Pris-Token: " + kanari,
-              "--data-binary", "@-", b.url("/pris")],
-             timeout_s=pv.POST_TIMEOUT_S, stdin_data=kropp)
+              "--header", "X-Ai-Rek-Token: " + kanari,
+              "--data-binary", "@-", b.url("/ai-rek")],
+             timeout_s=rp.POST_TIMEOUT_S, stdin_data=kropp)
     b.stoek()
     assert len(a.wire) == 1 and len(b.wire) == 1
     assert normalisera(a.wire[0]) == normalisera(b.wire[0])

@@ -376,8 +376,9 @@ def dedupe_identitet(godkanda, *, say):
 
 
 def door_post(url, token, rows, *, full=False):
-    """The ONE delivery, the pris_vakt.door_post posture on the shared
-    transport: JSON on stdin via --data-binary @-, the token on
+    """The ONE delivery, the retired pris runner's `door_post` posture
+    (scripts/pris_vakt.py, deleted by MC 12606) on the shared transport:
+    JSON on stdin via --data-binary @-, the token on
     `X-Ai-Rek-Token`, one try then loud. Returns (status, body-bytes).
     `full=True` (MC 12616, CLI `--full`) wraps the rows in the door's
     full-swap envelope `{"generation": rows}` — the POSTed list then IS
@@ -398,7 +399,8 @@ def run_pass(corpus_path, library_url, base, *, dry_run=False,
              get_library=read_library, lane=lane_ask, post=door_post,
              say=None, full=False):
     """One generation end-to-end; returns the process exit code. Seam
-    layout is pris_vakt.run_tick's: every external touch injectable, so the
+    layout is the retired pris runner's `run_tick` (every external touch
+    injectable — the shape MC 12547 proved), so the
     whole contract tests with zero network. Exit: 0 ok; 2 input/config
     refused; 3 lane answer refused; 4 floor not met; 5 door refused;
     6 mix condition not met (nyhet AND klassiker owed, one not delivered).
