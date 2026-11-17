@@ -1563,3 +1563,46 @@ postdating a line make that line STALE — de-stale before quoting it.
   dod_hygiene.check_project_hygiene (base 302a5c0): UNMET [] VERIFY_EXIT=0;
   exposure gate: held list UNCHANGED vs base (LEDGER.md pre-exists; every
   file this wave adds/edits greps zero-hit). NOTHING pushed.
+
+- **MC 12649 (M11-N12c) — vision-gate HYPHEN FIX: the MC 12648 wave-15 law
+  brought INTO cover_gates — DONE (this commit):** the hyphen class: wave-1
+  refused right-book covers whose printed title the transcription split
+  across a line hyphen or a line break (5/5 own-isbn samples failed
+  identically, correct author printed); wave-15b rescued 6/12 rows with a
+  wave-side patch (Hemsidor audit OUT/.tmp/wave15/compare2.py) under the
+  ruling "do NOT weaken app/cover_gates … repo fix is a separate card" —
+  THIS is that card: cover_confirms now retries the title tokens in the
+  transcription with hyphens joined and whitespace stripped WHEN the strict
+  reading falls short. The law rides the kb laws EXACTLY: TITLES ONLY
+  artifact tolerance — the author-token check stays STRICT in token space
+  (a wrong author must still FAIL; compacting the author side hides
+  boundary collisions, proven by mutant); the abstain class (title without
+  distinctive tokens) is UNCHANGED — row 684 note: compare2 passed it on
+  author-only evidence, the repo gate still abstains, that is the ruling;
+  the gate's own 60 % ratio is the SAME number in either space. The refusal
+  string keeps the STRICT count so every word cover_pass writes into a wave
+  report stays byte-identical for cases the tolerance does not rescue.
+  Future waves need NO wave-side compare2 patch. Tests (5 new legs,
+  tests/test_cover_pass.py — fixtures SYNTHETIC in the DESC_TRUE/BOOK style,
+  the real wave strings live ONLY in OUT evidence (MC 12523 exposure law:
+  gate re-run, held list UNCHANGED vs base {LEDGER.md})): the two RESCUE
+  legs ran RED on the pre-change
+  gate first, their refusals byte-identical to wave-1's own class
+  ("bara 0/1 titelord tryckta i bilden"); wrong-author-still-
+  FAIL and abstain-still-abstains are preservation legs made honest by
+  MUTANTS — author-relaxation plant (author checked in compacted space) went
+  RED on the wrong-author leg incl. a boundary row where the right surname
+  appears only once whitespace is deleted ("STR ANDERSSON"), and on the
+  byte-pin; abstain-bypass plant went RED on the abstain leg and the pin;
+  both plants reverted byte-clean. BYTE-PIN battery: 12-case verdict table
+  (ok + exact refusal string) incl. the wrong-author set, PIN generated
+  against cover_confirms AT 859457f BEFORE the change, green pre AND post.
+  Real-corpus diff (the 56 stored wave-15 transcriptions, pre-gate vs
+  post-gate): 45 identical, 9 rescued (all the line-split artifact class —
+  ids 12,14,27,38,68,113,164,175,245), ZERO regressions, 2 refusal-string
+  changes both still FAIL and MORE true (494,110: title rescued, the real
+  remaining blocker is the missing printed author — 494's desc is cap-culled,
+  110's cover prints other names). Row 455's jsonl desc is a reasoning-
+  preamble pollution (lane-side record, both gates fail it identically —
+  noted for the recorder lane, not this card). Suite 766 passed + 1 skipped
+  AT this commit (761+1 base, +5). NOTHING pushed.

@@ -67,15 +67,30 @@ def cover_confirms(desc, title, author):
     """(bool, why) over the vision model's literal transcription: most
     distinctive title tokens AND an author token must be words the image
     actually prints. A portrait or a logo transcribes to nothing book-shaped
-    and fails here (measured on the 2026-11-13 calibration probes)."""
+    and fails here (measured on the 2026-11-13 calibration probes).
+    Artifact tolerance (MC 12649, the law MC 12648 wave-15 proved): when the
+    strict reading falls short, title tokens are retried in the transcription
+    with hyphens joined and whitespace stripped — the line-hyphen/line-split
+    class ("NATT-\\nSTICKNINGEN" prints Nattstickningen). TITLES ONLY: the
+    gate's own 60 % ratio is the same number in either space, the AUTHOR
+    check stays strict (a wrong author must still FAIL, compacted space
+    hides boundary collisions), and a title without distinctive tokens
+    still abstains."""
     d = normalize(desc)
     toks = sig_tokens(title)
     if not toks:
         return False, "titeln har inga sarskiljande ord"
-    hits = [t for t in toks if t in d]
+    strict = [t for t in toks if t in d]
     need = max(1, -(-6 * len(toks) // 10))          # ceil(0.6 * len)
+    hits = strict
     if len(hits) < need:
-        return False, f"bara {len(hits)}/{len(toks)} titelord tryckta i bilden"
+        hay = d.replace(" ", "")                     # hyphen-join + ws-strip
+        hits = [t for t in toks if t in hay]
+    if len(hits) < need:
+        # the refusal names the STRICT count, the count the wave reports
+        # carried before MC 12649 — the byte-pin keeps every string written
+        # into a report identical for cases the tolerance does not rescue.
+        return False, f"bara {len(strict)}/{len(toks)} titelord tryckta i bilden"
     if author_key(author) and not any(a in d for a in author_key(author)):
         return False, "forfattare trycks inte i bilden"
     return True, "titel+forfattare tryckta i bilden"

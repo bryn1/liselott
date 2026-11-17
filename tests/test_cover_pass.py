@@ -110,6 +110,132 @@ def test_image_gate_refuses_when_only_the_author_is_printed():
     assert not ok
 
 
+# ---- the artifact-tolerance class (MC 12649; the MC 12648 wave-15 law) ------
+# Wave-1 rejected right-book covers whose transcription split the printed
+# title across a line hyphen or a line break (own-isbn sample: 5/5 refused
+# identically, correct author printed). The real wave-15 strings live in the
+# Hemsidor audit OUT/.tmp/wave15/ and NEVER in this public repo (MC 12523
+# exposure law: diary strings stay out of tracked files — fixtures here are
+# synthetic in the DESC_TRUE/BOOK style, shaped on the wave evidence).
+# Wave-15b rescued the class with a wave-side patch (OUT/.tmp/wave15/
+# compare2.py): title tokens compared in the transcription's separator-
+# stripped space, gate's own 60 % ratio, author token, abstain law — all the
+# same. That law now LIVES in the gate, titles only: the author check stays
+# strict and the abstain class is unchanged, so a wrong author must still
+# FAIL (MC 12648 ruling: the gate must not reject correct covers — nothing
+# says it must accept wrong ones).
+
+def test_image_gate_rescues_the_line_hyphenated_transcription():
+    # Shaped on wave-15 rows 164/245 (hyphen + newline mid-word). Wave 1
+    # refused that class "bara 0/1 titelord tryckta i bilden" — reproduced
+    # verbatim on the pre-change gate with the REAL stored descs, MC 12649
+    # evidence; compare2 passed them.
+    ok, why = cp.cover_confirms(
+        "ROMAN\nNatt-\nstickning\nAlbert\nFörlag\nELSA\nVIDE\n\nThe "
+        "image shows a bokomslag (book cover) with a teal background.",
+        "Nattstickning", "Elsa Vide")
+    assert ok, why
+    ok, why = cp.cover_confirms(
+        "MÅNSKENS-\nSICKLINGEN\nÅRETS\nDECKAR-\nFÖRFATTARE\n2019\n"
+        "ELSA VIDE\nUPPLÄSARE: VEM VEMLÖF\n\nThe image is a book "
+        "(audiobook) cover.", "Månskenssicklingen", "Elsa Vide")
+    assert ok, why
+
+
+def test_image_gate_rescues_the_line_split_without_hyphen():
+    # The same artifact's other half (wave-15 rows 12/14 shaped): the
+    # transcription splits a printed word at a line break WITHOUT printing
+    # the hyphen.
+    ok, why = cp.cover_confirms(
+        "ELSA VIDE\n\"Elsa Vide är den bästa nya rösten\nLUCINDA "
+        "PENNELL\nTall\nMYRARNA\nHAMNPLAN\nFÖRLAGET\n\nBokomslag.",
+        "Tallmyrarna", "Elsa Vide")
+    assert ok, why
+    ok, why = cp.cover_confirms(
+        "FYR\nKVARNEN\nROMAN\nELSA\nVIDE\nHarperCollins\n\nThe image "
+        "is a bokomslag (book cover).", "Fyrkvarnen", "")  # row-14 shape:
+    assert ok, why                            # the DB carried no author field
+
+
+def test_image_gate_still_refuses_the_wrong_author_under_the_tolerance():
+    # Title fully printed, a DIFFERENT author printed: the rescue must not
+    # leak a wrong-author apply — artifact tolerance is titles ONLY.
+    ok, _ = cp.cover_confirms("DÄR LINGONRISEN SUSAR av KARIN SANDELL",
+                              BOOK["title"], BOOK["author"])
+    assert not ok
+    # Sharper mutant-killer: the right author's surname appears ONLY once
+    # whitespace is deleted ("STR ANDERSSON" compacts to "strand..."). An
+    # implementation that compacted the AUTHOR side too would pass this row;
+    # the strict token space must not.
+    ok, _ = cp.cover_confirms(
+        "DÄR LINGONRISEN SUSAR av FORFATTAREN STR ANDERSSON",
+        BOOK["title"], BOOK["author"])
+    assert not ok
+
+
+def test_image_gate_still_abstains_without_distinctive_words():
+    # Wave-15 row 684 (an initials-acronym title, synthetic shape here): the
+    # title has no distinctive tokens, so the gate refuses to decide at all —
+    # the abstain
+    # class is UNCHANGED by the tolerance (compare2 passed that row on
+    # author-only evidence; the repo law says abstain stands).
+    ok, why = cp.cover_confirms(
+        "Av författaren Elsa Vide\nP.m.\nVide & Co\n»En nyhet«\n"
+        "Elle\n\nThe image is a book cover (bokomslag) featuring three",
+        "P.M.", "Elsa Vide")
+    assert (ok, why) == (False, "titeln har inga sarskiljande ord")
+
+
+# ---- the byte-pin battery (MC 12649 DoD) -------------------------------------
+# Pre-existing, NON-hyphenated cases incl. the wrong-author set: the verdict
+# table (ok + the exact refusal string — cover_pass writes it verbatim into
+# the wave report) must be byte-identical pre/post the tolerance landing.
+# COVER_CONFIRM_PIN below was generated against cover_confirms AT 859457f,
+# BEFORE any change to scripts/cover_gates.py, by evaluating BATTERY against
+# the pre-change gate in this exact checkout (command + output in the MC 12649
+# evidence; regenerable with git show 859457f:scripts/cover_gates.py).
+
+BATTERY = [
+    ("true_cover", DESC_TRUE, BOOK["title"], BOOK["author"]),
+    ("author_portrait", "En kvinna sitter i en soffa. Ingen text är tryckt "
+                        "på bilden.", BOOK["title"], BOOK["author"]),
+    ("wrong_book_same_author", "LOVISA STRAND — KARIN I DALARNA",
+     BOOK["title"], BOOK["author"]),
+    ("author_only_printed", "FJÄLLNYAN förlag, LOVISA STRAND",
+     BOOK["title"], BOOK["author"]),
+    ("wrong_author_printed", "DÄR LINGONRISEN SUSAR av KARIN SANDELL",
+     BOOK["title"], BOOK["author"]),
+    ("author_split_by_space", "DÄR LINGONRISEN SUSAR av FORFATTAREN STR "
+     "ANDERSSON", BOOK["title"], BOOK["author"]),
+    ("no_distinctive_words", "Av författaren Elsa Vide\nP.m.\nVide & Co",
+     "P.M.", "Elsa Vide"),
+    ("stopword_title", DESC_TRUE, "Av och till", "Lovisa Strand"),
+    ("empty_desc", "", BOOK["title"], BOOK["author"]),
+    ("empty_author_field", DESC_TRUE, BOOK["title"], ""),
+    ("subtitle_partial", "LINGONRISEN — roman", BOOK["title"], BOOK["author"]),
+    ("publisher_only", "BAZAR förlag", BOOK["title"], BOOK["author"]),
+]
+
+COVER_CONFIRM_PIN = """true_cover|True|titel+forfattare tryckta i bilden
+author_portrait|False|bara 0/3 titelord tryckta i bilden
+wrong_book_same_author|False|bara 0/3 titelord tryckta i bilden
+author_only_printed|False|bara 0/3 titelord tryckta i bilden
+wrong_author_printed|False|forfattare trycks inte i bilden
+author_split_by_space|False|forfattare trycks inte i bilden
+no_distinctive_words|False|titeln har inga sarskiljande ord
+stopword_title|False|titeln har inga sarskiljande ord
+empty_desc|False|bara 0/3 titelord tryckta i bilden
+empty_author_field|True|titel+forfattare tryckta i bilden
+subtitle_partial|False|bara 1/3 titelord tryckta i bilden
+publisher_only|False|bara 0/3 titelord tryckta i bilden"""
+
+def test_cover_confirms_verdict_table_is_byte_pinned():
+    table = "\n".join(
+        f"{name}|{ok}|{why}" for name, desc, title, author in BATTERY
+        for ok, why in [cp.cover_confirms(desc, title, author)])
+    assert table == COVER_CONFIRM_PIN
+
+
 # ---- ranking -----------------------------------------------------------------
 
 def test_isbn_in_url_outranks_everything_and_walls_never_appear():
