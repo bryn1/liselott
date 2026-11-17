@@ -26,6 +26,23 @@ def sig_tokens(title):
             if len(t) >= 3 and t not in STOP_TOKENS]
 
 
+def seam_space(text):
+    """The LINE-SEAM space: per line, hyphens dropped and the line folded to
+    [a-z0-9] runs separated by NUL walls, then the lines are concatenated
+    WITHOUT a wall — so hyphen+newline and bare-newline seams become
+    transparent while every ordinary space and punctuation mark (including at
+    line edges) stays a word wall. NOT normalize(): that would strip the edge
+    walls and glue prose across sentences (MC 12649 fix-wave, DA-verdict-c14:
+    whitespace-stripping the whole transcription let särskrivning blurb text
+    spell compound titles)."""
+    parts = []
+    for ln in str(text or "").split("\n"):
+        ln = unicodedata.normalize("NFD", ln.replace("-", ""))
+        ln = "".join(c for c in ln if not unicodedata.combining(c))
+        parts.append(re.sub(r"[^a-z0-9]+", "\x00", ln.casefold()))
+    return "".join(parts)
+
+
 def author_key(author):
     """Surname (last token) + any distinctive given-name token: an image
     prints one of these the moment it prints the author at all."""
@@ -68,14 +85,16 @@ def cover_confirms(desc, title, author):
     distinctive title tokens AND an author token must be words the image
     actually prints. A portrait or a logo transcribes to nothing book-shaped
     and fails here (measured on the 2026-11-13 calibration probes).
-    Artifact tolerance (MC 12649, the law MC 12648 wave-15 proved): when the
-    strict reading falls short, title tokens are retried in the transcription
-    with hyphens joined and whitespace stripped — the line-hyphen/line-split
-    class ("NATT-\\nSTICKNINGEN" prints Nattstickningen). TITLES ONLY: the
-    gate's own 60 % ratio is the same number in either space, the AUTHOR
-    check stays strict (a wrong author must still FAIL, compacted space
-    hides boundary collisions), and a title without distinctive tokens
-    still abstains."""
+    Artifact tolerance (the law MC 12648 wave-15 proved, brought into the
+    gate by MC 12649 and belted by DA-verdict-c14): when the strict reading
+    falls short, title tokens are retried in seam_space() — LINE SEAMS alone
+    are transparent (line-hyphen and bare line-break splits, the artifact
+    the wave proved), while ordinary spaces and punctuation stay word walls
+    ("NATT-\\nSTICKNINGEN" prints Nattstickningen; "…en sommar. Regnen…" does
+    NOT print Sommarregn). TITLES ONLY: the gate's own 60 % ratio is the
+    same number in either space, the AUTHOR check stays strict (a wrong
+    author must still FAIL, and seam-glued prose is no author evidence),
+    and a title without distinctive tokens still abstains."""
     d = normalize(desc)
     toks = sig_tokens(title)
     if not toks:
@@ -84,8 +103,8 @@ def cover_confirms(desc, title, author):
     need = max(1, -(-6 * len(toks) // 10))          # ceil(0.6 * len)
     hits = strict
     if len(hits) < need:
-        hay = d.replace(" ", "")                     # hyphen-join + ws-strip
-        hits = [t for t in toks if t in hay]
+        seam = seam_space(desc)                      # line seams transparent
+        hits = [t for t in toks if t in seam]
     if len(hits) < need:
         # the refusal names the STRICT count, the count the wave reports
         # carried before MC 12649 — the byte-pin keeps every string written

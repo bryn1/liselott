@@ -1606,3 +1606,47 @@ postdating a line make that line STALE — de-stale before quoting it.
   preamble pollution (lane-side record, both gates fail it identically —
   noted for the recorder lane, not this card). Suite 766 passed + 1 skipped
   AT this commit (761+1 base, +5). NOTHING pushed.
+
+- **MC 12649 (M11-N12c) FIX WAVE — DA-verdict-c14 FIX — DONE (this commit):**
+  (1) F-DA14-1 (P1) FIXED: the c1 whitespace-stripped retry is replaced by
+  seam_space() — LINE-SEAM-ONLY transparency (drop "-" and newline at line
+  seams; ordinary spaces and sentence punctuation stay word walls). This is
+  the belt DA-verdict-c14 pre-executed (OUT/.tmp/da-c14/fixbelt2.py);
+  reproduced here against the REPO gate byte-for-byte: seam_space parity and
+  verdict parity over all 56 stored corpus descs VERIFIED. The wave rescue
+  survives EXACTLY — 9/9 {12,14,27,38,68,113,164,175,245}, zero regressions,
+  and the 12-case byte-pin table stays byte-identical (rerun, green) — while
+  all FOUR false-accept faces close: blurb period-glue (Sommarregn), the
+  two-word wrong title "Sommar regn" (same series author), the glued sibling
+  "Fyr, kvarnen och Skagen" vs "Fyrkvarnen på Skagen", and "natt öppet" prose
+  vs "Nattöppet". Five boundary fixtures ride as FAIL legs in
+  tests/test_cover_pass.py (the four fire RED-first on the c1 gate — they
+  ACCEPTED there — plus the always-refused kärlek-romanen control); the four
+  line-hyphen/line-split PASS legs stay green under the tighter belt. New
+  replay leg pins the whole corpus fact: over the 56 stored wave-15
+  transcriptions the gate's pass-set == OLD_PASS(859457f) ∪ the 9 rescued ids
+  exactly, and 231/701 still refuse on title; the leg is skipif-guarded (the
+  corpus is personal data OUTSIDE the public repo — runs on the fleet seat,
+  skips on a clean clone). Mutation re-proof on the new belt: author-
+  relaxation plants (author checked in fully-stripped space; author lane
+  removed) both go RED on the wrong-author leg + byte-pin; a seam-side-only
+  author check alone no longer bites (belt walls it) — noted.
+  (2) F-DA14-2 (P2) RECORDED — NOT FIXED (no ruling changes the abstain
+  class): standing gate limit — the author lane is VACUOUS when the DB
+  author field is empty (2/56 real rows today: ids 1, 14); executed pair
+  VERIFIED still true under the belt: row 12's title + row 175's
+  transcription + author "" ACCEPTS (the base gate refused it) — the repo
+  gate cannot distinguish a vacuous author from a confirmed one. WAVE LAW
+  REMINDER (binding future waves, this is the doc F-DA14-2 rides): a wave
+  must NOT apply an author-vacuous row on a tolerance pass alone — those
+  rows need the personal screenshot confirm (the MC 12648 §13-15 shape) —
+  the gate's PASS is not the apply decision.
+  (3) F-DA14-3 (P4): stray repo-root artifact dir `$S/` (unexpanded $S from
+  a test-run's state path, holding one ai-rek wave stamp) deleted.
+  Named divergence: the fix brief's corpus path OUT/.tmp/scout2/wave15/
+  vision.jsonl does NOT exist (scout2/ holds candidate/pull artifacts with no
+  desc field) — the stored-56 corpus is OUT/.tmp/wave15/vision.jsonl, named
+  so by DA-verdict-c14 too; the replay leg points there.
+  Suite 768 passed + 1 skipped AT this commit (766+1 c1, +2 legs — the replay
+  leg RUNS here, corpus present; a clean clone reports 767+2 with it skipped);
+  exposure gate held list UNCHANGED vs base {LEDGER.md}. NOTHING pushed.

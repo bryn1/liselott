@@ -6,6 +6,7 @@ og:image slug names the book, and a site LOGO served as og:image), and GREEN
 on the verified true cover. store_cover discipline (manual-url, file+row in
 step) is asserted on the one path that writes."""
 import io
+import os
 
 import pytest
 from PIL import Image
@@ -118,12 +119,15 @@ def test_image_gate_refuses_when_only_the_author_is_printed():
 # exposure law: diary strings stay out of tracked files — fixtures here are
 # synthetic in the DESC_TRUE/BOOK style, shaped on the wave evidence).
 # Wave-15b rescued the class with a wave-side patch (OUT/.tmp/wave15/
-# compare2.py): title tokens compared in the transcription's separator-
-# stripped space, gate's own 60 % ratio, author token, abstain law — all the
-# same. That law now LIVES in the gate, titles only: the author check stays
-# strict and the abstain class is unchanged, so a wrong author must still
-# FAIL (MC 12648 ruling: the gate must not reject correct covers — nothing
-# says it must accept wrong ones).
+# compare2.py); that patch's WHOLESALE whitespace-strip also opened a
+# boundary face — DA-verdict-c14 executed 4 false-accept repros (a DIFFERENT
+# book by the SAME author whose blurb/särskrivning prose glues a DB title
+# token across printed word walls). The law that now lives in the gate is
+# the DA-belted one: LINE SEAMS transparent (seam_space), spaces and
+# punctuation word walls — the 9-row wave rescue survives exactly, the 4
+# faces are shut. Author check stays strict, abstain class unchanged (MC
+# 12648 ruling: the gate must not reject correct covers — nothing says it
+# must accept wrong ones).
 
 def test_image_gate_rescues_the_line_hyphenated_transcription():
     # Shaped on wave-15 rows 164/245 (hyphen + newline mid-word). Wave 1
@@ -184,6 +188,70 @@ def test_image_gate_still_abstains_without_distinctive_words():
         "Elle\n\nThe image is a book cover (bokomslag) featuring three",
         "P.M.", "Elsa Vide")
     assert (ok, why) == (False, "titeln har inga sarskiljande ord")
+
+
+def test_image_gate_refuses_the_boundary_glue_fixtures():
+    # DA-verdict-c14 F-DA14-1 (OUT/.tmp/da-c14/boundary.py, fixtures kept
+    # verbatim): a DIFFERENT book by the SAME author whose cover prose glues
+    # a distinctive DB-title token ONLY across printed word walls. All four
+    # ran ACCEPT under the c1 whitespace-stripped retry (RED-first) and all
+    # four are refused by the seam belt; the fifth face refused throughout.
+    ok, _ = cp.cover_confirms(                       # blurb_period_glue_1token
+        "ELSA VIDE\nRegn över skärgården\nROMAN\n\"Den bästa berättelsen "
+        "om en sommar. Regnen och tystnaden.\"\nBazar\n\nBokomslag.",
+        "Sommarregn", "Elsa Vide")
+    assert not ok
+    ok, _ = cp.cover_confirms(                       # two_word_wrong_title
+        "ELSA VIDE\nSommar regn\nBERÄTTELSER FRÅN ÖLAND\nBazar\n\nBokomslag.",
+        "Sommarregn", "Elsa Vide")
+    assert not ok
+    ok, _ = cp.cover_confirms(                       # sibling_title_glue_2token
+        "Resor vid västkusten\nELSA VIDE\nFyr, kvarnen och Skagen\n"
+        "REPORTAGE\nBokförlaget VidHAVET\n\nBokomslag.",
+        "Fyrkvarnen på Skagen", "Elsa Vide")
+    assert not ok
+    ok, _ = cp.cover_confirms(                       # space_glue_nattoppet
+        "ELSA VIDE\nMOTELLJUS\nROMAN\n\"Receptionen har natt öppet året "
+        "om.\"\nWahlström\n\nBokomslag.", "Nattöppet", "Elsa Vide")
+    assert not ok
+    ok, _ = cp.cover_confirms(                       # blurb_karlek_romanen
+        "ELSA VIDE\nKATTHISTORIER\n\"Det är en kärlek. Romanen om Maj är "
+        "årets mest sålda.\"\nBokförlaget Noran\n\nBokomslag.",
+        "Kärleksromanen", "Elsa Vide")
+    assert not ok
+
+
+# The wave-replay leg below pins the FIX-WAVE acceptance facts over the REAL
+# stored wave-15 corpus (56 transcriptions). The corpus is personal data
+# outside the public repo, so the leg runs where the audit dir exists (the
+# fleet seat) and skips elsewhere — the skipif-guarded live-leg shape already
+# used by tests/test_ai_rek_pass.py. OLD_PASS below is the pass-set of
+# cover_confirms at 859457f (git-show-extracted pre-change gate, MC 12649
+# fix-wave evidence); the fix-wave law must pass exactly OLD_PASS plus the
+# nine line-split rows the wave-15 ruling rescued, no other row.
+WAVE15_CORPUS = "/home/claudecode/Hemsidor/.audits/202611161817-aae834ce-n1/" \
+                "out/.tmp/wave15/vision.jsonl"
+WAVE15_OLD_PASS = frozenset({1, 8, 62, 91, 104, 119, 122, 125, 134, 143, 155,
+                             177, 198, 247, 253, 282, 329, 330, 336, 344, 361,
+                             382, 440, 446, 448, 486, 530, 555, 600, 633, 655,
+                             656, 669, 670, 689, 720, 722})
+WAVE15_RESCUED = frozenset({12, 14, 27, 38, 68, 113, 164, 175, 245})
+
+
+@pytest.mark.skipif(not os.path.exists(WAVE15_CORPUS),
+                    reason="wave-15 corpus lives outside the public repo")
+def test_image_gate_replays_the_stored_wave15_corpus():
+    import json
+    corpus = [json.loads(ln) for ln in open(WAVE15_CORPUS, encoding="utf-8")]
+    assert len(corpus) == 56
+    passed = {r["id"] for r in corpus
+              if cp.cover_confirms(r["desc"], r["title"], r["author"])[0]}
+    assert passed == WAVE15_OLD_PASS | WAVE15_RESCUED   # 9 rescues, 0 drift
+    # the held-honestly class (DB-vs-cover divergence rows) still refused:
+    for rid in (231, 701):
+        row = next(r for r in corpus if r["id"] == rid)
+        ok, why = cp.cover_confirms(row["desc"], row["title"], row["author"])
+        assert not ok and "titelord" in why
 
 
 # ---- the byte-pin battery (MC 12649 DoD) -------------------------------------
