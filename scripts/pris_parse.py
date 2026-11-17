@@ -69,6 +69,16 @@ ISBN_DD_CLASS = "muted"
 BOOK_ID_RE = re.compile(r"/bok/(\d+)$")
 ISBN13_RE = re.compile(r"\d{13}")
 
+# MC 12601 (M11-N5R): the GRADED-shelf contract, same _bokkort.html markup
+# read_scope reads (the anonymous /bibliotek IS the public set — 221 graded
+# cards per owner scope), plus the star row's own accessible label from
+# _stjarnor.html: "Betyg N av 5". The label is the rating's single source —
+# counting ★ glyphs would parse the decoration, not the data.
+TITEL_CLASS = "titel"
+FORFATTARE_CLASS = "forfattare"
+STJARNA_CLASS = "stjarnor"
+BETYG_RE = re.compile(r"Betyg ([1-5]) av 5")
+
 _VOID = {"area", "base", "br", "col", "embed", "hr", "img", "input", "link",
          "meta", "param", "source", "track", "wbr"}
 _HIDDEN = ("script", "style")          # never visible text, never a leaf
@@ -275,3 +285,35 @@ def read_isbn(src):
                 return None, "isbn_shape"
         return None, "isbn_shape"
     return None, None
+
+
+def read_graded(src):
+    """MC 12601 — every GRADED card of the public shelf page ->
+    [{"title", "author", "rating"}] in page order. The walk is card-first
+    (li.bok-kort), so a card never contributes twice; a card whose star row
+    carries no "Betyg N av 5" label is UNGRADED and belongs to no taste
+    profile — dropped, never a rating of 0. Title rides span.titel, author
+    p.forfattare (the _bokkort.html markup read_scope already pins); an
+    author-less graded card yields author "" (the join lane tolerates it —
+    seed.split_authors answers the same key the shelf row itself would).
+    Bytes in, plain dicts out: pure, no I/O, the read_scope posture."""
+    root = _root(src)
+    cards = []
+    for card in _walk(root):
+        if card.tag != "li" or CARD_CLASS not in _classes(card):
+            continue
+        betyg = None
+        titel = forfattare = ""
+        for node in _walk(card):
+            if node.tag == "span" and STJARNA_CLASS in _classes(node):
+                found = BETYG_RE.search(node.attrs.get("aria-label") or "")
+                if found:
+                    betyg = int(found.group(1))
+            elif node.tag == "span" and TITEL_CLASS in _classes(node):
+                titel = _text(node)
+            elif node.tag == "p" and FORFATTARE_CLASS in _classes(node):
+                forfattare = _text(node)
+        if betyg is None or not titel:
+            continue
+        cards.append({"title": titel, "author": forfattare, "rating": betyg})
+    return cards

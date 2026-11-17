@@ -74,6 +74,7 @@ from types import SimpleNamespace
 
 from scripts import pris_state as st
 from scripts import pris_vakt as pv
+from scripts import curl_transport as ct
 from tests.test_pris_parse import BOKUS_URL, FRAG, bok_html, isbn, scope_html
 
 NU = datetime(2026, 11, 15, 7, 20, tzinfo=timezone.utc)
@@ -493,7 +494,8 @@ def test_tree_rss_reads_the_real_proc(tmp_path):
     assert st.tree_rss_kib() > 0                     # this very process
 
 
-# --- MC 12570: the DEFAULT transports are curl-subprocess -------------------
+# --- MC 12570: the DEFAULT transports are curl-subprocess (in curl_transport,
+#     the shared home MC 12601 gave the transport — the patch surface moved with it) --
 class FakeCurl:
     """subprocess.run replaced wholesale: argv/stdin are asserted, the
     --output file gets the canned body — the real _curl runs above it."""
@@ -515,13 +517,13 @@ def test_default_transports_ride_curl_argv(tmp_path, monkeypatch):
     the hard subprocess watchdog, POST body on stdin (--data-binary @-),
     status off --write-out — and the return shapes ride through unchanged."""
     curl = FakeCurl(post_body=b'{"accepted": 2}')
-    monkeypatch.setattr(pv.subprocess, "run", curl)
+    monkeypatch.setattr(ct.subprocess, "run", curl)
     assert pv.http_get("https://sibbamala.test/liselott/bibliotek") == (200, "")
     argv, kw = curl.calls[0]
     assert argv[0] == "curl" and argv[-1].endswith("/bibliotek")
     assert not kw.get("shell", False)                 # argv list, never a shell
     assert argv[argv.index("--max-time") + 1] == "15"
-    assert kw["timeout"] == pv.GET_TIMEOUT_S + pv.WATCHDOG_GRACE_S
+    assert kw["timeout"] == pv.GET_TIMEOUT_S + ct.WATCHDOG_GRACE_S
     status, counters = pv.door_post("https://sibbamala.test/liselott/pris",
                                     DOOR_CRED, [{"isbn": "x"}])
     argv, kw = curl.calls[1]
@@ -537,7 +539,7 @@ def test_curl_403_keeps_the_fetch_failed_alarm(tmp_path, monkeypatch):
     status off --write-out) rides the alarm path byte-for-byte — the live
     06:19 line, scope_error=fetch_failed, exit 1, before any boot or post."""
     curl = FakeCurl(status=b"403", get_body=b"Synthetic Cloudflare block")
-    monkeypatch.setattr(pv.subprocess, "run", curl)
+    monkeypatch.setattr(ct.subprocess, "run", curl)
     monkeypatch.setenv(pv.ENV_URL, "https://sibbamala.test/liselott")
     monkeypatch.setenv(pv.ENV_TOKEN, DOOR_CRED)
     clock, lines, launch = Clock(), [], FakeLaunch(FakeBrowser())

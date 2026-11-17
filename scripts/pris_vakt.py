@@ -1,7 +1,4 @@
 #!/usr/bin/env python3
-# 417 lines > 400 (MC 12570): the curl transport's argv contract rides in the
-# ONE file holding the two plain legs that map it — this card's diff scope
-# pinned the change here; a third file would split one alarm path in two.
 """MC 12547 (M9a-2a) — the daily pris-vakt runner (Bokus-only, §6a's unit
 ExecStarts this; the parse rules live in the pure scripts/pris_parse.py and
 the state files in scripts/pris_state.py — this file is the tick's mechanics).
@@ -55,9 +52,7 @@ nightly zero alarm trains everyone to ignore real alarms (MC 12549).
 import json
 import os
 import random
-import subprocess
 import sys
-import tempfile
 import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -67,6 +62,8 @@ sys.path.insert(0, str(ROOT))
 
 from scripts import pris_parse as pp      # noqa: E402
 from scripts import pris_state as st      # noqa: E402
+from scripts.curl_transport import _curl  # noqa: E402  (MC 12570 transport,
+                                          # shared with ai_rek_pass, MC 12601)
 
 ENV_URL, ENV_TOKEN = "LISELOTT_URL", "PRIS_DOOR_TOKEN"
 PIN_EXE = Path.home() / ".cache/ms-playwright/chromium-1243/chrome-linux64/chrome"
@@ -85,39 +82,7 @@ BOKUS_ASK = "https://www.bokus.com/bok/"   # + isbn13; slug is INERT (measured)
 RETAILER, CURRENCY = "bokus", "SEK"        # §6e payload constants (door-checked)
 STAMP_FMT = "%Y-%m-%dT%H:%M:%SZ"           # the door's checked_at shape (§1)
 STATE_DIR = Path("/var/lib/pris-liselott")  # §6a StateDirectory
-CURL = "curl"                               # the production transport (MC 12570)
 GET_TIMEOUT_S, POST_TIMEOUT_S = 15, 30      # ceilings: --max-time + watchdog
-WATCHDOG_GRACE_S = 5                        # hard subprocess stop, wedged curl
-
-
-def _curl(args, *, timeout_s, stdin_data=b""):
-    """MC 12570 — the transport BOTH plain legs ride since 2026-11-16: curl
-    via subprocess, argv list, never a shell, curl's DEFAULT UA. The named
-    urllib era is over: the first manual tick 2026-11-16 06:19 measured the
-    fleet's known CF fact — Cloudflare 403s python-urllib ("bibliotek 403"),
-    curl passes the edge. The status is captured with --write-out, the body
-    lands in a temp file; (0, b"") is a transport failure, never a zero
-    result, and --max-time + the subprocess timeout (grace on top) is the
-    hard ceiling — a wedged curl dies, the tick never rides into the kill."""
-    with tempfile.NamedTemporaryFile() as body_file:
-        argv = [CURL, "--silent", "--show-error",
-                "--max-time", str(timeout_s),
-                "--write-out", "%{http_code}",
-                "--output", body_file.name, *args]
-        try:
-            proc = subprocess.run(argv, input=stdin_data,
-                                  capture_output=True,
-                                  timeout=timeout_s + WATCHDOG_GRACE_S)
-        except (OSError, subprocess.SubprocessError):
-            return 0, b""
-        body_file.seek(0)
-        body = body_file.read()
-    if proc.returncode != 0:
-        return 0, b""                      # connect/timeout exit classes
-    try:
-        return int(proc.stdout), body
-    except ValueError:
-        return 0, b""                      # no parseable status: no answer
 
 
 def http_get(url):

@@ -988,3 +988,59 @@ postdating a line make that line STALE — de-stale before quoting it.
   after **747 passed** exit 0, zero regressions (incl. the MC 12551 byte
   pins). `scripts/exposure_check.py` run STAGED: exit 0. Nothing pushed.
   docs/ left untouched.
+
+- **M11-N5R generation runner** (MC 12601, 2026-11-17) —
+  `scripts/ai_rek_pass.py` + the shared `scripts/curl_transport.py`:
+  MC 12570's `_curl` moved VERBATIM (AST-slice byte-diff vs HEAD: identical)
+  into the ONE transport both door runners now ride; `pris_vakt` rebinds to
+  import it (382 lines — the >400 header reason retired with it; its test
+  patch-surface moved with the function, all pris legs green). The runner:
+  `--corpus` loads the 13-column N1 corpus.tsv (header/isbn/year/category
+  shape pinned; duplicate-isbn ACROSS books refused at load — the N3 merge
+  lane can never run on its input; C0/C1 control chars kill the corpus at
+  load — carry N5), `--library` GETs the PUBLIC shelf through the shared
+  transport and grades it with the NEW `pris_parse.read_graded` (221 graded
+  cards measured off the served page = the owner-scope count exactly), joins
+  via the app's ONE identity (`onska.wish_key` = the §5.3 seed.book_key
+  chain; the shelf's cards carry no isbn, the wish_key lane is what bites),
+  asks Lane E ONE cover_pass-shaped call (one model id, temp 0, reasoning
+  low both layers; max_tokens 12000 after the measured 6000 reasoning-death:
+  empty content, gate refused, zero POST), strict-parses (prose / fence /
+  dict / truncated = refused, exit 3, ZERO door calls), and gates IN CODE:
+  returned isbn outside the loaded corpus => row REJECTED (carry N3 cited),
+  fit bool/non-finite/outside [0,1] => REJECTED, never clamped (`_obs`
+  parity), best-row-wins dedupe by isbn ∪ wish_key BEFORE POST (carry N1 —
+  fired on a real corpus twin in the demo), control-char belt on the
+  payload (N5), kategori (nyhet|klassiker|blandad, mapped from the corpus'
+  classic/new_release/mix) on EVERY row, <20 accepted => refuse loud (a
+  thin generation is a failed generation), ZERO graded rows => refuse
+  BEFORE the lane (MC 12602 scope row 2). Delivery POST {base}/ai-rek on
+  the shared transport, `X-Ai-Rek-Token` from AI_REC_DOOR_TOKEN asserted
+  against the DOOR's own `TOKEN_SHAPE` (64-hex; the value never echoed —
+  pinned by its leg); `--dry-run` prints and POSTS NOTHING (socket-guarded
+  leg). DOCUMENTED, NOT BUILT: MC 12602 scope row 1's full-replacement
+  sweep — the door has NO delete verb (`ingest` is upsert-only, no route
+  retires a state='new' row), so rows absent from this generation survive
+  on the page; DELETE-by-absence needs a door route that does not exist,
+  and this card forbids app code (gap named to the orchestrator). Carries:
+  N2 decline-flip is app-side P3, unreachable from the single-writer
+  runner; known limit MEASURED live — the corpus' subtitle-tailed titles do
+  not unify with the shelf's plain titles through wish_key (the alias table
+  is the app's ONLY spelling mechanism; NO second normalizer added). LIVE
+  dry-run demo 2026-11-16 (printed in the card result): real corpus.tsv vs
+  REAL public shelf + REAL Lane E — 26 rows, 1 owned book dropped by
+  wish_key, 25 candidates ranked to 24 (one twin deduped), fits descending
+  in [0,1], all three kategorier riding, INGET POSTAT (dry-run guard +
+  token env absent, belt on top of braces). Tests:
+  `tests/test_ai_rek_pass.py` 16 offline legs (join-drop / hallucination /
+  hostile-JSON×5 / fit-domain / dry-run-socket-guard / taste-empty /
+  twin-dedupe / control-chars×2 / isbn-dup / floor / door-argv-shape /
+  token-echo) + ONE live-optional skipped by default;
+  `tests/test_pris_parse.py` +2 `read_graded` legs. Planted-red: 9 mutants
+  (one gate condition forced off at a time) each went RED on its named leg,
+  green on sha-verified restore. Suite: before **747**, after **765 passed
+  + 1 skipped** exit 0, zero regressions (pris legs included).
+  `scripts/exposure_check.py`: **0 findings exit 0** — it CAUGHT a real-
+  book collision in the first synthetic isbn lane; the lane now rides the
+  invalid ISBN group 9999 (the gate's red-proof, in passing). Nothing
+  pushed. docs/ left untouched.
