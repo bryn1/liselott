@@ -40,6 +40,17 @@ door: "is this generation allowed?"
   the corpus rebase (OUT/lane/n8b_rebase.py) imports the classifier and
   never calls this reader.
 
+  fold lane (MC 12643 fix wave, DA c10 F-P1-1, P1: the live READ card's
+  accent-free spelling vs the corpus row carrying the tilde — `book_key`'s
+  `_norm` keeps the tilde, so the strict wish_keys never join and the row
+  slipped EVERY guard): `fallhyll`/`falltraffar` accent-fold the door rows
+  with THIS module's own `seed._fold` (never a second normalizer) and the
+  caller uses a hit ONLY to DROP candidates — the safety direction the
+  owner's fix wave names: over-dropping costs a recommendation, it never
+  recommends a read book. The near-miss REFUSAL class is untouched:
+  strict-key semantics unchanged, and a fold-equal pair drops long before
+  the belt ever looks at it.
+
 The near-miss math and the stamp are stdlib only; the shelf bytes arrive
 as arguments and the stamp is a 0600 local file — only the keys reader
 touches the wire, through curl_transport. The math here is verbatim the
@@ -58,6 +69,8 @@ from app import seed  # THE fold (seed.py §5.7), not a second one
 from scripts.curl_transport import _curl_config   # THE door transport (MC 12643)
 
 NEAR_MISS_TITLE_RATIO = 0.62   # the DA c3 probe's measured threshold
+MAX_KEYS_BYTES = 2_000_000     # DA c10 F-DA10-2: the read door's byte cap
+MAX_KEYS_ROWS = 5_000          # its list-length sibling (shelf ~700 rows)
 NEAR_MISS_AUTHOR_RATIO = 0.5
 REHEARSAL_WINDOW_S = 3600      # "same invocation window": a --dry-run that
 #                                completed within this window may authorize
@@ -156,19 +169,68 @@ def read_library_keys(url, token, *, timeout_s=15):
     {titel, forfattare, status} objects with a non-empty `titel` is an
     ERROR — the caller (run_pass) refuses the whole pass, exit 5. An
     unreadable list never becomes an unfiltered generation; the empty
-    list is a legitimate answer (a shelf with zero bok rows)."""
+    list is a legitimate answer (a shelf with zero bok rows). VOLUME is a
+    refusal too (DA c10 F-DA10-2): a body over `MAX_KEYS_BYTES` or a list
+    over `MAX_KEYS_ROWS` is an unreadable answer — her shelf measures a few
+    hundred rows, the caps are pure headroom, never a silent truncation. A
+    `forfattare` that is neither absent/null nor a string is refused too
+    (DA c10 F-DA10-6: the reader used to hand ints to the caller's
+    wish_key and crash the pass with a traceback, not an ALARM)."""
     status, body = _curl_config([("X-Ai-Rek-Token", token)],
-                                lambda config: ["--config", config, url],
+                                lambda config: ["--config", config,
+                                                "--max-filesize",
+                                                str(MAX_KEYS_BYTES), url],
                                 timeout_s=timeout_s)
     if status != 200:
         return None, f"library-keys {status}"
+    if len(body) > MAX_KEYS_BYTES:            # parse-cost ceiling, DA c10
+        return None, f"library-keys: body över {MAX_KEYS_BYTES} B"
     try:
         data = json.loads(body.decode("utf-8"))
     except (ValueError, UnicodeDecodeError):
         return None, "library-keys: svaret är inte JSON"
-    if (not isinstance(data, list)
-            or any(not isinstance(n, dict)
-                   or not isinstance(n.get("titel"), str)
-                   or not n["titel"].strip() for n in data)):
+    if not isinstance(data, list):
         return None, "library-keys: inte en lista av {titel,…}-rader"
+    if len(data) > MAX_KEYS_ROWS:
+        return None, f"library-keys: över {MAX_KEYS_ROWS} rader"
+    for n in data:                            # F-DA10-6: an int forfattare
+        if (not isinstance(n, dict)           # used to crash the caller's
+                or not isinstance(n.get("titel"), str)
+                or not n["titel"].strip()
+                or not (n.get("forfattare") is None
+                        or isinstance(n.get("forfattare"), str))):
+            return None, "library-keys: inte en lista av {titel,…}-rader"
     return data, None
+
+
+def fallhyll(nycklar):
+    """DA c10 F-P1-1 (P1) — the exclusion's ACCENT-FOLD shelf over the
+    door's bok rows: `seed._fold` (NFD, strip combining marks, casefold —
+    the belt's OWN existing fold, never a second normalizer) over title
+    and every alias-canonical author, so the shelf card's accent-free
+    spelling and the corpus row with the tilde become ONE key (the live
+    class DA c10 named; its strings live in the verdict, never here — the
+    exposure gate counts this file). Aliases canonicalize BEFORE the fold
+    (authors only, the ONE spelling mechanism unchanged); a multi-author
+    row contributes one key per author; a missing author folds to ""
+    exactly like the caller's `or ""`."""
+    hyll = {}
+    aliases = seed.app_aliases()
+    for n in nycklar:
+        hyll.setdefault(seed._fold(n["titel"]), set()).update(
+            seed._fold(aliases.get(a, a))
+            for a in seed.split_authors(n.get("forfattare") or ""))
+    return hyll
+
+
+def falltraffar(kandidat, fall_hyll):
+    """True when a corpus candidate accent-folds ONTO a door row (folded
+    title + fold of an alias-canonical author). SAFETY DIRECTION by
+    construction: the caller uses this ONLY to DROP candidates —
+    over-dropping costs a recommendation, it NEVER recommends a read
+    book; fold-equality NEVER refuses (the near-miss class keeps its
+    strict-key semantics, the owner's fix-wave reading)."""
+    authors = fall_hyll.get(seed._fold(kandidat["title"]), set())
+    alias = seed.app_aliases().get(kandidat.get("author") or "",
+                                   kandidat.get("author") or "")
+    return seed._fold(alias) in authors

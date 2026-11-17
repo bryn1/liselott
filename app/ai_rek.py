@@ -1,4 +1,4 @@
-# 529 lines > 400 (MC 12616; MC 12643's read door rides THIS module, the
+# 531 lines > 400 (MC 12616; MC 12643's read door rides THIS module, the
 # door's ONE credential family — not a sibling): the door's ONE ingest
 # chain — shape pass, identity matcher, full-swap sweep, the settle and
 # its commit — is one atomic "new generation" transaction, and cutting the

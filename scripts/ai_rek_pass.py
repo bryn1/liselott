@@ -1,24 +1,21 @@
 #!/usr/bin/env python3
-# 599 lines > 400 (MC 12601 c3 fix-wave, MC 12616/12617/12643 on top; the
-# MC 12617 belts moved to scripts/ai_rek_belt.py precisely to keep this file
-# under the 600 ceiling): the WHOLE generation contract — corpus shape, the
-# graded+read join, the ONE lane envelope, every code gate and the door
-# delivery — is one unchecked-nothing-can-pass chain; splitting it scatters
-# the single guarantee ("between corpus.tsv and the door there is exactly
-# one path") across files, which is the failure mode the gate list in the
-# docstring exists to prevent (coding-discipline header reason).
+# 600 lines > 400 (MC 12601 c3 fix-wave, MC 12616/12617/12643/c10 on top;
+# the belts moved to scripts/ai_rek_belt.py precisely to stay under the
+# ceiling): the WHOLE generation contract — corpus shape, the graded+read
+# join, the ONE lane envelope, every code gate and the door delivery — is
+# one unchecked-nothing-can-pass chain; splitting scatters the single
+# guarantee ("between corpus.tsv and the door there is exactly one path")
+# (coding-discipline header reason; the split stays scheduled).
 """MC 12601 (M11-N5R) — the generation runner for "AI rekommenderar".
 
-Runs FLEET-side (VM350), never inside the app: it reads the PUBLIC shelf
-HTML, joins the fleet corpus against it, asks Lane E to rank + reason, and
-POSTs /ai-rek through the door. NO DB access, ever — the shelf's own public
-bytes are the library (the card pins it).
+Runs FLEET-side (VM350), never inside the app: reads the PUBLIC shelf
+HTML, joins the corpus against it, asks Lane E to rank + reason, POSTs
+/ai-rek. NO DB access, ever — the shelf's public bytes are the library.
 
 Inputs:
   --library  the public shelf https://sibbamala.com/liselott/bibliotek
-             (scripts/curl_transport — the measured CF fact: urllib is 403'd
-             at that edge, curl passes; 221 graded cards are public per
-             owner scope; scripts/pris_parse.read_graded parses
+             (curl_transport — urllib 403'd at the CF edge, curl passes;
+             cards public per owner scope; pris_parse.read_graded parses
              title/author/rating off the app's own _bokkort.html markup)
   --corpus   the fleet corpus TSV (26 rows, tab, 13 cols — the N1 output
              .audits/202611161817-aae834ce-n1/out/corpus.tsv)
@@ -28,69 +25,66 @@ DROPPED, and since MC 12643 (owner ruling "A" — chat 2026-11-17, accepting:
 the generator gets the COMPLETE read-title list via the existing machine
 door; public scope unchanged, graded + wishlist only; books she has READ
 are never recommended again) so is EVERY bok row GET /ai-rek/library-keys
-answers, all statuses — DA c9 F-P1-1 closed: 485 read-but-unrated books
-were invisible to the graded-only join. Identity is the app's OWN
-normalization, imported read-only: `onska.wish_key` (the §5.3
-seed.book_key chain, alias table authors-only) on title+author, plus the
-isbn13 lane when both sides carry one — ONE mechanism, `_samma_bock` twin.
+answers, all statuses (DA c9 F-P1-1: 485 read-but-unrated books were
+invisible to the graded-only join). Identity is THE app's OWN chain,
+imported read-only: `onska.wish_key` (§5.3 seed.book_key, authors-only
+aliases) + the isbn13 lane — ONE mechanism, the `_samma_bock` twin.
 
 The ask (Lane E http://192.168.5.223:8888/v1/chat/completions): the ONE
 compiled-default envelope idiom of scripts/cover_pass.py — one model id,
-temperature 0, reasoning_effort low on both layers. Lane E is LAN-side
-(no CF edge), so urllib rides there exactly as cover_pass's vision leg
-does; NO new mechanism beside it. The prompt carries her GRADED taste
-profile (every graded card + rating) and the corpus rows, and states that
-fit must be justified BY the profile; the model may ONLY rank + reason over
-the corpus rows it is handed.
+temperature 0, reasoning_effort low on both layers; urllib rides Lane E
+(LAN-side, no CF edge) exactly as cover_pass's vision leg does. The prompt
+carries her GRADED taste profile (every card + rating) and the corpus
+rows; fit must be justified BY the profile and the model may ONLY rank +
+reason over the corpus rows it is handed.
 
 Gates BEFORE a byte reaches the door (all in code, none in the prompt):
   hallucination  a returned isbn13 absent from the loaded corpus => row
-                 REJECTED (`_validera` — the citation for carry N3: every
-                 POSTed isbn exists in the corpus.tsv rows).
-  fit            non-finite / bool / outside [0,1] => row REJECTED.
-                 READING used: REFUSE, never clamp — app/ai_rek._obs
-                 shape-rejects the same values, and a silent clamp would
-                 forge a score the model never gave.
+                 REJECTED (`_validera`, carry N3: POSTed isbn in corpus).
+  fit            non-finite / bool / outside [0,1] => row REJECTED:
+                 REFUSE, never clamp — app/ai_rek._obs shape-rejects the
+                 same values; a silent clamp would forge a score.
   identity       dedupe by isbn UNION wish_key-normalized title+author
                  BEFORE POST (carry N1): one identity per generation,
                  never two rows whose rec_keys differ for one book.
   control chars  every POSTed string is asserted free of C0/C1 control
                  characters (carry N5: \x1f is seed.book_key's join
-                 delimiter — one control char in a field is door-reachable
-                 join injection; the corpus is asserted at load too, and a
-                 corpus that repeats one isbn between two books is refused
-                 at load — the N3 merge lane can never run on its input).
+                 delimiter — one in a field is door-reachable join
+                 injection; the corpus is asserted at load too, a repeated
+                 isbn between two books refused there — N3's input).
   kategori       nyhet|klassiker|blandad rides EVERY row (MC 12602
-                 F-P4-1's column); the corpus `category` maps
-                 classic/new_release/mix onto the door's vocabulary — the
-                 mix the card says is already in the corpus.
+                 F-P4-1); the corpus `category` maps classic/new_release/
+                 mix onto the door's vocabulary.
   floor          fewer than MIN_OUTPUT_ROWS accepted rows => REFUSE the
                  POST, loud, non-zero: a thin generation is a failed one.
-  mix            the accepted output carries <1 nyhet OR <1 klassiker =>
-                 REFUSE, loud, non-zero, ZERO POSTs (owner scope, the
-                 owner's own task words: "newly released books as well as
-                 classics" — a generation that answers only one half of
-                 that promise is not the promised generation; DA c3 FIX
-                 item 2). blandad rows are welcome, never load-bearing.
-  taste          zero graded rows from --library => REFUSE, loud, non-zero,
-                 BEFORE the lane ask (MC 12602 scope row 2: "based on the
-                 current graded library" must be real).
-  near-miss      (MC 12617, DA c3 F-P2-2c) a candidate that LOOKS like a
-                 graded shelf card without joining it is an ownership
+  mix            <1 nyhet OR <1 klassiker in the accepted output =>
+                 REFUSE, loud, non-zero, ZERO POSTs (owner scope — "newly
+                 released books as well as classics"; one half of that is
+                 not the promised generation; DA c3 FIX item 2). blandad
+                 rows are welcome, never load-bearing.
+  taste          zero graded rows from --library => REFUSE, loud,
+                 non-zero, BEFORE the lane ask (MC 12602 scope row 2:
+                 "based on the current graded library" must be REAL).
+  near-miss      (MC 12617, DA c3 F-P2-2c; c10 F-DA10-1 widened the shelf
+                 side to GRADED ∪ EVERY door row) a candidate that LOOKS
+                 like a shelf card without joining it is an ownership
                  ambiguity the ONE identity law can never join: the WHOLE
                  generation is REFUSED before the lane ask (math and the
-                 shared classifier ride in scripts/ai_rek_belt).
-  read-list      (MC 12643, owner ruling "A") EVERY bok row the door
-                 answers on GET /ai-rek/library-keys (all statuses)
-                 excludes by the ONE wish_key law, OFFER-SIDE — dropped
-                 BEFORE the lane ask, counter dropped_read; an unreadable
-                 list refuses the WHOLE pass (exit 5): an UNfiltered
-                 generation is NEVER posted.
+                 shared classifier ride in scripts/ai_rek_belt — flag
+                 math and strict-key refusal semantics UNCHANGED).
+  read-list      (MC 12643, owner ruling "A"; fix wave DA c10 F-P1-1)
+                 EVERY door row excludes OFFER-SIDE by the ONE wish_key
+                 law (counter dropped_read) AND an accent-fold lane
+                 (belt.fallhyll — DROP only, counter dropped_fold, loud
+                 per row; over-dropping costs a recommendation, never
+                 recommends a read book), BEFORE the lane ask. An
+                 unreadable, over-cap (>2 MB, >5000 rows — F-DA10-2) or
+                 malformed list refuses the WHOLE pass (exit 5): an
+                 UNfiltered generation is NEVER posted.
   rehearsal      (MC 12617, DA c5 F-P4-1) a live --full requires a
-                 COMPLETED --dry-run of the SAME corpus against the SAME
-                 library inside the same run window (the 0→1 sweep cliff —
-                 refused before any network). The plain upsert mode needs
-                 no stamp; MC 12616's default path stays byte-identical.
+                 COMPLETED --dry-run of the SAME corpus vs the SAME
+                 library in the same run window (the 0→1 sweep cliff —
+                 refused before any network); upsert needs no stamp.
 
 Delivery: POST {base}/ai-rek through curl_transport (ONE transport for
 both door runners). The credential from env AI_REC_DOOR_TOKEN rides the
@@ -100,9 +94,8 @@ P2, leg-proved against a live curl child; NOT the `@` form — DA c6
 F-P1-1; the wire-arrival legs live in tests/test_door_transport.py),
 64-hex asserted through the door's OWN TOKEN_SHAPE, the value never
 echoed. --dry-run prints the ranked JSON and POSTS NOTHING — every gate
-still runs, the keys read, the shelf read and the lane ask included
-(else the demo would prove nothing; since MC 12643 the rehearsal rides
-the SAME join as the live run, keys included). --full (DEFAULT off, MC
+still runs (keys, shelf, lane ask) — the demo must prove something; the
+rehearsal rides the SAME join as the live run. --full (DEFAULT off, MC
 12616) sends the door's full-swap envelope (server-side sweep, deleted_n
 in the receipt); since MC 12617 a live --full ALSO requires the dry-run
 rehearsal stamp named above. --lane-timeout (default 600 s, DA c4 P3)
@@ -113,24 +106,20 @@ KNOWN LIMITS, documented not papered over:
   FULL-REPLACEMENT SWEEP (MC 12602 scope row 1) — CLOSED by MC 12616:
   `--full` sends the door's full-swap envelope; absent `new` rows are
   deleted door-side (state accept/decline NEVER; an empty generation is
-  refused fail-loud, rows kept). The default upsert path is
-  byte-identical to MC 12601, the shipped mode keeps working unchanged.
-  DECLINE-FLIP RACE (carry N2, app-side P3): unreachable from this runner
-  lane — the runner is the single writer; the race needs the owner's
-  browser flip landing mid-ingest, which is app-side.
+  refused fail-loud, rows kept). The default upsert path is byte-identical
+  to MC 12601.
+  DECLINE-FLIP RACE (carry N2, app-side P3): unreachable from this
+  single-writer lane — it needs the owner's browser flip mid-ingest.
   OWNED-BOOK TITLE SPELLINGS (live demo 2026-11-17, corrected by DA c3
-  F-P2-2c): a corpus title carrying a subtitle tail cannot join the
-  shelf's plain spelling through wish_key — `seed.book_key` alias-resolves
-  AUTHORS only (DA probe3), so no alias row repairs a title; the FULL
-  corrected story, dead claims included, is the LEDGER's and CORPUS.md's,
-  not this file's. The repair that works is data-side: the shelf-exact
-  corpus rebase (MC 12617). This runner deliberately adds NO second title
-  normalizer beside the §5.3 chain. (The diary's own strings are named
-  nowhere here: the exposure gate counts this file.)
-  MC 12617 LANDED BOTH HALVES of that repair: the fleet corpus rebased
-  shelf-exact (out/CORPUS.md names the fail-closed drops) AND this runner
-  enforces the certifying probe (ai_rek_belt.near_miss_kandidater, exit 2
-  before the lane ask) — drift back into the hole fails closed.
+  F-P2-2c): a subtitle tail cannot join the shelf's plain spelling —
+  `seed.book_key` alias-resolves AUTHORS only (DA probe3), so no alias
+  row repairs a title; the full corrected story, dead claims included,
+  lives in the LEDGER and CORPUS.md. The repair that works is data-side:
+  the shelf-exact corpus rebase (MC 12617). This runner adds NO second
+  title normalizer beside the §5.3 chain — the c10 fold lane is an
+  EXCLUSION (drop) view through the belt's own `_fold`, never a join.
+  (The diary's own strings are named nowhere here: the exposure gate
+  counts this file.)
 """
 import argparse
 import csv
@@ -151,6 +140,7 @@ from app import ai_rek, onska                # THE door's vocabulary + identity
 from scripts import pris_parse as pp         # THE shelf-page parser
 from scripts.ai_rek_belt import (near_miss_kandidater,   # MC 12617 belts
                                  read_library_keys,       # MC 12643 keys
+                                 fallhyll, falltraffar,   # c10 fold lane
                                  rehearsal_held, rehearsal_skriv)
 from scripts.curl_transport import _curl, _curl_config   # THE shared transport
 
@@ -193,12 +183,12 @@ def _har_kontrolltecken(text):
 def read_corpus(path):
     """corpus.tsv -> (rows, None) or (None, reason). The parse pins the
     shipped shape: header == CORPUS_COLS exactly, tab rows of 13 fields;
-    isbn13 exactly 13 ASCII digits and UNIQUE across rows (two books
-    sharing one isbn is the N3 merge-lane trap — the corpus that carries it
-    is refused here, the furthest point from the door); year empty or an
+    isbn13 exactly 13 ASCII digits and UNIQUE across rows (one isbn on
+    two books = the N3 merge-lane trap, refused here — the furthest point
+    from the door); year empty or an
     int in the door's 1000..2100; NO field carries a control char (N5);
-    title/review_source_url non-empty (the door's shape duty, asked at
-    load). Every kept row carries its door values: kategori + wish_key."""
+    title/review_source_url non-empty (the door's shape duty at load).
+    Every kept row carries its door values: kategori + wish_key."""
     rows, isbns = [], {}
     with open(path, newline="", encoding="utf-8") as fh:
         reader = csv.reader(fh, delimiter="\t")
@@ -300,12 +290,11 @@ def build_prompt(graded, kandidater):
 def lane_ask(prompt, timeout_s=LANE_TIMEOUT_S):
     """ONE Lane E call, cover_pass._vision_post's envelope in shape (one
     model id, temp 0, reasoning_effort low on BOTH layers, content falling
-    back to reasoning). Raises on any transport or shape failure — the
-    runner answers with a refusal, never a retry loop (the §3 posture).
-    `timeout_s` is the lane budget (600 s since DA c4 P3, `--lane-timeout`).
-    MC 12617 (DA c3 F-P3-4): a (system, user) PAIR from build_prompt rides
-    as ONE system + ONE user message — data never shares a turn with the
-    contract; a plain str keeps the legacy single user message."""
+    back to reasoning). Raises on any failure — the runner answers with a
+    refusal, never a retry loop (§3 posture); `timeout_s` is the lane
+    budget (600 s, DA c4 P3). MC 12617 (DA c3 F-P3-4): a (system, user)
+    PAIR rides as ONE system + ONE user message — data never shares a
+    turn with the contract; a plain str keeps the legacy single message."""
     if isinstance(prompt, str):
         meddelanden = [{"role": "user", "content": prompt}]
     else:
@@ -338,12 +327,11 @@ def parse_ranking(text):
 
 
 def _validera(ranking, by_isbn, agnas_isbn, *, say):
-    """The anti-hallucination + fit gates, in CODE — carry N3 cited here:
-    nothing can mint a POST row outside `by_isbn`, the loaded corpus.tsv
-    rows. Title/author/year/source/kategori ride the CORPUS row, never the
-    model's echo (a hostile answer cannot smuggle its own identity). Fit is
-    refused outside [0,1], never clamped. Returns accepted door-shaped
-    rows, best fit first."""
+    """The anti-hallucination + fit gates, in CODE (carry N3: nothing can
+    mint a POST row outside `by_isbn`, the loaded corpus rows). Title/
+    author/year/source/kategori ride the CORPUS row, never the model's
+    echo (a hostile answer cannot smuggle its own identity); fit is
+    refused outside [0,1], never clamped. Accepted rows, best fit first."""
     godkanda = []
     for pos, rad in enumerate(ranking):
         def neka(why):
@@ -411,11 +399,10 @@ def dedupe_identitet(godkanda, *, say):
 
 
 def door_post(url, token, rows, *, full=False):
-    """The ONE delivery on the shared transport (the retired pris runner's
-    `door_post` posture, pris_vakt.py deleted by MC 12606): JSON on stdin
-    via --data-binary @-, the token on `X-Ai-Rek-Token`, one try then
-    loud, (status, body-bytes) back. `full=True` (MC 12616, CLI `--full`)
-    wraps the rows in the door's full-swap envelope; default = bare array."""
+    """The ONE delivery on the shared transport (posture inherited from
+    the retired pris runner, MC 12606): JSON on stdin via --data-binary
+    @-, the token on `X-Ai-Rek-Token`, one try then loud, (status,
+    body-bytes) back. `full=True` wraps the door's full-swap envelope."""
     payload = {"generation": rows} if full else rows
     return _curl_config(
         [("X-Ai-Rek-Token", token)],        # MC 12616: the secret rides a
@@ -432,18 +419,15 @@ def run_pass(corpus_path, library_url, base, *, dry_run=False,
              get_library=read_library, get_keys=read_library_keys,
              lane=lane_ask, post=door_post,
              say=None, full=False):
-    """One generation end-to-end; returns the process exit code. Seam
-    layout is the retired pris runner's `run_tick` (every external touch
-    injectable — the shape MC 12547 proved), so the
-    whole contract tests with zero network. Exit: 0 ok; 2 input/config
-    refused; 3 lane answer refused; 4 floor not met; 5 door refused —
-    the read-title door's unreadable list INCLUDED (MC 12643,
-    fail-closed: an unfiltered generation is never posted);
-    6 mix condition not met (nyhet AND klassiker owed, one not delivered).
-    `full=True` (MC 12616, the CLI's `--full`, DEFAULT off) rides the
-    door's full-swap envelope — every gate above is IDENTICAL, only the
-    delivery mode changes; the rows this run validates ARE the complete
-    new generation the door sweeps against."""
+    """One generation end-to-end; returns the exit code. Every external
+    touch is an injectable seam (MC 12547's shape): the whole contract
+    tests with zero network. Exit: 0 ok; 2 input/config refused; 3 lane
+    answer refused; 4 floor not met; 5 door refused — the read-title
+    door's unreadable OR OVER-CAP list included (MC 12643 + c10
+    F-DA10-2: an unfiltered generation is never posted); 6 mix owed.
+    `full=True` (CLI `--full`, DEFAULT off) rides the door's full-swap
+    envelope — every gate IDENTICAL, only the delivery mode changes; the
+    validated rows ARE the complete new generation the door sweeps."""
     say = say or (lambda line: print(line, flush=True))
 
     rows, fel = read_corpus(corpus_path)
@@ -490,11 +474,21 @@ def run_pass(corpus_path, library_url, base, *, dry_run=False,
     # a book she owns is invisible to the lane, not just to the POST.
     lästa = {onska.wish_key(n["titel"], n.get("forfattare") or "")
              for n in nycklar}
+    fall_hyll = fallhyll(nycklar)            # c10 F-P1-1: the accent-fold lane
     kandidater = [r for r in rows
                   if r["nyckel"] not in agda_nycklar
                   and r["isbn13"] not in agda_isbn]
     före_läs = len(kandidater)
-    kandidater = [r for r in kandidater if r["nyckel"] not in lästa]
+    kvar, fold_bort = [], []
+    for r in kandidater:                 # strict first; survivors may fold
+        if r["nyckel"] in lästa:
+            continue
+        (fold_bort if falltraffar(r, fall_hyll) else kvar).append(r)
+    kandidater = kvar
+    dropped_read = före_läs - len(kvar) - len(fold_bort)
+    for r in fold_bort:                  # loud per row, then counted
+        say(f"REK dropped_fold: {r['title']} — {r['author']} — accent-folds "
+            "onto a bok row (dropped, never offered — c10 F-P1-1)")
     # F-C3-1 (DA c3 item 3, the tester's L11): the accepted set IS the
     # OFFERED set — an isbn naming a corpus row the join DROPPED as owned
     # is refused post-parse even when the model names it back (the belt
@@ -503,13 +497,19 @@ def run_pass(corpus_path, library_url, base, *, dry_run=False,
     by_isbn = {r["isbn13"]: r for r in kandidater}
     agnas_isbn = {r["isbn13"] for r in rows if r["isbn13"] not in by_isbn}
     say(f"REK korpus={len(rows)} drogs_bort={len(rows) - före_läs} "
-        f"dropped_read={före_läs - len(kandidater)} "
+        f"dropped_read={dropped_read} dropped_fold={len(fold_bort)} "
         f"läsnycklar={len(nycklar)} kandidater={len(kandidater)} "
         f"betygssatta={len(graded)}")
     if not kandidater:
         say("ALARM alla kandidater finns redan på hyllan — noll POST")
         return 2
-    near_miss = near_miss_kandidater(kandidater, graded)
+    # c10 F-DA10-1: the belt's shelf side is the GRADED cards AND every
+    # door row (a near-miss against a read-but-unrated card is the same
+    # ownership ambiguity); the classifier's math is untouched.
+    hyllkort = {(c["title"], c["author"]) for c in graded} | {
+        (n["titel"], n.get("forfattare") or "") for n in nycklar}
+    near_miss = near_miss_kandidater(
+        kandidater, [{"title": t, "author": a} for t, a in sorted(hyllkort)])
     if near_miss:
         # MC 12617 (DA c3 F-P2-2c): a candidate that LOOKS like a graded
         # card but cannot join is an ownership ambiguity the ONE identity
@@ -517,8 +517,9 @@ def run_pass(corpus_path, library_url, base, *, dry_run=False,
         # generation is refused, counts only in the line (the delivery
         # posture: corpus titles never ride stdout), the data lane rebases.
         say(f"ALARM near-miss mot hyllan: {len(near_miss)} kandidater "
-            "liknar betygssatta hyllkort utan att joina — vägrar generation "
-            "(0 near-miss krävs, N8b; kör om korpus-rebasen) — noll POST")
+            "liknar hyllkort (graderade ELLER läslistade) utan att joina — "
+            "vägrar generation (0 near-miss krävs, N8b; kör om "
+            "korpus-rebasen) — noll POST")
         return 2
 
     try:

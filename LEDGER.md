@@ -1367,3 +1367,59 @@ postdating a line make that line STALE — de-stale before quoting it.
   compacted — the LEDGER and CORPUS.md carry the full detail), `ai_rek.py`
   529, `auth.py` 498 (their >400 REASON headers stand, splits scheduled),
   belt 174. NOTHING pushed.
+
+- **MC 12643 FIX WAVE (DA-verdict-c10, 2026-11-17, commit on top of
+  `668a81d` — not amended, the verdict pins that hash)** — the owner's
+  fix-wave brief item by item. **F-P1-1 (P1, the live pair):** the DA's
+  EXACT pair — her READ card's accent-free "Viva <n-class>" spelling vs
+  the corpus row carrying the tilde (Åsa Hellberg, rating NULL; the full
+  strings live in the verdict file, never here: the exposure gate counts
+  this file) — slipped BOTH guards because `book_key._norm` keeps the
+  tilde: the wish_keys differ and the belt never saw read-unrated cards.
+  The fix is one widened mechanism, no second normalizer: (a) the belt's
+  shelf side is now GRADED ∪ EVERY door row (`run_pass` feeds both, the
+  classifier's math untouched) — a DA face D fixture (the "…: en roman"
+  subtitle-tail pair against a read card) now REFUSES the generation,
+  exit 2, zero POST: the fail-closed posture awaiting the data lane, not
+  papered over; (b) the exclusion gains the FOLD LANE
+  (`ai_rek_belt.fallhyll/falltraffar` — the belt's own `seed._fold`,
+  NFD strip-marks + casefold, alias-canonical authors, multi-author
+  rows per author): fold equality DROPS the candidate OFFER-SIDE with a
+  loud per-row counter `dropped_fold`, and the owner's safety direction
+  is the law: over-dropping costs a recommendation, it NEVER recommends
+  a read book — fold equality therefore never joins the near-miss
+  REFUSAL class, whose strict-key semantics are UNCHANGED (the named
+  reading of the brief); (c) the corpus row Viva <tilde-spelling> STAYS —
+  the fold catches it live, no corpus rebase needed for that row (the
+  DA's rebase proposal superseded by the fold ruling).
+  **F-DA10-2 (P2):** the keys reader caps its answer — 2 MB body, 5000
+  rows (her whole shelf ~700: headroom, never a silent truncation) +
+  curl `--max-filesize`; over-cap is the same unreadable-answer exit-5
+  family, zero POST (legs: the 75k-row body, the 5001-row body, and the
+  over-cap pass through the DEFAULT reader). **F-DA10-4 (P4 doc):** the
+  README door section now NAMES the owner-session-rides-tokenless face
+  as documented risk (her cookie, her own rows, SameSite=Lax, zero CORS,
+  JSON non-executable; the stricter generator-only reading is a one-line
+  `_door_refused` change and an OWNER decision). **F-DA10-6 (P4):** the
+  reader refuses a non-string/non-null `forfattare` — the int-author
+  door row used to crash the pass with a TypeError; it is now an ALARM
+  and exit 5 (reader legs + the crash-face leg through the default
+  reader). F-DA10-8b: the `ai_rek.py` header count re-synced (531).
+  TESTS: `tests/test_ai_rek_keys.py` 14 → 24 legs — live-pair (the DA's
+  exact pair assembled from fragments: a real diary title is never
+  carried whole in a tracked file, the values byte-exact at runtime; the
+  wish_key difference asserted FIRST, then the drop: loud line,
+  dropped_fold=1/dropped_read=0, exit 0 = never a refuse, lane never
+  sees the isbn), near-vs-read refusal, caps ×3, reader-shape ×3 +
+  crash face, fold-unit law. All red-first on named mutants, each
+  restored sha-verified: fold drop removed → live-pair red
+  (`assert 2 == 0` — without the drop the pair REFUSES, the exact
+  drop-vs-refuse proof); `falltraffar` title-only → fold-unit author
+  assert red; caps removed → 3 caps legs red; `forfattare` check
+  removed → 4 legs red; belt fed graded-only again → near-vs-read red
+  (`assert 0 == 2`). Suite **726 passed + 1 skipped** (the 716+1 base +
+  10 new legs) with every public pin green. `ai_rek_pass.py` at 600
+  (the docstring's provenance prose compacted, LEDGER carries it; the
+  header count re-synced), belt 236. README door section updated (caps,
+  fold lane, documented risk). NOTHING pushed; exposure gate run
+  pre-commit.

@@ -568,14 +568,32 @@ LEADING `YYMMDD` token, 45 rows). Trust the plan's §5 rules, never the header.
   for the recommendation runner: a JSON list of `{"titel", "forfattare",
   "status"}` for EVERY `bok` row, all statuses (read AND wishlist — books
   she has READ are never recommended again, and the runner drops matching
-  candidates before the Lane E ask). THE SAME credential as the POST
+  candidates before the Lane E ask — by the ONE wish_key law AND an
+  accent-fold lane, `seed._fold` over the door rows (DA c10 F-P1-1: the
+  live READ card "Viva <n-class>" vs the corpus row with the tilde;
+  counter `dropped_fold`, loud per row). The fold lane is a DROP, never a
+  near-miss REFUSAL — over-dropping costs a recommendation, it never
+  recommends a read book; the refusal class keeps its strict-key
+  semantics, with the belt's shelf side widened to graded ∪ door rows).
+  THE SAME credential as the POST
   (`X-Ai-Rek-Token` vs the 64-hex `AI_REC_DOOR_TOKEN`): unset/malformed env
   ⇒ the generic 503, empty-or-wrong header ⇒ the one uniform 401, a valid
   owner session rides without the token. THE GUARD lets the GET through ONLY
   with the header riding — the no-header face is the guard's uniform 302,
   byte-identical to an anonymous GET `/ai-rek`: this route joins NO public
   allow-list, the public read surface stays graded + wishlist. Zero secret
-  bytes in the body (no isbn, no dates, no keys), zero writes.
+  bytes in the body (no isbn, no dates, no keys), zero writes. The runner's
+  reader CAPS the answer — a body over 2 MB or a list over 5000 rows is an
+  unreadable answer and joins the exit-5 fail-closed family (DA c10
+  F-DA10-2; her whole shelf is a few hundred rows — the caps are headroom,
+  never a silent truncation). DOCUMENTED RISK (DA c10 F-DA10-4, named per
+  the gate charge): the owner's own session rides this door WITHOUT the
+  token — her cookie reading her own rows, the payload a strict subset of
+  the private shelf she already browses; the browser-side faces are closed
+  as measured (SameSite=Lax: no cross-site subresource carries the cookie;
+  zero CORS headers; the JSON is non-executable), and a stricter reading
+  of ruling "A" — "generator-only", the session face CLOSED — is a
+  one-line door change and an OWNER decision, not code improvisation.
 - `POST /backfill?n=5&after=<id>[&mode=candidates]` — the cover/ISBN retry and
   candidate-pool builder, resumable by `last_id` (cursor advances past
   permanent failures; wrap = fresh pass). Shares one pipeline with
