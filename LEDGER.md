@@ -1423,3 +1423,39 @@ postdating a line make that line STALE — de-stale before quoting it.
   header count re-synced), belt 236. README door section updated (caps,
   fold lane, documented risk). NOTHING pushed; exposure gate run
   pre-commit.
+
+- **MC 12646 (M11-N10) — the typo lane: the DB-title spelling class RE-DERIVED
+  against Libris identity, NINE fixes applied live (2026-11-17).** Owner rulings
+  (chat 2026-11-17, verbatim): "fix typos." + "Editions irrelevant". The working
+  list died in the 2026-11-17 tmp cleanup, so the class was re-derived
+  mechanically: a sha-verified ro-copy of the live DB (QGA base64 pull, mode=ro
+  the whole way), xsearch Libris by isbn13 for EVERY bok row with one (683 rows,
+  one request per isbn, 0.35 s politeness, zero fetch errors), DB titel vs
+  Libris title aligned tail-aware — the prior count of FOUR was the equal-length
+  lane only; rows 91/271/702 carry the SAME accent/letter deltas behind series
+  tails the old matcher dropped, and a different count IS the finding. Handoff
+  OUT/TYPO-WAVE15.md consumed: 231 FIXED via Libris title+author search (the row
+  has no isbn13), 431 FIXED café→kafé (her subtitle stays — a subtitle tail is
+  not a typo), 701 LEFT UNTOUCHED — Libris itself carries "Rosengädda" on the
+  row's own isbn13 carrier AND on the print record's mainTitle (the Hamberg
+  series toponym; the "Rosengård" reading was vision-glyph variance).
+  FIXED ids 74, 91, 231, 237, 247, 271, 427, 431, 702 (N=9: eight isbn-lane +
+  handoff 231); per-row before/after + the Libris record id proving each live in
+  OUT/TYPO-FIX.md (personal titles, OUT-only). APPLY: backup
+  liselott.db.bak-typos-20261117T192705Z FIRST (integrity ok, 724 books), then
+  ONE transaction as appsvc on the app's own venv — per-id title + isbn13-freeze
+  asserts, book_key REKEYED by the app's OWN seed law (stored key == the
+  recomputed old-title key asserted before any write, new-key UNIQUE-collision
+  assert), abort-all on any mismatch (dry-run passed untouched first). Fresh ro
+  read-back: 9/9 fixed strings, ZERO old-string survivors, isbn13 diff {} vs
+  the backup, integrity ok, count 724. Public before/after landing fetch: fixed
+  forms present on the rendered cards (247/271/427/702), old word-forms absent
+  (standalone "café" gone; "Strandcaféet" id 615 untouched — a substring in
+  another title, never the suspect), the 701 cards unchanged (LEFT). Ambiguous
+  rows EXCLUDED per the LAW, named by id: 189 (Libris itself carries "lovit"),
+  382 (a Danish word-form, lev>2), 408 (conjunction), 481+534 (hyphen/spacing
+  variance), 61+661 (leading-word variance), 70/76/210/240/281 (series-numbering
+  renderings = editions, "Editions irrelevant"); rows 163, 272, 520, 559, 597,
+  641, 670, 703 carry isbn13s NO Libris record carries (identity gap, not a
+  spelling delta). NO app/schema changes; suite 726 passed + 1 skipped AT this
+  commit (unchanged from base). NOTHING pushed.
