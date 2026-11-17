@@ -1459,3 +1459,57 @@ postdating a line make that line STALE — de-stale before quoting it.
   641, 670, 703 carry isbn13s NO Libris record carries (identity gap, not a
   spelling delta). NO app/schema changes; suite 726 passed + 1 skipped AT this
   commit (unchanged from base). NOTHING pushed.
+
+- **MC 12647 (M11-N11) — the REFRESH TRIGGER: the AI list re-runs each 20
+  graded books (2026-11-17).** Owner ruling (chat 2026-11-17, verbatim):
+  "Ai list refreshes each 20 books graded". Build, ONE mechanism extended
+  (no new daemon family): runner mode `--check-refresh`
+  (`scripts/ai_rek_refresh.py` — the state + the decision; the wave runner
+  arrives as a seam, no import cycle): delta = (graded cards on the PUBLIC
+  shelf now) − (graded_count in the LAST ACCEPTED-wave record); delta >= 20
+  => dry-run REHEARSAL + FULL WAVE in the SAME invocation (the MC 12617
+  rehearsal belt unchanged — the wave it authorizes is the one it would
+  refuse un-rehearsed); delta < 20 (negative included) AND no record at all
+  => exit 0 LOUD not-due (never a surprise wave); record drift (unreadable
+  / shape-invalid / foreign base-library) => ALARM exit 2 with ZERO seam
+  calls, proven BEFORE the shelf read. The accepted-wave record
+  {base, library, graded_count, accepted, ts} is written ONLY by a
+  door-ACCEPTED full wave and REBASES the baseline; state is fleet-side,
+  NEVER the repo: $AI_REK_STATE_DIR, default /home/claudecode/.liselott-rek
+  (0700 dir, 0600 files, counts + ts only; README machine-routes row
+  documents the path; the wrapper points the rehearsal stamps there too).
+  The rehearsal stamp additionally CARRIES graded_count — the shelf size
+  the rehearsal actually saw (optional field, pre-12647 stamps stay valid;
+  belt window+sha+library law untouched). Tick wrapper
+  `scripts/ai_rek_refresh_tick.sh`: flock one-at-a-time, the door
+  credential read from /home/claudecode/.secrets/ai-rec-door.env via the
+  env file and NEVER echoed, tick.log rotated at 1 MB; the systemd unit +
+  timer FILES land agent-town-side infra/services/ai-rek/ with the
+  systemd-analyze verify output beside them — INSTALLING the timer stays
+  the orchestrator's. THE SCHEDULED SPLIT RAN (DA c11 F-DA11-3 closed):
+  ai_rek_pass.py 600 -> 455 lines with the REASON clause moved INTO the
+  gate's first-5-line window (the F-DA11-3 two-line stopgap, applied); the
+  Lane E ask + its answer gates moved VERBATIM to scripts/ai_rek_lane.py
+  (210 lines; shape belts ISBN_FULL/_har_kontrolltecken defined once —
+  load gate and answer gate can never drift); the runner RE-EXPORTS every
+  name — `scripts.ai_rek_pass.<name>` stays the ONE import surface, every
+  existing leg UNTOUCHED and green. Tests RED-first
+  (`tests/test_ai_rek_refresh.py`, 24 legs): owner's number pinned == 20;
+  delta 19/0/−5 not-due zero wave; delta 20 and 25 => dry-run-then-full
+  ORDER proved; refused rehearsal => wave never runs, exit rides; wave exit
+  rides; 7 drift faces exit !=0 with zero seam calls; record written ONLY
+  by accepted full waves (0600 file, 0700 dir), NEVER by dry-run/upsert/
+  refused door; stamp carries graded_count; end-to-end delta-20 => ONE
+  full POST + record rebased 1→21; main `--check-refresh` leg with sockets
+  patched to raise; wrapper bash -n weld. Planted-red mutants, sha-
+  verified restore: M1 threshold `<=` kills 4 delta-20 legs; M2 removing
+  the full-guard on the record write kills the upsert face; M3 disarming
+  the drift check kills all 7 drift faces. Fleet hygiene gate measured
+  (dod_hygiene.check_project_hygiene, base 302a5c0): UNMET [], NOTES [] —
+  VERIFY_EXIT=0. Suite 750 passed + 1 skipped AT this commit (baseline
+  726+1, +24 new; tests/conftest.py gains the session pin of
+  AI_REK_STATE_DIR into pytest tmp — a suite run can never write the fleet
+  state dir). Exposure gate: the single held file (LEDGER.md) PRE-EXISTS
+  at base 302a5c0 (byte-identical there); every file this commit adds or
+  edits greps CLEAN against the real-titles/real-isbns lists (zero new
+  hits). NOTHING pushed.

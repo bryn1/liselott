@@ -61,6 +61,22 @@ def _suite_csv_pins(tmp_path_factory):
             os.environ[var] = val
 
 
+@pytest.fixture(scope="session", autouse=True)
+def _suite_refresh_state_pin(tmp_path_factory):
+    """MC 12647: pin the accepted-wave RECORD dir (AI_REK_STATE_DIR, default
+    the fleet dir /home/claudecode/.liselott-rek) into pytest's tmp space
+    for the whole session — a suite run can never write the fleet state.
+    Legs that own the state dir move it per-test (monkeypatch), exactly
+    like the per-leg AI_REK_REHEARSAL_DIR in tests/test_ai_rek_pass.kör."""
+    prev = os.environ.get("AI_REK_STATE_DIR")
+    os.environ["AI_REK_STATE_DIR"] = str(tmp_path_factory.mktemp("rek-state"))
+    yield
+    if prev is None:
+        os.environ.pop("AI_REK_STATE_DIR", None)
+    else:
+        os.environ["AI_REK_STATE_DIR"] = prev
+
+
 def resolve_seed_file():
     """LISELOTT_SEED_FILE wins, else the known locations, else None.
 

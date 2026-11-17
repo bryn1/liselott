@@ -594,6 +594,25 @@ LEADING `YYMMDD` token, 45 rows). Trust the plan's §5 rules, never the header.
   zero CORS headers; the JSON is non-executable), and a stricter reading
   of ruling "A" — "generator-only", the session face CLOSED — is a
   one-line door change and an OWNER decision, not code improvisation.
+- **Refresh trigger (M11-N11, MC 12647, owner ruling — chat 2026-11-17,
+  verbatim: "Ai list refreshes each 20 books graded")**: the runner mode
+  `scripts/ai_rek_pass.py --check-refresh --corpus <tsv>` compares the
+  graded-card count on the PUBLIC shelf against the LAST ACCEPTED-wave
+  record (state + decision in `scripts/ai_rek_refresh.py`): delta ≥ 20 runs
+  the dry-run rehearsal AND the full wave in the SAME invocation; delta <
+  20, and NO record at all, are exit 0 loud **not-due** (never a surprise
+  wave); an unreadable/shape-invalid/foreign record is ALARM exit 2 with
+  ZERO network. Every door-ACCEPTED full wave REBASES the record. THE
+  RECORD PATH (fleet state, NEVER the repo): `$AI_REK_STATE_DIR`, default
+  `/home/claudecode/.liselott-rek/` — 0700 dir, 0600 files, counts +
+  timestamp only, no secret bytes; the rehearsal stamps ride the same dir
+  in production. The systemd tick: wrapper `scripts/ai_rek_refresh_tick.sh`
+  (flock one-at-a-time, the door credential read from the env file
+  `/home/claudecode/.secrets/ai-rec-door.env`, NEVER echoed, `tick.log`
+  rotated at 1 MB) + the unit/timer FILES in agent-town
+  `infra/services/ai-rek/` (`ai-rek-refresh.service` + `.timer`);
+  `systemd-analyze verify` output lives beside them — INSTALLING the timer
+  stays the orchestrator's (MC 12647).
 - `POST /backfill?n=5&after=<id>[&mode=candidates]` — the cover/ISBN retry and
   candidate-pool builder, resumable by `last_id` (cursor advances past
   permanent failures; wrap = fresh pass). Shares one pipeline with

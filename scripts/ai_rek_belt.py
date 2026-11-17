@@ -120,14 +120,21 @@ def rehearsal_stamp(base, library_url):
     return rot / f"ai-rek-rehearsal-{nyckel[:16]}.json"
 
 
-def rehearsal_skriv(base, library_url, corpus_path, *, accepted, kategorier):
+def rehearsal_skriv(base, library_url, corpus_path, *, accepted, kategorier,
+                    graded_count=None):
     """The PROOF of a completed dry-run: written only when a --dry-run
     passed every gate and printed its rows (run_pass calls it on its own
-    return-0 path). 0600, no secret bytes: counts, sha, ts."""
+    return-0 path). 0600, no secret bytes: counts, sha, ts. MC 12647
+    (M11-N11): `graded_count` — the shelf size the rehearsal actually saw
+    — rides the same stamp when the caller passes it (provenance for the
+    accepted-wave record; absent on pre-MC 12647 stamps, which the belt
+    still accepts: the window + sha + library law is unchanged)."""
     stamp = {"base": base, "library": library_url,
              "corpus_sha256": _sha_fil(corpus_path),
              "accepted": accepted, "kategorier": sorted(kategorier),
              "ts": time.time()}
+    if graded_count is not None:
+        stamp["graded_count"] = int(graded_count)
     vagen = rehearsal_stamp(base, library_url)
     vagen.parent.mkdir(parents=True, exist_ok=True)
     fd = os.open(vagen, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
