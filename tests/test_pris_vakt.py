@@ -68,6 +68,7 @@ RUNNER legs (seams faked end-to-end: get/post/launch/clock/sleep/rng/rss):
                           (the live 2026-11-16 06:19 tick)
 """
 import json
+import os
 import re
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
@@ -498,14 +499,22 @@ def test_tree_rss_reads_the_real_proc(tmp_path):
 #     the shared home MC 12601 gave the transport — the patch surface moved with it) --
 class FakeCurl:
     """subprocess.run replaced wholesale: argv/stdin are asserted, the
-    --output file gets the canned body — the real _curl runs above it."""
+    --output file gets the canned body — the real _curl runs above it.
+    MC 12616 c5: a --config tmpfile is captured DURING the call (mode +
+    bytes), exactly the ai-rec weld's posture in test_door_transport.py."""
 
     def __init__(self, status=b"200", get_body=b"", post_body=b""):
         self.status, self.get_body, self.post_body, self.calls = \
             status, get_body, post_body, []
+        self.konfig = []
 
     def __call__(self, argv, **kw):
         self.calls.append((argv, kw))
+        if "--config" in argv:
+            path = argv[argv.index("--config") + 1][1:]
+            with open(path, "rb") as fh:
+                self.konfig.append((path, os.stat(path).st_mode & 0o777,
+                                    fh.read()))
         with open(argv[argv.index("--output") + 1], "wb") as fh:
             fh.write(self.post_body if "--request" in argv else self.get_body)
         return SimpleNamespace(returncode=0, stdout=self.status, stderr=b"")
@@ -515,7 +524,13 @@ def test_default_transports_ride_curl_argv(tmp_path, monkeypatch):
     """MC 12570 argv-shape leg: the default GET/POST are curl-subprocess —
     argv list (never a shell), URL last, --max-time 15 GET / 30 POST plus
     the hard subprocess watchdog, POST body on stdin (--data-binary @-),
-    status off --write-out — and the return shapes ride through unchanged."""
+    status off --write-out — and the return shapes ride through unchanged.
+    MC 12616 c5 (DA F-P2-1) UPDATED the POST half red-first — the old weld
+    asserted `X-Pris-Token: <token>` INSIDE argv, the /proc/<curl>/cmdline
+    leak class on the nightly tick (updated to the new shape, never
+    silently deleted): the secret header now rides the per-call 0600
+    --config tmpfile, byte-identical ON THE WIRE (same name, same value),
+    ZERO token bytes in argv, the file unlinked when the call returns."""
     curl = FakeCurl(post_body=b'{"accepted": 2}')
     monkeypatch.setattr(ct.subprocess, "run", curl)
     assert pv.http_get("https://sibbamala.test/liselott/bibliotek") == (200, "")
@@ -529,7 +544,14 @@ def test_default_transports_ride_curl_argv(tmp_path, monkeypatch):
     argv, kw = curl.calls[1]
     assert json.loads(kw["input"]) == [{"isbn": "x"}]  # body lands on stdin
     assert argv[argv.index("--data-binary") + 1] == "@-"
-    assert "X-Pris-Token: " + DOOR_CRED in argv
+    assert len(curl.konfig) == 1
+    path, mode, innehall = curl.konfig[0]
+    assert innehall == ('header = "X-Pris-Token: ' + DOOR_CRED + '"\n'
+                        ).encode()                     # byte-identical wire
+    assert mode == 0o600
+    assert not any(DOOR_CRED in del_a for del_a in argv)   # ZERO token bytes
+    assert "X-Pris-Token" not in " ".join(argv)            # not even the name
+    assert not os.path.exists(path)                    # unlinked in the finally
     assert argv[argv.index("--max-time") + 1] == "30"
     assert (status, counters) == (200, {"accepted": 2})
 

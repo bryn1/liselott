@@ -9,17 +9,23 @@ MC 12570 original; the patch surface moved with it (tests monkeypatch
 
 MC 12616 (DA c3 P2) adds `_curl_config` beside `_curl`: header delivery
 whose SECRET bytes never reach argv (the reproduced /proc/<curl>/cmdline
-leak). `_curl`'s signature is UNCHANGED — pris_vakt keeps the header-as-
-argv path byte-identically (MC 12616's stated reading: the card pins its
-behaviour unchanged; the shared mechanism is the MODULE, one transport
-with two call shapes, not one call shape).
+leak). `_curl`'s signature is UNCHANGED — it stays the plain path the
+GETs ride. MC 12616 c5 (DA F-P2-1): the first wave's "pris keeps the
+header-as-argv path" reading was VOID — the card append and LEDGER:1079
+charge BOTH callers and no ruling ever pinned pris — so BOTH door
+runners now ride `_curl_config`, byte-identical ON THE WIRE (same header
+name, same value): one secret delivery, not two.
 """
 import os
+import re
 import subprocess
 import tempfile
 
 CURL = "curl"                               # the production transport (MC 12570)
 WATCHDOG_GRACE_S = 5                        # hard subprocess stop, wedged curl
+_HOKNAVN = re.compile(r"[A-Za-z0-9:-]+")    # the config guard's name shape
+#                                         (MC 12616 c5, DA F-P3-1) — the
+#                                         shape BOTH door headers carry
 
 
 def _curl(args, *, timeout_s, stdin_data=b""):
@@ -59,20 +65,36 @@ def _curl_config(secret_headers, build_args, *, timeout_s, stdin_data=b""):
     created 0600), curl reads them via `--config @<path>`, and the file is
     unlinked in the finally. The content is never echoed or logged: this
     function never prints, and `_curl`'s failure path answers (0, b"").
-    `secret_headers` is a sequence of (namn, varde) ASCII pairs — a value
-    carrying a quote or a newline RAISES before a byte is written, so a
-    token value can never inject config lines. `build_args(config_arg)`
+    THE GUARD (MC 12616 c5, DA F-P3-1 — curl expands BACKSLASH escapes
+    inside the quoted value, measured as a genuine wire-newline injection
+    from a literal backslash-n): EVERY pair is validated BEFORE any file
+    exists — name full-matching [A-Za-z0-9:-]+, value free of `"`,
+    backslash and any non-printable ASCII — so a token value can never
+    inject config lines, and a rejected multi-header call writes nothing
+    at all (the DA's F-P4-3 wording face). `build_args(config_arg)`
     returns the caller's curl argv tail with the "@"-prefixed reference
     where it belongs; the argv that reaches /proc then carries ZERO
-    secret bytes (leg: test_door_post_token_absent_from_the_live_curl_cmdline)."""
+    secret bytes (legs: the live-curl-cmdline pair in
+    tests/test_door_transport.py, both doors)."""
+    for namn, varde in secret_headers:                # EVERY pair, BEFORE
+        if not _HOKNAVN.fullmatch(namn):              # a single byte of
+            raise ValueError("confighögardet ur formen — vägrar skriva")
+        if any(c in varde for c in '"\\\r\n') or not varde.isprintable():
+            raise ValueError("configvärdet ur formen — vägrar skriva")
     fd, path = tempfile.mkstemp(prefix="curl-hdr-")
     try:
         with os.fdopen(fd, "w", encoding="ascii") as fh:
             for namn, varde in secret_headers:
-                if '"' in varde or "\n" in varde or "\r" in varde:
-                    raise ValueError("configvärdet ur formen — vägrar skriva")
                 fh.write(f'header = "{namn}: {varde}"\n')
         return _curl(build_args("@" + path), timeout_s=timeout_s,
                      stdin_data=stdin_data)
     finally:
-        os.unlink(path)
+        try:
+            os.unlink(path)
+        except OSError:                              # DA c5 F-P4-2 (a real
+            try:                                     # 0600 leftover was
+                os.unlink(path)                      # witnessed): best-effort
+            except OSError:                          # SECOND unlink, then
+                pass                                 # stated residue — the
+                                                     # file is one header
+                                                     # line, 0600, uid-owned

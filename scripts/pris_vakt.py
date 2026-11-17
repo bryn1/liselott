@@ -8,7 +8,9 @@ git (MC 12546 owner ruling: Liselott's own password is copied NOWHERE):
   LISELOTT_URL     the site's own public edge; BOTH legs ride it (scope GET
                    `{base}/bibliotek`, door POST `{base}/pris`, HTTPS pinned
                    §6a). Missing => the tick goes RED before anything.
-  PRIS_DOOR_TOKEN  the dedicated door credential, sent as `X-Pris-Token`.
+  PRIS_DOOR_TOKEN  the dedicated door credential, sent as `X-Pris-Token`
+                   through the per-call 0600 `--config` tmpfile — never on
+                   argv (MC 12616 c5, DA F-P2-1).
                    Missing => RED before anything (the door answers 503
                    disarmed anyway — asking Bokus for a tick that cannot
                    bank is waste, not politeness).
@@ -62,8 +64,10 @@ sys.path.insert(0, str(ROOT))
 
 from scripts import pris_parse as pp      # noqa: E402
 from scripts import pris_state as st      # noqa: E402
-from scripts.curl_transport import _curl  # noqa: E402  (MC 12570 transport,
-                                          # shared with ai_rek_pass, MC 12601)
+from scripts.curl_transport import _curl, _curl_config   # noqa: E402
+                                          # (MC 12570 transport, shared with
+                                          # ai_rek_pass, MC 12601; secret
+                                          # headers via _curl_config, MC 12616)
 
 ENV_URL, ENV_TOKEN = "LISELOTT_URL", "PRIS_DOOR_TOKEN"
 PIN_EXE = Path.home() / ".cache/ms-playwright/chromium-1243/chrome-linux64/chrome"
@@ -101,14 +105,21 @@ def http_get(url):
 def door_post(url, token, rows):
     """The flush POST (§6e): JSON array of the five client-owned fields,
     `X-Pris-Token` on the dedicated header, the body via --data-binary @-
-    on stdin — the same _curl transport as the scope GET (MC 12570). ONE
-    try, then loud — §3's no-retry-loop. Returns (status, counters-dict);
-    non-200 gives 0-status or the door's own error shape, and the runner
-    never reads a body it cannot trust."""
-    status, body = _curl(
-        ["--request", "POST", "--header", "Content-Type: application/json",
-         "--header", "X-Pris-Token: " + token,
-         "--data-binary", "@-", url],
+    on stdin — the same transport as the scope GET (MC 12570). MC 12616
+    c5 (DA F-P2-1, fleet law "a shared fix reaches EVERY caller"): the
+    secret header rides `_curl_config`'s per-call 0600 --config file —
+    byte-identical ON THE WIRE (same name, same value), ZERO token bytes
+    on the nightly tick's /proc/<curl>/cmdline. (N4b/MC 12606 retires
+    this runner wholesale; this keeps the interval leak-free, minimal.)
+    ONE try, then loud — §3's no-retry-loop. Returns (status,
+    counters-dict); non-200 gives 0-status or the door's own error shape,
+    and the runner never reads a body it cannot trust."""
+    status, body = _curl_config(
+        [("X-Pris-Token", token)],
+        lambda config: ["--request", "POST",
+                        "--header", "Content-Type: application/json",
+                        "--config", config,
+                        "--data-binary", "@-", url],
         timeout_s=POST_TIMEOUT_S,
         stdin_data=json.dumps(rows).encode("utf-8"))
     if not 200 <= status < 300:

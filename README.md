@@ -560,9 +560,12 @@ LEADING `YYMMDD` token, 45 rows). Trust the plan's §5 rules, never the header.
   the payload is today's upsert, byte-identical. Fleet-side runner
   `scripts/ai_rek_pass.py`: `--full` sends the envelope (DEFAULT off —
   explicit opt-in); `--lane-timeout` sizes the Lane E ask budget (default
-  600 s — the shipped 300 died mid-generation, DA c4 P3). The runner's
-  door token never crosses argv: it rides a per-call 0600 `--config`
-  tmpfile, `/proc/<curl>/cmdline` clean (MC 12616, DA c3 P2).
+  600 s — the shipped 300 died mid-generation, DA c4 P3). Both fleet-side
+  door runners' tokens (this one and `X-Pris-Token`) never cross argv: the
+  secret header rides a per-call 0600 `--config` tmpfile — unlinked when
+  the call returns, its content never echoed, no path on the command line
+  carries a secret — so `/proc/<curl>/cmdline` is clean on BOTH doors
+  (MC 12616, DA c3 P2 + c5 F-P2-1).
 - `POST /backfill?n=5&after=<id>[&mode=candidates]` — the cover/ISBN retry and
   candidate-pool builder, resumable by `last_id` (cursor advances past
   permanent failures; wrap = fresh pass). Shares one pipeline with

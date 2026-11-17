@@ -1120,3 +1120,38 @@ postdating a line make that line STALE — de-stale before quoting it.
   ceiling, fixtures imported — 3 `tests/test_ai_rek_pass.py`);
   planted-red map in the commit body. exposure_check 0 findings.
   Nothing pushed. docs/ left untouched.
+- **MC 12616 c5 FIX WAVE (DA-verdict-c5, 2026-11-17, commit on top of
+  `b7b5a86` — not amended, the verdicts pin that hash)** — CORRECTION,
+  versioned truth (the row above stands, unrewritten): its
+  "STATED READING: … the card pins that caller's [pris_vakt] behaviour"
+  is VOID — DA c5 F-P2-1 read the board and the LEDGER: the card's 01:23
+  append says "owns token-argv fix (DA c3 P2)" and LEDGER:1079 moved the
+  finding to MC 12616 "both callers"; no ruling ever pinned pris, and
+  fleet law is a shared fix reaches EVERY caller. FIXED in this commit:
+  `pris_vakt.door_post` now rides `_curl_config` too — byte-identical ON
+  THE WIRE (same header name, same value), ZERO token bytes on the
+  nightly tick's /proc/<curl>/cmdline; its weld leg was UPDATED RED-FIRST
+  (`test_default_transports_ride_curl_argv`, the old `X-Pris-Token: <cred>`
+  in-argv assert replaced by the config-file assertions) and the PRIS
+  door got its own live-curl-cmdline leg
+  (`test_pris_door_post_token_absent_from_the_live_curl_cmdline`, RED
+  first with the token VERBATIM on the old shape). Minimal by design:
+  N4b (MC 12606) retires pris_vakt wholesale per owner ruling — this
+  closes the interval. F-P3-1: `_curl_config` now validates EVERY pair
+  BEFORE any file exists — header name `[A-Za-z0-9:-]+`, value free of
+  `"`, BACKSLASH (real curl expands `\`-escapes in quoted config values —
+  DA measured a genuine wire-newline injection from a literal `\n`) and
+  any non-printable; legs parametrized ×6 values + ×5 names with the
+  mkstemp-boomer (a created file fails the leg). F-P4-2 (P4): the
+  unlink is best-effort TWICE, a transient first failure neither raises
+  nor strands the 0600 file (leg `test_config_unlink_is_best_effort_twice`);
+  README names the config-file mechanism for BOTH doors (receipt hygiene,
+  no paths with secrets). Retired reading grep-to-zero in LIVE prose
+  (module docstrings rewritten; LEDGER/commit text keeps the history per
+  the append-only convention). Mutants red→green sha-verified: pris back
+  to argv-header → pris weld + pris /proc RED; guard backslash dropped →
+  the two backslash legs RED; second unlink removed → residue leg RED
+  (propagates); ai-rec door reverted → its /proc leg RED. Suite: before
+  782+1skip, after **795 passed + 1 skipped** exit 0 (+13 net c5 legs:
+  1 pris weld UPDATE + 12 new). exposure_check 0 findings. Nothing
+  pushed. docs/ left untouched.
