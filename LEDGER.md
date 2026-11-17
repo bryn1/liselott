@@ -1044,3 +1044,38 @@ postdating a line make that line STALE — de-stale before quoting it.
   book collision in the first synthetic isbn lane; the lane now rides the
   invalid ISBN group 9999 (the gate's red-proof, in passing). Nothing
   pushed. docs/ left untouched.
+
+- **MC 12601 c3 FIX-WAVE (DA-verdict-c3) — EVIDENCE CORRECTION + mix gate +
+  belt (2026-11-17).** CORRECTION (DA F-P2-1, re-verified by this seat's
+  own run before writing it): the M11-N5R line above claims the live demo's
+  25->24 was `one twin deduped by identity` / `fired on a real corpus twin`
+  — **CONTRADICTED, retired by this line**: the pinned corpus.tsv carries
+  ZERO identity twins (26 distinct wish_keys AND 26 distinct isbns; dedupe
+  over all 26 rows drops 0 — DA probe6 reproduced here), so the `REK
+  DUBLETT bort` the demo printed was the MODEL ECHOING one candidate row
+  twice inside its own answer, caught by the OUTPUT dedupe — the N1 guard
+  works (fixture legs green), the ATTRIBUTION was false; the c3 re-run of
+  the live demo echoed the same row again (same REK DUBLETT line), fitting
+  the correction exactly. SUPERSEDED with it: the `alias table is the app's
+  ONLY spelling mechanism` repair sentence (DA F-P2-2c) — seed.book_key
+  alias-resolves AUTHOR names only, titel is never looked up (probe3), so
+  it can never repair a title misspelling, and the table is NOT empty (15
+  off-repo entries); the working repair is data-side (MC 12617 shelf-exact
+  corpus rebase). The old line is kept as versioned truth, never rewritten.
+  ADDED by this wave (same commit): (2) the MIX GATE — output without >=1
+  nyhet AND >=1 klassiker REFUSES the generation, exit 6, ZERO POSTs (owner
+  scope, the owner's own words: `newly released books as well as classics`);
+  legs nyhet-only-refuses / klassiker-only-refuses / mixed-rides; live demo
+  re-run: real output 10 nyhet + 9 klassiker + 5 blandad rides, exit 0,
+  INGET POSTAT. (3) belt F-C3-1 (tester's L11): `by_isbn` is now the
+  OFFERED set — an isbn naming a corpus row the join DROPPED as owned is
+  refused post-parse even when the model names it back (leg
+  test_owned_book_named_back_is_refused; planted-red: gate forced off =>
+  2/2 mix legs + the belt leg go RED, sha-verified restores). (4) hygiene:
+  ai_rek_pass.py carries the proper header size reason (468 > 400, one-
+  gate-chain rationale) — stated call: REASON, not split (splitting would
+  scatter the one-path guarantee; tests file 443 lines <= 600). The
+  token/`--config` argv finding is NOT this wave's (moved to MC 12616,
+  both callers). Suite: before 765+1skip, after **769 passed + 1 skipped**
+  exit 0, zero regressions. exposure_check 0 findings exit 0. Nothing
+  pushed. docs/ left untouched.

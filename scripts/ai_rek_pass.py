@@ -1,4 +1,10 @@
 #!/usr/bin/env python3
+# 468 lines > 400 (MC 12601 c3 fix-wave): the WHOLE generation contract —
+# corpus shape, the join, the ONE lane envelope, every code gate and the
+# door delivery — is one unchecked-nothing-can-pass chain; splitting it
+# scatters the single guarantee ("between corpus.tsv and the door there is
+# exactly one path") across files, which is the failure mode the gate list
+# in the docstring exists to prevent (coding-discipline header reason).
 """MC 12601 (M11-N5R) — the generation runner for "AI rekommenderar".
 
 Runs FLEET-side (VM350), never inside the app: it reads the PUBLIC shelf
@@ -54,6 +60,12 @@ Gates BEFORE a byte reaches the door (all in code, none in the prompt):
                  mix the card says is already in the corpus.
   floor          fewer than MIN_OUTPUT_ROWS accepted rows => REFUSE the
                  POST, loud, non-zero: a thin generation is a failed one.
+  mix            the accepted output carries <1 nyhet OR <1 klassiker =>
+                 REFUSE, loud, non-zero, ZERO POSTs (owner scope, the
+                 owner's own task words: "newly released books as well as
+                 classics" — a generation that answers only one half of
+                 that promise is not the promised generation; DA c3 FIX
+                 item 2). blandad rows are welcome, never load-bearing.
   taste          zero graded rows from --library => REFUSE, loud, non-zero,
                  BEFORE the lane ask (MC 12602 scope row 2: "based on the
                  current graded library" must be real).
@@ -76,15 +88,19 @@ KNOWN LIMITS, documented not papered over:
   DECLINE-FLIP RACE (carry N2, app-side P3): unreachable from this runner
   lane — the runner is the single writer; the race needs the owner's
   browser flip landing mid-ingest, which is app-side.
-  OWNED-BOOK TITLE SPELLINGS (measured on the live demo 2026-11-17): the
-  corpus ships some titles with an English subtitle tail while the shelf
-  grades the plain title — wish_key cannot unify the two spellings, so one
-  already-graded book was offered (the lane's own reason even cited her
-  rating for it). The mechanism that fixes it is the app's ONLY spelling
-  mechanism — the alias table (seed.app_aliases, owner-placed, empty on
-  this host); this runner deliberately adds NO second title normalizer
-  beside the §5.3 chain. (The diary's own strings are named nowhere here:
-  the exposure gate, scripts/exposure_check.py, counts this file.)
+  OWNED-BOOK TITLE SPELLINGS (measured on the live demo 2026-11-17, the
+  claim corrected by DA c3 F-P2-2c): the corpus ships some titles with a
+  subtitle tail while the shelf grades the plain title — wish_key cannot
+  unify the two spellings, so one already-graded book was offered (the
+  lane's own reason even cited her rating for it). RETIRED HERE: the earlier
+  sentence pointing at the alias table as the repair was DEAD for this
+  class — seed.book_key alias-resolves AUTHOR names only, titel is never
+  looked up (DA probe3), so no alias row can ever repair a TITLE misspelling
+  (and the table is NOT empty — 15 off-repo entries; the "empty on this
+  host" claim was also false). The repair that WORKS is data-side: the
+  shelf-exact corpus rebase (MC 12617). This runner deliberately adds NO
+  second title normalizer beside the §5.3 chain. (The diary's own strings
+  are named nowhere here: the exposure gate counts this file.)
 """
 import argparse
 import csv
@@ -268,7 +284,7 @@ def parse_ranking(text):
     return data
 
 
-def _validera(ranking, by_isbn, *, say):
+def _validera(ranking, by_isbn, agnas_isbn, *, say):
     """The anti-hallucination + fit gates, in CODE — carry N3 cited here:
     nothing can mint a POST row outside `by_isbn`, the loaded corpus.tsv
     rows. Title/author/year/source/kategori ride the CORPUS row, never the
@@ -288,9 +304,13 @@ def _validera(ranking, by_isbn, *, say):
                 and isbn.isascii()):
             neka("isbn13 saknas eller har fel form")
             continue
-        ref = by_isbn.get(isbn)
-        if ref is None:                       # ANTI-HALLUCINATION (N3): the
-            neka(f"isbn13 {isbn} finns inte i corpus")   # corpus IS the set
+        ref = by_isbn.get(isbn)               # the OFFERED set is the
+        if ref is None:                       # accepted set: N3 keeps rows
+            if isbn in agnas_isbn:            # outside the corpus out, the
+                neka(f"isbn13 {isbn} är en ägd bok som föll i join "     # F-C3-1
+                     "— nekad (F-C3-1)")      # belt keeps owned drop-outs
+            else:                             # out EVEN WHEN named back
+                neka(f"isbn13 {isbn} finns inte i corpus")
             continue
         fit = rad.get("fit")
         if (isinstance(fit, bool) or not isinstance(fit, (int, float))
@@ -356,7 +376,8 @@ def run_pass(corpus_path, library_url, base, *, dry_run=False,
     """One generation end-to-end; returns the process exit code. Seam
     layout is pris_vakt.run_tick's: every external touch injectable, so the
     whole contract tests with zero network. Exit: 0 ok; 2 input/config
-    refused; 3 lane answer refused; 4 floor not met; 5 door refused."""
+    refused; 3 lane answer refused; 4 floor not met; 5 door refused;
+    6 mix condition not met (nyhet AND klassiker owed, one not delivered)."""
     say = say or (lambda line: print(line, flush=True))
 
     rows, fel = read_corpus(corpus_path)
@@ -374,10 +395,16 @@ def run_pass(corpus_path, library_url, base, *, dry_run=False,
 
     agda_nycklar = {onska.wish_key(c["title"], c["author"]) for c in graded}
     agda_isbn = {c["isbn13"] for c in graded if c.get("isbn13")}
-    by_isbn = {r["isbn13"]: r for r in rows}
     kandidater = [r for r in rows
                   if r["nyckel"] not in agda_nycklar
                   and r["isbn13"] not in agda_isbn]
+    # F-C3-1 (DA c3 item 3, the tester's L11): the accepted set IS the
+    # OFFERED set — an isbn naming a corpus row the join DROPPED as owned
+    # is refused post-parse even when the model names it back (the belt
+    # runs after the prompt was already clean; the prompt is intent, this
+    # is the guarantee).
+    by_isbn = {r["isbn13"]: r for r in kandidater}
+    agnas_isbn = {r["isbn13"] for r in rows if r["isbn13"] not in by_isbn}
     say(f"REK korpus={len(rows)} drogs_bort={len(rows) - len(kandidater)} "
         f"kandidater={len(kandidater)} betygssatta={len(graded)}")
     if not kandidater:
@@ -389,14 +416,20 @@ def run_pass(corpus_path, library_url, base, *, dry_run=False,
     except (ValueError, KeyError, urllib.error.URLError, OSError) as e:
         say(f"ALARM lane-svar avvisas: {type(e).__name__}: {e} — noll POST")
         return 3
-    godkanda = dedupe_identitet(_validera(ranking, by_isbn, say=say), say=say)
+    godkanda = dedupe_identitet(
+        _validera(ranking, by_isbn, agnas_isbn, say=say), say=say)
     say(f"REK godkanda={len(godkanda)} av {len(ranking)} poster "
         f"(golv {MIN_OUTPUT_ROWS})")
     if len(godkanda) < MIN_OUTPUT_ROWS:       # thin generation = failed one
         say(f"ALARM för tunn generation: {len(godkanda)} < {MIN_OUTPUT_ROWS} "
             "rader — vägrar POST")
         return 4
-
+    kategorier = {p["kategori"] for p in godkanda}
+    if not {"nyhet", "klassiker"} <= kategorier:      # owner scope: "newly
+        saknade = sorted({"nyhet", "klassiker"} - kategorier)   # released
+        say(f"ALARM blandningsvillkor: output saknar {','.join(saknade)} "
+            "— minst en nyhet OCH en klassiker krävs, vägrar POST")        # books
+        return 6                              # as well as classics
     if dry_run:                               # prints; the ONLY skipped POST
         say("DRY-RUN-RADER " + json.dumps(godkanda, ensure_ascii=False))
         say(f"DRY-RUN: {len(godkanda)} rankade rader utskrivna, INGET POSTAT")

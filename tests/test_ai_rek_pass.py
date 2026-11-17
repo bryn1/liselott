@@ -33,6 +33,11 @@ sha-verified restore) is mapped in the commit body.
                        body == the ranked JSON rows, {base}/ai-rek
   token shape          malformed AI_REC_DOOR_TOKEN => refuse before the
                        door; the VALUE never appears in any output line
+  mix gate             nyhet-only refuses (exit 6), klassiker-only refuses
+                       (exit 6), a mixed generation rides (owner scope:
+                       "newly released books as well as classics", DA c3)
+  owned-named-back     an isbn naming a JOIN-DROPPED owned corpus row is
+                       refused post-parse (belt F-C3-1, the tester's L11)
 ONE live-optional leg (real Lane E) is skipped unless AI_REK_LIVE=1.
 """
 import json
@@ -74,15 +79,19 @@ def isbn(i):
     return f"9999100{i:06d}"
 
 
+KATERS = ("new_release", "classic", "mix")
+
+
 def korpus_tsv(path, n=21, title=lambda i: f"Bok {i}",
-                author=lambda i: f"Upp {i}"):
+                author=lambda i: f"Upp {i}",
+                category=lambda i: KATERS[i % 3]):
     with open(path, "w", newline="", encoding="utf-8") as fh:
         fh.write("\t".join(rp.CORPUS_COLS) + "\n")
         for i in range(n):
             fh.write("\t".join([
                 isbn(i), title(i), author(i), "2024", f"why {i}",
                 f"https://rec.example/{i}", f"quote {i}", f"fit-note {i}",
-                "mix", "2024 VERIFIED", "firecrawl", "xsearch:1",
+                category(i), "2024 VERIFIED", "firecrawl", "xsearch:1",
                 "VERIFIED"]) + "\n")
     return path
 
@@ -127,11 +136,11 @@ GRADERADE = [{"title": "En helt annan bok", "author": "Annat Namn",
 
 
 def kör(mp, tmp_path, *, n=21, graded=GRADERADE, lane_text=None, post=None,
-        dry=False, token="a" * 64):
+        dry=False, token="a" * 64, category=lambda i: KATERS[i % 3]):
     """One full run over faked seams; `mp` owns the token env (the delivery
     legs ride a VALID 64-hex token unless a leg names its own)."""
     mp.setenv(rp.ENV_TOKEN, token)
-    ts = korpus_tsv(tmp_path / "corpus.tsv", n=n)
+    ts = korpus_tsv(tmp_path / "corpus.tsv", n=n, category=category)
     lane = FakeLane(lane_text if lane_text is not None else svar_alla(n))
     post = post or FakePost()
     lines = []
@@ -367,6 +376,53 @@ def test_token_shape_guarded_never_echoed(tmp_path, monkeypatch):
     assert code == 2 and post.calls == []
     assert any("fel form" in ln for ln in lines)
     assert not any(hemligt in ln for ln in lines)
+
+
+def test_mix_gate_refuses_nyhet_only(tmp_path, monkeypatch):
+    """Owner scope ("newly released books as well as classics", DA c3 item
+    2): an output carrying only nyhet is NOT the promised generation =>
+    refuse, exit 6, ZERO POSTs."""
+    post = FakePost()
+    code, lines, _, _ = kör(monkeypatch, tmp_path, post=post,
+                            category=lambda i: "new_release")
+    assert code == 6 and post.calls == []
+    assert any("blandningsvillkor" in ln and "klassiker" in ln
+               for ln in lines)
+
+
+def test_mix_gate_refuses_klassiker_only(tmp_path, monkeypatch):
+    """The mirror leg: klassiker-only output refuses too — the gate checks
+    BOTH halves, not one + default."""
+    post = FakePost()
+    code, lines, _, _ = kör(monkeypatch, tmp_path, post=post,
+                            category=lambda i: "classic")
+    assert code == 6 and post.calls == []
+    assert any("blandningsvillkor" in ln and "nyhet" in ln for ln in lines)
+
+
+def test_mix_gate_mixed_rides(tmp_path, monkeypatch):
+    """Both halves present => the generation rides the door unchanged."""
+    post = FakePost()
+    code, _, _, post = kör(monkeypatch, tmp_path, post=post)
+    assert code == 0 and len(post.calls) == 1
+    kats = {r["kategori"] for r in post.calls[0][2]}
+    assert {"nyhet", "klassiker"} <= kats
+
+
+def test_owned_book_named_back_is_refused(tmp_path, monkeypatch):
+    """F-C3-1 (the tester's L11): the model names back the isbn of a corpus
+    row the JOIN dropped as owned — post-parse the belt refuses it even
+    though the row exists in corpus.tsv; the offered set is the accepted
+    set. All other rows ride."""
+    graded = [{"title": "Bok 0", "author": "Upp 0", "rating": 4}]
+    post = FakePost()
+    code, lines, _, post = kör(
+        monkeypatch, tmp_path, graded=graded, n=22, post=post,
+        lane_text=svar([isbn(i) for i in range(22)]))   # ägda raden med!
+    assert code == 0
+    assert any(isbn(0) in ln and "F-C3-1" in ln for ln in lines)
+    posted = [r["isbn13"] for r in post.calls[0][2]]
+    assert isbn(0) not in posted and len(posted) == 21
 
 
 @pytest.mark.skipif(os.environ.get("AI_REK_LIVE") != "1",
