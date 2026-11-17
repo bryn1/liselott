@@ -73,9 +73,12 @@ Gates BEFORE a byte reaches the door (all in code, none in the prompt):
 Delivery: POST {base}/ai-rek through curl_transport (ONE transport for
 both door runners — this card's shared extraction). The credential from
 env AI_REC_DOOR_TOKEN rides the `X-Ai-Rek-Token` header through curl's
-`--config @<per-call 0600 tmpfile>` (MC 12616, DA c3 P2 — the reproduced
-/proc/<curl>/cmdline leak: ZERO token bytes on the child's argv, leg-
-proved against a live curl child), 64-hex asserted through the door's OWN
+PLAIN `--config <per-call 0600 tmpfile>` form (MC 12616, DA c3 P2 — the
+reproduced /proc/<curl>/cmdline leak: ZERO token bytes on the child's
+argv, leg-proved against a live curl child; DA c6 F-P1-1: NOT the `@`
+form — curl silently ignores it and the header never arrives, the
+real-wire delivery legs in tests/test_door_transport.py hold arrival),
+64-hex asserted through the door's OWN
 TOKEN_SHAPE, the value never echoed. --dry-run prints the ranked JSON and
 POSTS NOTHING (the door POST is the ONLY thing dry-run skips — the shelf
 read and the lane ask still run, else the demo would prove nothing).

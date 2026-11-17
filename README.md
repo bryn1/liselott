@@ -555,17 +555,21 @@ LEADING `YYMMDD` token, 45 rows). Trust the plan's §5 rules, never the header.
   new generation — the door then deletes the `state='new'` rows whose
   identity is ABSENT from it (identity = the same `rec_key` ∪ isbn ∪
   `wish_key` union the upsert matches on, one mechanism) and the answer
-  gains `deleted_n`; `accept`/`decline` rows are NEVER deleted, and an
-  EMPTY generation is refused fail-loud (400, rows kept). Without the key
+  gains `deleted_n` — that counter names SWEEP deletions only: rows the
+  upsert MERGED under an existing `duppar` id are not counted in it
+  (MC 12616, DA c5 F-P4-5). `accept`/`decline` rows are NEVER deleted,
+  and an EMPTY generation is refused fail-loud (400, rows kept). Without the key
   the payload is today's upsert, byte-identical. Fleet-side runner
   `scripts/ai_rek_pass.py`: `--full` sends the envelope (DEFAULT off —
   explicit opt-in); `--lane-timeout` sizes the Lane E ask budget (default
   600 s — the shipped 300 died mid-generation, DA c4 P3). Both fleet-side
   door runners' tokens (this one and `X-Pris-Token`) never cross argv: the
-  secret header rides a per-call 0600 `--config` tmpfile — unlinked when
-  the call returns, its content never echoed, no path on the command line
-  carries a secret — so `/proc/<curl>/cmdline` is clean on BOTH doors
-  (MC 12616, DA c3 P2 + c5 F-P2-1).
+  secret header rides a per-call 0600 `--config` tmpfile — the PLAIN path
+  form, NOT `--config @<path>`: curl silently ignores the `@` form and
+  posts WITHOUT the header (DA c6 F-P1-1; real-wire delivery legs pin
+  arrival) — unlinked when the call returns, its content never echoed, no
+  path on the command line carries a secret, so `/proc/<curl>/cmdline` is
+  clean on BOTH doors (MC 12616, DA c3 P2 + c5 F-P2-1).
 - `POST /backfill?n=5&after=<id>[&mode=candidates]` — the cover/ISBN retry and
   candidate-pool builder, resumable by `last_id` (cursor advances past
   permanent failures; wrap = fresh pass). Shares one pipeline with

@@ -107,10 +107,16 @@ def door_post(url, token, rows):
     `X-Pris-Token` on the dedicated header, the body via --data-binary @-
     on stdin — the same transport as the scope GET (MC 12570). MC 12616
     c5 (DA F-P2-1, fleet law "a shared fix reaches EVERY caller"): the
-    secret header rides `_curl_config`'s per-call 0600 --config file —
-    byte-identical ON THE WIRE (same name, same value), ZERO token bytes
-    on the nightly tick's /proc/<curl>/cmdline. (N4b/MC 12606 retires
-    this runner wholesale; this keeps the interval leak-free, minimal.)
+    secret header rides `_curl_config`'s per-call 0600 --config file,
+    ZERO token bytes on the nightly tick's /proc/<curl>/cmdline. c5
+    claimed that delivery "byte-identical ON THE WIRE" on FABRICATED
+    curl results — FALSE per DA c6 F-P1-1 (the `@`-form was ignored, no
+    header arrived). Fix-wave 2's TRUE and WIRE-LEG-BACKED statement:
+    the PLAIN `--config <path>` form delivers the header byte-exact and
+    the raw capture is byte-identical to the old header-as-argv request
+    (the real-wire legs in tests/test_door_transport.py, local listener,
+    no fabricated curl anywhere). (N4b/MC 12606 retires this runner
+    wholesale; this keeps the interval leak-free AND working, minimal.)
     ONE try, then loud — §3's no-retry-loop. Returns (status,
     counters-dict); non-200 gives 0-status or the door's own error shape,
     and the runner never reads a body it cannot trust."""

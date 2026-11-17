@@ -1155,3 +1155,55 @@ postdating a line make that line STALE — de-stale before quoting it.
   782+1skip, after **795 passed + 1 skipped** exit 0 (+13 net c5 legs:
   1 pris weld UPDATE + 12 new). exposure_check 0 findings. Nothing
   pushed. docs/ left untouched.
+- **MC 12616 FIX-WAVE 2 (DA-verdict-c6 F-P1-1 P1, 2026-11-17, commit on
+  top of `13a50b2` — not amended, the verdicts pin that hash)** —
+  CORRECTION, versioned truth (the c5 rows above stand, unrewritten):
+  their "byte-identical ON THE WIRE" — and the module docstring, both
+  runner docstrings and the two test docstrings that repeated it — was
+  asserted on FABRICATED curl results and was FALSE (DA c6 F-P1-1,
+  measured): curl 7.81 silently IGNORES `--config @<path>` (the `@` form
+  is include-syntax for INSIDE config files only), WARNs once and posts
+  WITHOUT the header — 297 → 217 wire bytes on pris, ZERO header
+  occurrences live on both doors; the /ai-rek door had been broken since
+  b7b5a86, pris since 13a50b2. Doors failed CLOSED (uniform 401, exit
+  5/1 loud, no leak, no data loss) — P1, not P0. THE FIX: the ONE site
+  `build_args("@" + path)` → PLAIN `build_args(path)`; DA's own A/B
+  proved the plain-form capture byte-identical (port-normalized) to the
+  header-as-argv parent — the claim is TRUE of the fix and now held by
+  the class the suite LACKED: REAL-WIRE delivery legs (local listener,
+  raw capture, no fabricated curl): 
+  `test_pris_door_delivers_the_token_header_on_the_wire`,
+  `test_ai_rek_door_delivers_the_token_header_on_the_wire`,
+  `test_config_delivery_is_wire_identical_to_the_argv_header_form`.
+  RED-FIRST against the broken tree (raw capture printed tokenless),
+  GREEN on the plain form; re-planted `@` after the fix turns both wire
+  legs RED again. All five false claims REWRITTEN truthfully in live
+  prose (curl_transport module+function docstrings, pris_vakt.door_post,
+  ai_rek_pass delivery paragraph, both test-file docstrings + the weld
+  comments — in-process legs now say SHAPE, wire legs carry ARRIVAL).
+  F-P4-6: value guard gains `isascii()` BEFORE mkstemp (printable
+  non-ASCII passed isprintable, created the file and wrote header #1's
+  secret bytes before UnicodeEncodeError); parametrized legs `café` +
+  the emoji refuse with mkstemp boomed (ZERO bytes). F-P4-7 honesty:
+  the docstring now NAMED the crash class the double unlink cannot
+  cover (SIGKILL between mkstemp and finally strands the 0600 file —
+  HOUSEKEEPING: 5 pre-fix 0600 token tmpfiles sit in /tmp, stat-only
+  observed by the DA and by me; the ORCHESTRATOR clears them separately,
+  NOT this commit; signal-safe cleanup is a future runner card).
+  F-P4-8a LANDED (carried twice): README names that `deleted_n` counts
+  SWEEP deletions only, duppar-merge rows not counted. The THREE wire
+  legs run the REAL production curl binary against a local listener —
+  host evidence, not a fixture (the two guard params prove the zero-byte
+  refuse with a boomed mkstemp). Mutants: `@` re-inserted → ALL THREE wire
+  legs RED (sha-verified restore); suite: before 795+1skip, after
+  **800 passed + 1 skipped** exit 0 (+5: 3 wire legs + 2 guard params).
+  EXPOSURE CATCH PRE-COMMIT: the gate went RED on the test file — the
+  DA probe3 template's dummy ISBN (prefix 978 + ten zeros — described by
+  shape, never quoted, the value itself is a real line in the private
+  real-ISBN list and stays out of tracked text) was carried into the two
+  copied wire fixtures; swapped to `9781234567890` (gate-verified NOT on
+  the list — no list content ever echoed), the legs re-green, exposure
+  back to 0 findings. Then THIS row's own first draft quoted the value
+  and the gate caught the LEDGER too — the gate caught exposures INSIDE
+  MC 12616's own wave twice, pre-commit; that is the instrument working.
+  Nothing pushed. docs/ left untouched.

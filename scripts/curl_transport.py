@@ -13,8 +13,16 @@ leak). `_curl`'s signature is UNCHANGED — it stays the plain path the
 GETs ride. MC 12616 c5 (DA F-P2-1): the first wave's "pris keeps the
 header-as-argv path" reading was VOID — the card append and LEDGER:1079
 charge BOTH callers and no ruling ever pinned pris — so BOTH door
-runners now ride `_curl_config`, byte-identical ON THE WIRE (same header
-name, same value): one secret delivery, not two.
+runners now ride `_curl_config`: one secret delivery, not two.
+MC 12616 fix-wave 2 (DA c6 F-P1-1 P1) TRUTHS the wire claim: c5's
+"byte-identical ON THE WIRE" was asserted on FABRICATED curl results and
+was FALSE — `--config @<path>` is silently ignored by curl (the @ form
+is include-syntax for inside config files), so the header NEVER arrived.
+The transport ships the PLAIN `--config <path>` form now, and WIRE
+ARRIVAL + byte-identity to the header-as-argv form are held by REAL-
+REQUEST legs against a local listener (tests/test_door_transport.py:
+the two …delivers_the_token_header_on_the_wire legs + the argv-form
+byte-comparison leg), not by in-process fixtures.
 """
 import os
 import re
@@ -62,32 +70,52 @@ def _curl_config(secret_headers, build_args, *, timeout_s, stdin_data=b""):
     """MC 12616 (DA c3 P2, the reproduced /proc/<curl>/cmdline leak) — the
     delivery that keeps SECRET header bytes OUT of the child's argv: the
     named headers are written to a per-call tmpfile (tempfile.mkstemp —
-    created 0600), curl reads them via `--config @<path>`, and the file is
-    unlinked in the finally. The content is never echoed or logged: this
+    created 0600), curl reads them via the PLAIN `--config <path>` form,
+    and the file is unlinked in the finally. The content is never echoed or logged: this
     function never prints, and `_curl`'s failure path answers (0, b"").
-    THE GUARD (MC 12616 c5, DA F-P3-1 — curl expands BACKSLASH escapes
-    inside the quoted value, measured as a genuine wire-newline injection
-    from a literal backslash-n): EVERY pair is validated BEFORE any file
-    exists — name full-matching [A-Za-z0-9:-]+, value free of `"`,
-    backslash and any non-printable ASCII — so a token value can never
-    inject config lines, and a rejected multi-header call writes nothing
-    at all (the DA's F-P4-3 wording face). `build_args(config_arg)`
-    returns the caller's curl argv tail with the "@"-prefixed reference
-    where it belongs; the argv that reaches /proc then carries ZERO
-    secret bytes (legs: the live-curl-cmdline pair in
-    tests/test_door_transport.py, both doors)."""
+    THE PLAIN FORM (MC 12616 fix-wave 2, DA c6 F-P1-1 P1): curl gets the
+    tmpfile path as `--config <path>` — NOT `--config @<path>`: the `@`
+    is include-syntax for INSIDE config files, curl 7.81 parses "@/tmp/…"
+    as a FILE NAMED that, WARNs once and SENDS THE REQUEST ANYWAY WITHOUT
+    THE HEADER (measured 297 → 217 wire bytes). The old in-process legs
+    could not see it — every c5 claim of wire identity was asserted on
+    FABRICATED curl results and was FALSE. What is true now, and is held
+    by REAL-WIRE legs (a local listener capturing the raw request, both
+    doors): the header ARRIVES byte-exact, and the capture is BYTE-
+    IDENTICAL to the header-as-argv form it replaces (port-normalized,
+    test_config_delivery_is_wire_identical_to_the_argv_header_form).
+    THE GUARD (MC 12616 c5 F-P3-1 + c6 F-P4-6 — curl expands BACKSLASH
+    escapes inside the quoted value, measured as a genuine wire-newline
+    injection; and printable NON-ASCII passes isprintable() but dies
+    mid-WRITE after header #1's secret bytes are already in the file):
+    EVERY pair is validated BEFORE any file exists — name full-matching
+    [A-Za-z0-9:-]+, value ASCII, printable, and free of `"`, backslash,
+    CR, LF — so a token value can never inject config lines and a
+    rejected call creates NO file and writes NO bytes, every call shape.
+    (The empty value is accepted — `header = "X: "\n` is inert; neither
+    runner can produce one, DA c6 F-P4-6 note.) THE RESIDUE HONESTY
+    (DA c6 F-P4-7): the best-effort double unlink covers TRANSIENT
+    failures; a SIGTERM/SIGKILL between mkstemp and the finally — the
+    killed-tick class — can still strand the 0600 file (five pre-fix
+    witnesses on this host, stat-only). Signal-safe cleanup
+    (tmpreaper/tmpfiles.d/handler) is a future runner card, NOT this
+    transport's promise; `build_args(config_arg)` takes the PLAIN path,
+    and the argv that reaches /proc carries ZERO secret bytes (legs: the
+    live-curl-cmdline pair, both doors)."""
     for namn, varde in secret_headers:                # EVERY pair, BEFORE
         if not _HOKNAVN.fullmatch(namn):              # a single byte of
             raise ValueError("confighögardet ur formen — vägrar skriva")
-        if any(c in varde for c in '"\\\r\n') or not varde.isprintable():
+        if not varde.isascii() or not varde.isprintable():   # c6 F-P4-6:
+            raise ValueError("configvärdet ur formen — vägrar skriva")
+        if any(c in varde for c in '"\\\r\n'):
             raise ValueError("configvärdet ur formen — vägrar skriva")
     fd, path = tempfile.mkstemp(prefix="curl-hdr-")
     try:
         with os.fdopen(fd, "w", encoding="ascii") as fh:
             for namn, varde in secret_headers:
                 fh.write(f'header = "{namn}: {varde}"\n')
-        return _curl(build_args("@" + path), timeout_s=timeout_s,
-                     stdin_data=stdin_data)
+        return _curl(build_args(path), timeout_s=timeout_s,     # PLAIN
+                     stdin_data=stdin_data)                     # form (c6)
     finally:
         try:
             os.unlink(path)

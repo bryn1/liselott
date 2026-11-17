@@ -511,7 +511,7 @@ class FakeCurl:
     def __call__(self, argv, **kw):
         self.calls.append((argv, kw))
         if "--config" in argv:
-            path = argv[argv.index("--config") + 1][1:]
+            path = argv[argv.index("--config") + 1]   # PLAIN path (c6)
             with open(path, "rb") as fh:
                 self.konfig.append((path, os.stat(path).st_mode & 0o777,
                                     fh.read()))
@@ -529,8 +529,13 @@ def test_default_transports_ride_curl_argv(tmp_path, monkeypatch):
     asserted `X-Pris-Token: <token>` INSIDE argv, the /proc/<curl>/cmdline
     leak class on the nightly tick (updated to the new shape, never
     silently deleted): the secret header now rides the per-call 0600
-    --config tmpfile, byte-identical ON THE WIRE (same name, same value),
-    ZERO token bytes in argv, the file unlinked when the call returns."""
+    --config tmpfile (PLAIN path — the "@" form is silently ignored by
+    curl, DA c6 F-P1-1), ZERO token bytes in argv, the file unlinked when
+    the call returns. This leg pins the SHAPE; wire ARRIVAL and byte-
+    identity to the replaced header-as-argv request are proven by the
+    real-wire legs in tests/test_door_transport.py (local listener, no
+    fabricated curl) — c5's claim here rested on fabricated results and
+    was FALSE until those legs existed."""
     curl = FakeCurl(post_body=b'{"accepted": 2}')
     monkeypatch.setattr(ct.subprocess, "run", curl)
     assert pv.http_get("https://sibbamala.test/liselott/bibliotek") == (200, "")
@@ -547,7 +552,9 @@ def test_default_transports_ride_curl_argv(tmp_path, monkeypatch):
     assert len(curl.konfig) == 1
     path, mode, innehall = curl.konfig[0]
     assert innehall == ('header = "X-Pris-Token: ' + DOOR_CRED + '"\n'
-                        ).encode()                     # byte-identical wire
+                        ).encode()   # the ONE header line, byte-exact —
+                                     # ARRIVAL is the wire legs' claim
+                                     # (test_door_transport.py), not this
     assert mode == 0o600
     assert not any(DOOR_CRED in del_a for del_a in argv)   # ZERO token bytes
     assert "X-Pris-Token" not in " ".join(argv)            # not even the name
