@@ -1536,7 +1536,7 @@ postdating a line make that line STALE — de-stale before quoting it.
   exit 2 + no INTE-DUE line. (5) F-DA12-5: the 1 MB rotation runs ONLY
   under the flock. (6) F-DA12-6: docs fixed to TRUTH at all three sites
   (state_dir docstring, README row, agent-town infra/services/ai-rek/
-  README — landed agent-town-side 94076065..NEW): rehearsal stamps are NOT
+  README — landed agent-town-side 94076065..73c1d1f7): rehearsal stamps are NOT
   state-dir files; they live in the belt's own rehearsal dir — system tmp,
   and under systemd the tick's PRIVATE tmp, which is the better property
   (a stale stamp never authorizes a later --full); chose the doc-fix over
