@@ -8,7 +8,9 @@ every card links the bok page and paints its cover through url_for; graded
 books carry stars WITH an aria-label (never a decoration alone); /bok/<id>
 shows title, authors, year, the format WORD, a Swedish date and the notes; a
 row without a cover carries the fix-me link to /redigera/<id> (§9 — the bok
-page only, never the cover route); an unknown id is a 404 that echoes nothing.
+page only, never the cover route), and since MC 12493 that entry into
+/redigera/<id> stands on EVERY row of her page — the copy is what switches on
+the cover; an unknown id is a 404 that echoes nothing.
 """
 import sqlite3
 from datetime import datetime, timezone
@@ -167,12 +169,17 @@ def test_bok_page_cover_img_uses_the_cover_route(shelf):
     assert 'alt="Omslag till Nattfjärden"' in r.text
 
 
-def test_bok_page_shows_the_fix_me_link_only_without_a_cover(shelf):
+def test_bok_page_edit_entry_stands_always_with_the_fix_me_copy_only_without_a_cover(shelf):
+    """MC 12493: on HER page the entry into /redigera/<id> is always painted;
+    §9's fix-me COPY belongs to the coverless row only. (The full rule — the
+    anon bytes pinned, the public shelf/landing pins, the door actually
+    opening — is tested in tests/test_edit_path.)"""
     r = shelf.get("/liselott/bok/1")          # cover_path IS NULL
     assert "Omslag saknas — fixa" in r.text
     assert 'href="/liselott/redigera/1"' in r.text
-    covered = shelf.get("/liselott/bok/2")    # has a cover -> no fix-me row
+    covered = shelf.get("/liselott/bok/2")    # has a cover -> the quiet copy
     assert "Omslag saknas" not in covered.text
+    assert 'href="/liselott/redigera/2"' in covered.text
 
 
 def test_unknown_id_is_404_and_echoes_nothing(shelf):

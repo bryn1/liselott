@@ -1650,3 +1650,42 @@ postdating a line make that line STALE — de-stale before quoting it.
   Suite 768 passed + 1 skipped AT this commit (766+1 c1, +2 legs — the replay
   leg RUNS here, corpus present; a clean clone reports 767+2 with it skipped);
   exposure gate held list UNCHANGED vs base {LEDGER.md}. NOTHING pushed.
+
+- **MC 12493 (M9e) EDIT-PATH FIX — DONE (this commit):** her entry into
+  `/redigera/<id>` is ALWAYS painted on the bok page when `inloggad()`. The
+  defect: that ONE link lived inside
+  `{% if inloggad() and not bok.has_cover %}`, so once W16 covered 723/724
+  books the branch stopped painting and Edit / Inställningar / Ta bort were
+  unreachable except by typing the address — and the rating she must reach
+  every 20 graded books (owner ruling, verbatim: "Ai list refreshes each 20
+  books graded") opens from that same page. FIX = a COPY switch in the ONE
+  figcaption slot §9 already owned: no widget beside it, no new route, no
+  authz change — covered → the quiet "Redigera", coverless → §9's
+  "Omslag saknas — fixa" unchanged, `inloggad()` the only gate (MC 12497
+  stands: a public page paints no write door). Docs swept in the same commit
+  (README owner manual + its "No edit door for a book that HAS a cover"
+  known-limit bullet, now CURED; DESIGN.md §9 placeholder row; test_browse's
+  renamed leg + docstring) — grep for the retired claim returns zero outside
+  .audits/. New `tests/test_edit_path.py`, 4 named legs:
+  `test_owner_bok_page_with_cover_carries_the_edit_entry` RED at 3dfe2b4 on
+  `assert SLOT_COVERED in html` (test_edit_path.py:81 — her covered page
+  carried no link at all), green here;
+  `test_owner_bok_page_without_cover_keeps_the_action_copy`,
+  `test_anonymous_bok_page_is_the_pinned_page` (anon /bok/1 = 919 B d2be624b…,
+  /bok/2 = 1011 B 264eb655…, MEASURED at 3dfe2b4 before one line was edited,
+  `?v=` normalized) and `test_public_shelf_and_landing_pins_are_untouched`
+  (PIN_LANDING/PIN_SHELF/PIN_OWNER IMPORTED; tests/test_public_filter.py
+  carries a ZERO diff) green pre AND post. MUTATION PLANTS: link-shown-for-anon
+  (gate → `{% if true %}`) goes RED on the anon byte-pin leg —
+  (1021, 42cf8…) against the pinned (919, d2be62…); link-dropped-for-covered
+  (the old `and not bok.has_cover` restored) goes RED on leg 1; both reverted
+  byte-clean (template diff hash equal before/after). PUBLIC PIN PROOF: the
+  anon bok bytes AND the sealed shelf/landing/owner pins are green at this
+  commit, and `test_public_pages_paint_no_owner_door` holds. Suite 772 passed
+  + 1 skipped AT this commit (768+1 base, +4 legs) — run on the PINNED venv;
+  the seat's system interpreter carries uvicorn 0.52.4 and fails 4
+  server-spawning legs at intake BEFORE this change (named, not fixed here).
+  A clean clone of 3dfe2b4 measures 745+2, which CONTRADICTS the row above's
+  "a clean clone reports 767+2" — 22 personal-corpus-case legs drop out, not
+  1; reported for its owner, not restated. Exposure gate held list UNCHANGED
+  vs base {LEDGER.md}. NOTHING pushed.

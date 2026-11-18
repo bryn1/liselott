@@ -72,7 +72,10 @@ gradients-as-decoration, glassmorphism, carousels, hover-lift, icon fonts.
 - **Cover placeholder:** `omslag-saknas.svg` — paper-colored rect, thin line
   border, one muted word "omslag". Its alt/copy carries the fix-me hint
   ("Omslag saknas — fixa") linking `/redigera/<id>` only on the bok page,
-  never on `/cover/` (PLAN-c3 §9).
+  never on `/cover/` (PLAN-c3 §9). MC 12493: that figcaption IS the owner's
+  edit entry on every row of her page — a covered book reads a quiet
+  "Redigera" in the same slot, the copy being the only switch; still
+  `inloggad()`-gated, still never beside the slot as a second widget.
 - **Stars input:** five radios with `<span aria-hidden>` stars +
   `aria-label "Betyg N av 5"`.
 - **A11y:** all pages `lang="sv"`, single `h1`, visible `:focus-visible` ring

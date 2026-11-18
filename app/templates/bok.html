@@ -11,14 +11,20 @@
   <figure class="omslagsfig">
     <img class="omslag" src="{{ url_for('cover', book_id=bok.id) }}"
          alt="Omslag till {{ bok.title }}" width="340" height="510">
-    {% if inloggad() and not bok.has_cover %}
-    {# §9: the fix-me hint lives HERE (the bok page) and never on /cover/<id>,
-       which serves an image and has nowhere to put a link. The route is
-       /redigera/<id> — it lands in T5.2, so url_for would raise BuildError;
-       mount_url emits the same §6.5 SCRIPT_NAME-prefixed shape. MC 12497:
-       the hint is painted on the OWNER's pages only — /redigera is a write
-       door, and a public page carries no door into the edit surface. #}
-    <figcaption><a href="{{ mount_url('/redigera/' ~ bok.id) }}">Omslag saknas — fixa</a></figcaption>
+    {% if inloggad() %}
+    {# MC 12493 (M9e edit-path fix): this ONE figcaption IS the owner's edit
+       entry — always there when inloggad(), because W16 covered 723/724 books
+       and the old `and not bok.has_cover` gate took her only door to
+       /redigera/<id> away with it (Edit, Inställningar, Ta bort, and the
+       rating she must reach every 20 graded books — owner ruling: "Ai list
+       refreshes each 20 books graded"). ONE mechanism, a COPY switch: §9's
+       fix-me action copy stays on the coverless row, a covered row reads the
+       quiet "Redigera". Never on /cover/<id>, which serves an image. MC
+       12497 stands: /redigera is a write door, so a PUBLIC page paints no
+       door at all — its bytes are pinned in tests/test_edit_path. mount_url
+       emits §6.5's SCRIPT_NAME-prefixed shape. #}
+    {% set edit_label = "Omslag saknas — fixa" if not bok.has_cover else "Redigera" %}
+    <figcaption><a href="{{ mount_url('/redigera/' ~ bok.id) }}">{{ edit_label }}</a></figcaption>
     {% endif %}
   </figure>
   {# T5.1 (§1): grading UI = five radio stars, integers 1–5, no half-steps.
