@@ -1648,7 +1648,7 @@ postdating a line make that line STALE — de-stale before quoting it.
   desc field) — the stored-56 corpus is OUT/.tmp/wave15/vision.jsonl, named
   so by DA-verdict-c14 too; the replay leg points there.
   Suite 768 passed + 1 skipped AT this commit (766+1 c1, +2 legs — the replay
-  leg RUNS here, corpus present; a clean clone reports 767+2 with it skipped);
+  leg RUNS here, corpus present; a clean clone reports 745+2 with it and 21 further personal-corpus-case legs dropping — re-measured on git-archive clones by two seats, the earlier 767+2 figure miscounted the corpus surface);
   exposure gate held list UNCHANGED vs base {LEDGER.md}. NOTHING pushed.
 
 - **MC 12493 (M9e) EDIT-PATH FIX — DONE (this commit):** her entry into
@@ -1666,7 +1666,8 @@ postdating a line make that line STALE — de-stale before quoting it.
   (README owner manual + its "No edit door for a book that HAS a cover"
   known-limit bullet, now CURED; DESIGN.md §9 placeholder row; test_browse's
   renamed leg + docstring) — grep for the retired claim returns zero outside
-  .audits/. New `tests/test_edit_path.py`, 4 named legs:
+  .audits/ — this record row's own quotation of the retired wording is the sole exempted
+  hit (DA c16 named it). New `tests/test_edit_path.py`, 4 named legs:
   `test_owner_bok_page_with_cover_carries_the_edit_entry` RED at 3dfe2b4 on
   `assert SLOT_COVERED in html` (test_edit_path.py:81 — her covered page
   carried no link at all), green here;

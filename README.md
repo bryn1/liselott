@@ -124,8 +124,9 @@ tree actually is.
 - Covers: the build DB held **74 of 724** at T9.1 time (27 owner-chosen via
   upload/URL; 47 marked `enrich_fail=1` — no provider had one; the count
   moved 72→74 while that snapshot was written, a second bounded cover wave
-  running). Production serves **80 covers of 724** — orchestrator-measured
-  through the rapport door during the M8 run. The authority for any live
+  running). At M8 time production served **80 covers of 724** — orchestrator-measured
+  through the rapport door during the M8 run. Since then the cover program completed: the
+  2026-11-18 live census is **723 of 724** (one row without any findable cover; owner-ratified). The authority for any live
   count is `GET /rapa/omslag-rapport`, owner-session behind the login.
 
 ## För Liselott — så här använder du boken
@@ -693,8 +694,8 @@ remain vm106-ROOT actions — owner decision, never assumed.
   vm106 systemd unit/timer and the runner's 0600 token/env file still naming
   pris-vakt belong to the orchestrator's teardown row, named in the LEDGER.
 - Cover coverage: build DB 74/724 at T9.1 time (47 books provider-exhausted,
-  `enrich_fail=1`); production serves 80/724 (orchestrator rapport-measured
-  in the M8 run). The residual misses ride the fix-me loop (`/rapa/omslag`),
+  `enrich_fail=1`); production then served 80/724 (M8 rapport measurement);
+  the 2026-11-18 live census is 723/724 (owner-ratified). The residual misses ride the fix-me loop (`/rapa/omslag`),
   owner-driven — never a silent placeholder majority.
 - **Edit door — CURED at this commit (MC 12493, was: no door for a book that
   HAS a cover)**: `app/templates/bok.html` now paints its `/redigera/<id>`
