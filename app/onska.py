@@ -13,8 +13,12 @@ status token HERE (mark_read's law is the flip to READ — §5.11's one flip
 it owns, F-B/R4), and the delete door is T5.2's /ta-bort/<id> — one delete,
 not two. The wish rows the /onska page lists follow the ONE wish law
 `status == 'wishlist'` (F-A), at every render state, from ONE read.
+MC 12735 (M12 W3) added this module's READ face too: GET /slump (PLAN-M12
+§4, R3) — the quiet draw whose pool IS the wish rows, the same law at the
+same ONE place: one module for the wishlist's UI.
 """
 from datetime import date
+import random
 
 from flask import abort, render_template, request
 
@@ -91,6 +95,18 @@ def onskelistan(conn):
         [b for b in books.load_books(conn) if b["status"] == "wishlist"])
 
 
+def slump_pool(conn):
+    """THE draw's pool (MC 12735, PLAN-M12 §4): the SAME wish rows the page
+    lists — `status == 'wishlist'` through the ONE loader — in the loader's
+    OWN id order (a draw must be reproducible, and reproducibility starts
+    with a deterministic pool; the page's display sort would reorder rows and
+    a seed would mean nothing). F-A's law makes the page's list, the head
+    link's count and this pool ONE set by predicate: the failure the old wide
+    wording hid — a wide list, a narrow pool, "count > 0" yet the draw
+    answers "Önskelistan är tom." — cannot exist under one `== 'wishlist'`."""
+    return [b for b in books.load_books(conn) if b["status"] == "wishlist"]
+
+
 def init_onska(app):
 
     def _onska(vyan, fel):
@@ -106,6 +122,28 @@ def init_onska(app):
     def onska():
         conn = db.get_db()
         return _onska(onskelistan(conn), None)
+
+    @app.get("/slump")
+    def slump():
+        """MC 12735 (M12 W3, PLAN-M12 §4): the quiet draw. ONE calm bokkort
+        out of the wishlist, a quiet "Smaka på en annan" redraw link, the way
+        back to /onska. Owner-only BY GUARD (the path rides no PUBLIC_READ
+        list — the guard's uniform 302 answers an anonymous GET). The draw
+        goes through the MODULE NAME `random` so a test can hand the route a
+        seeded chooser (the house seam — determinism as a TEST property: the
+        row is never marked, consumed or remembered by being drawn; §4's
+        "no bookkeeping" keeps the page honest). An empty pool is the
+        template's ONE quiet line, never a dead card."""
+        pool = slump_pool(db.get_db())
+        return render_template("slump.html", current="onska",
+                               bok=random.choice(pool) if pool else None)
+
+    # The explicit slash rule beside the canonical one (aret.py's W2
+    # precedent on the ai_rek.py F-3 line): registered AFTER the view, so the
+    # first rule of the endpoint — the one url_for builds — stays the
+    # canonical "/slump". The anonymous /slump/ meets the guard's uniform 302
+    # before the router, slash-stripped or not.
+    app.add_url_rule("/slump/", endpoint="slump")
 
     @app.post("/onska/lagg-till")
     def onska_lagg_till():

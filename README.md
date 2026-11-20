@@ -170,7 +170,9 @@ fixa dem ett åt gången. (Eget uppladdat eller inskickat omslag skrivs aldrig
 över av systemet.)
 
 **Önskelistan.** Böcker du vill läsa ligger under "Önskelista". När du läser en
-önskbok markerar du den som läst, då hamnar den i hyllan.
+önskbok markerar du den som läst, då hamnar den i hyllan. Längst upp på listan
+står "Slumpa fram en bok" — den lyfter lugnt fram en av önskningarna i taget,
+utan att någonting bokförs.
 
 **Rekommendationer.** "Rekommendationer" visar de 12 bästa förslagen utifrån
 dina egna betyg — varje kort förklarar varför ("För att du gav …").

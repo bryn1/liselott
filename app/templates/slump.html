@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% from "_bokkort.html" import bokkort with context %}
+{% block title %}Slumpa fram en bok — Liselotts bokhylla{% endblock %}
+{% block content %}
+{# MC 12735 (M12 W3, PLAN-M12 §4) — the quiet draw: ONE calm card from the
+   wishlist through the shelf's OWN macro (a card never means two things), a
+   quiet redraw link on the same route, and the way back. No history, no
+   dismissal bookkeeping — nothing here remembers the draw, so nothing can
+   grow stale or demand upkeep. The empty wishlist is ONE quiet line, never
+   a dead card and never a redraw link drawing at nothing (the _hyllan
+   silence law). The count that promised this page lives at the head of
+   /onska and rides the same predicate (F-A). #}
+<h1>Slumpa fram en bok</h1>
+{% if bok %}
+<ul class="hylla slump-kort">
+  {{ bokkort(bok) }}
+</ul>
+<p><a href="{{ url_for('slump') }}">Smaka på en annan</a></p>
+{% else %}
+<p class="tom-state">Önskelistan är tom.</p>
+{% endif %}
+<p><a href="{{ url_for('onska') }}">Tillbaka till önskelistan</a></p>
+{% endblock %}

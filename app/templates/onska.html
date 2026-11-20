@@ -8,6 +8,14 @@
    shelf makes — the price line M9a-1 put here was retired by MC 12606 with
    the owner's ruling, and this page gained no second mechanism for it. #}
 <h1>Att läsa</h1>
+{% if onska %}
+{# MC 12735 (M12 W3, PLAN-M12 §4): the ONE quiet entry link, at the head.
+   The count is the page's own list length (F-A: same predicate as the draw's
+   pool — count, list and pool are ONE set, born on the right law), the word
+   agrees through the house number_and_word, and a 0-count list dangles no
+   link that would promise a draw answering "Önskelistan är tom." #}
+<p class="onska-intro"><a href="{{ url_for('slump') }}">{{ number_and_word(onska|length, "bok", "böcker") }} i listan · Slumpa fram en bok</a></p>
+{% endif %}
 {% if fel %}<p class="fel-meddelande">{{ fel }}</p>{% endif %}
 
 <form class="onska-form" method="post" action="{{ url_for('onska_lagg_till') }}">

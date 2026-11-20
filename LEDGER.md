@@ -1795,3 +1795,47 @@ postdating a line make that line STALE — de-stale before quoting it.
   UNCHANGED (the page is owner-side; test_public_read's law stands by
   construction). Exposure gate held list UNCHANGED vs base {LEDGER.md}.
   NOTHING pushed.
+- **MC 12735 (M12 W3) SLUMPA FRAM EN BOK — the quiet draw, owner-only, on
+  the ONE wish law** (PLAN-M12 REV 2 §4 + §6 W3 row + §7 law; R3: the draw
+  is NOT annual → not on /aret; it lives in `app/onska.py`, the wishlist's
+  own read-face module — ONE module for the wishlist's UI, R6's reasoning
+  carried). `GET /slump` + the explicit slash rule (the ai_rek/aret
+  precedent, registered AFTER the view so url_for keeps building the
+  canonical URL): pool = `status == 'wishlist'` rows through the ONE loader
+  `books.load_books`, ID order (the loader's own order law — a draw is
+  reproducible only over a deterministic pool; the named-draw leg pins it:
+  the fixture's fold-title order differs from id order there); the draw
+  calls `random.choice` on the MODULE NAME — the house monkeypatch seam (test_add's
+  `pacer`, test_ai_rek's `skapa_onska`: no new mechanism, no new seam
+  kind); ZERO state — no dismissal bookkeeping, no history (§4). ONE calm
+  `_bokkort` card (the shelf's own macro) + the quiet "Smaka på en annan"
+  redraw link + the way back to /onska; an EMPTY pool answers ONE quiet
+  line ("Önskelistan är tom."), never a dead card, never a redraw link
+  drawing at nothing. `/onska` gained its ONE head link — "N bok/böcker i
+  listan · Slumpa fram en bok", the word agreeing through the house
+  `number_and_word`, and NO link at count 0 (a 0-count link would promise a
+  draw answering "tom" — F-A's failure inverted). THE F-A LAW MEASURED:
+  link count == pool size == rendered list length == SQL wishlist count,
+  one predicate at all four sites; the fixture CARRIES the reading+aborted
+  bait (§7's law — or the wide-pool mutant is invisible), and the fold-
+  title-vs-id order divergence pins the sort. Owner-only BY GUARD — /slump
+  rides NO auth.PUBLIC_READ list; the anon 302 posture leg mirrors /sok's
+  and is byte-identical to it (green-at-base PIN named per §7: the
+  PUBLIC_READ inclusion mutant reddens it AND the test_prefix
+  ANON_PROTECTED leg — .tmp-w3/mutant-slump-public.txt). Suite 821 passed +
+  1 skipped (base 814+1, +7 legs all in the new tests/test_slump.py;
+  red-first at `1930ea8` — 6 failed, the 1 passing IS the named PIN — plus
+  the pool mutant (`status != 'read'` → containment RED and the empty-copy
+  leg RED: the wide pool finds bait rows beside an EMPTY wishlist) and the
+  count mutant (the /onska list widened to `!= 'read'` beside the narrow
+  pool → the F-A equality RED), both in copy trees, repo untouched).
+  `tests/test_prefix.py`: /slump in SWEEP + ANON_PROTECTED (the house
+  real-page idiom). PIN_LANDING/PIN_SHELF (+ PIN_ANON_BOK_1/2) UNTOUCHED
+  and re-measure green — NO pinned page carries the head link or the draw
+  (§6 W3 row); PIN_OWNER UNMOVED: the nav gained NO link — the shape leg
+  pins the word "Slumpa" absent from every nav page, and the draw marks
+  the EXISTING "Önskelista" nav link current (the bok-page idiom, not a
+  new shape). README owner manual: ONE calm line under "Önskelistan" —
+  public claims UNCHANGED (the page is owner-side; test_public_read's law
+  stands by construction). Exposure gate held list UNCHANGED vs base
+  {LEDGER.md}. NOTHING pushed.

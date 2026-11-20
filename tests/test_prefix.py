@@ -40,7 +40,10 @@ SWEEP = ("/", "/bibliotek", "/bok/1", "/bok/2", "/bok/9999", "/sok?q=a",
          "/byter-losenord",
          # MC 12734 (M12 W2): /aret landed — swept as the REAL page from its
          # own commit (the house idiom above), owner session in hand.
-         "/aret") + NOT_YET_LANDED
+         "/aret",
+         # MC 12735 (M12 W3): /slump landed — same idiom; the draw's card,
+         # redraw link and back link must ride the mount like every URL.
+         "/slump") + NOT_YET_LANDED
 # everything else must 302 an anonymous visitor; the allow-listed four may
 # not. MC 12497 moved the whole READ set out of this list; MC 12501 moved
 # most of it BACK in — only the landing, the shelf and public-set ids stay
@@ -52,7 +55,11 @@ ANON_PROTECTED = ("/logga-ut", "/byter-losenord", "/redigera/1", "/sok",
                   # rides no PUBLIC_READ list, so an anon GET answers the
                   # uniform 302 (the posture's own byte leg lives in
                   # tests/test_aret.py).
-                  "/aret")
+                  "/aret",
+                  # MC 12735 (M12 W3): /slump likewise — the draw is the
+                  # wishlist's owner-side read face (PLAN-M12 §4; posture
+                  # byte-leg in tests/test_slump.py).
+                  "/slump")
 _ATTR_RE = re.compile(r'\b(src|href|action)\s*=\s*"([^"]*)"', re.I)
 _OK_NON_URL = ("#", "mailto:")
 
