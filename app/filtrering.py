@@ -66,10 +66,15 @@ def years(bocker):
 
 def narrow(bocker, filtr):
     """The rows the reader asked to see, out of the rows she was ALLOWED to
-    see. The read rows face all three params, combined with AND. The wishlist
-    rows face `q` only — they carry neither a rating nor a read year, and the
-    ruling made them public AS THEY ARE, so no betyg/ar param removes them
-    (and none can leak one either: they are already public)."""
+    see. Rows carrying REAL data — every read row, and since MC 12733 the
+    RATED 'aborted' row the F-E ruling lets stand (its year is the 0
+    sentinel, so any ?ar= lawfully excludes it) — face all three params,
+    combined with AND. The exemption belongs to the WISHLIST alone (the ONE
+    wish law, F-A): wish rows are BORN with neither rating nor read year,
+    and the ruling made them public AS THEY ARE, so no betyg/ar param
+    removes them (and none can leak one either: they are already public).
+    The pre-W1 test `!= 'read'` is retired — with the widened domain it would
+    have exempted 'reading'/'aborted' rows from the params too."""
     if not filtr["aktiv"]:
         return list(bocker)
     needle = fold(filtr["q"])
@@ -77,7 +82,7 @@ def narrow(bocker, filtr):
     for bok in bocker:
         if needle and not matches_text(bok, needle):
             continue
-        if bok["status"] != "read":            # the wishlist: q was its only test
+        if bok["status"] == "wishlist":       # the wishlist: q was its only test
             out.append(bok)
             continue
         if filtr["betyg"] is not None and bok["rating"] != filtr["betyg"]:

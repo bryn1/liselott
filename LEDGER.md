@@ -1690,3 +1690,64 @@ postdating a line make that line STALE — de-stale before quoting it.
   "a clean clone reports 767+2" — 22 personal-corpus-case legs drop out, not
   1; reported for its owner, not restated. Exposure gate held list UNCHANGED
   vs base {LEDGER.md}. NOTHING pushed.
+
+- **MC 12733 (M12 W1) STATUS DOMAIN — `Läser nu` + `Avbruten`, one wave,
+  DONE (this commit):** the diary learns two statuses. `schema.sql` widens
+  the book CHECK to `('read','wishlist','reading','aborted')`; live DBs ride
+  the EXISTING migrate.py entry mechanism with one added entry
+  (`STATUS_CHECK_WIDENING`, representative literal `"'aborted'"` — a future
+  widening must bump it), and per DA F-F the schema.sql re-run moved OUT of
+  `if migrated:` to run UNCONDITIONALLY (the rebuild commits inside
+  `_rebuild`; the re-run is CREATE-idempotent by contract, so it is the
+  crash-gap self-heal — its leg drives `migrate.apply` directly, the unit
+  whose skip the finding named: `init_db`'s own unconditional executescript
+  already healed the whole-entry-point path, this closes the step itself).
+  The wish law is ONE test everywhere — `status == 'wishlist'` (F-A) at the
+  three `/onska` sites (from ONE read, `onskelistan`), in filtrering.narrow,
+  and in `PUBLIC_SET_SQL`, now an ENUMERATION
+  (`rating IS NOT NULL OR status = 'wishlist'`); the wide `!= 'read'` is
+  retired — with the widened domain it would publish every unread row. The
+  F-E ruling ships as ruled: a RATED aborted row is a plain public card
+  (no status word in anon bytes), unrated new-status rows are private, and
+  they face the params like any data row. FIX ROUND (DA-verdict-w1 c2, F2):
+  §1's "a rated READING row is unreachable by construction" was FALSE — the
+  machine door takes a RATED wishlist line (bundle.py validates rating 1–5
+  and its refuse-list KEEPS 'wishlist') and las-nu flips that very row to
+  'reading' with its rating; the class ships as the MC 12501 ruling already
+  rules — a plain, wordless public card — now PINNED end-to-end through the
+  real doors by `test_the_rated_reading_row_is_a_plain_public_card`. The
+  same machine class can leave a RATED wishlist row that the ratified
+  wishlist exemption keeps q-only under `?betyg=`/`?ar=`: over-inclusive
+  only (the row is public anyway), stated truthfully, behaviour unchanged.
+  Four doors, all owner-posture,
+  csrf by the standing gate (R6): las-nu (wishlist|aborted→reading), avbryt
+  (reading→aborted), /las widened to admit reading (the dated door stays
+  ONE; `read → read` never happens), grading unchanged — `read → anything`
+  never happens anywhere (§5.11), and the bundle refuse-list still refuses
+  to transition (PIN re-measured green at base). mark_read narrowed WHICH
+  rows flip (R4) while the read-row year-0 back-fill KEEPS running (F-B
+  PIN). `group_for_shelf(books, owner_view=False)` — the DEFAULT is the
+  public posture, so a forgetful caller cannot leak a word; the owner shelf
+  reads [Läser nu][year][Utan år][Avbruten][Att läsa] (flag passed at the
+  ONE view point, routes._hylldata); F1 fix round: the status words are
+  held ONCE in `STATUS_WORDS` and group_for_shelf reads its section labels
+  THROUGH the map — the duplicate section constants are retired with it,
+  and `test_the_status_words_map_is_the_rendered_copy` pins map↔rendered
+  copy (bok.html's action-row buttons are §9's fixed action copy, pinned
+  beside it); `shelf_month` born with shelf_year's
+  guarded idiom (W2's primitive). bok.html carries the status action row
+  inside the existing inloggad posture, and NOTHING on read rows. README
+  swept to grep-zero on the retired claims (public-set + ai-rek-lines;
+  DESIGN.md carries no status claim).
+  Suite 798 passed + 1 skipped (base 772+1, +26 legs: 23
+  tests/test_status_model.py + 3 test_schema_migrate.py; red-first
+  transcripts AND the plant transcripts — leak/year-repair/bundle-refuse/
+  guard-csrf/wish-law×2 — under the wave's .tmp dir; the two fix-round legs
+  are green at base — pins, named mutants under .tmp-w1-c2/). P4 note
+  (DA-verdict-w1 F6): bok.html's `class="status-val"` carries no CSS rule —
+  kept as the owner-side styling hook until a CSS wave. Anon pins zero-diff
+  UNCHANGED (PIN_LANDING/PIN_SHELF/PIN_ANON_BOK_1/2 re-measure green; the
+  fixture carries no new-status rows, PIN_OWNER's bytes cannot move —
+  §7's schema-proven equivalence). seed.py's dedupe_read (`!= 'read'`,
+  R7) LEFT as planned — it dedupes READ rows by key, not a wish site.
+  Exposure gate held list UNCHANGED vs base {LEDGER.md}. NOTHING pushed.

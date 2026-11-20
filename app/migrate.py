@@ -27,7 +27,14 @@ import re
 # must contain. 'manual-url': the OQ-2 cover_source widening (7eee210), the
 # s3 §9 finding, on BOTH tables that carry the column.
 COVER_SOURCE_CHECK = {"book": "'manual-url'", "candidate": "'manual-url'"}
-CHECK_WIDENINGS = (COVER_SOURCE_CHECK,)
+# MC 12733 (M12 W1): the status vocabulary widens to ('read','wishlist',
+# 'reading','aborted'). REPRESENTATIVE LITERAL: "'aborted'" — the CHECK's
+# last-listed token. A stored DDL either carries the whole widened list (the
+# rebuild rewrites the table from schema.sql wholesale) or none of it, so
+# testing the last token is exact; A FUTURE WIDENING OF THIS CHECK MUST BUMP
+# THE LITERAL to its own last-listed value, exactly as this row does.
+STATUS_CHECK_WIDENING = {"book": "'aborted'"}
+CHECK_WIDENINGS = (COVER_SOURCE_CHECK, STATUS_CHECK_WIDENING)
 
 
 def table_sql(conn, table):
@@ -87,10 +94,13 @@ def apply(conn):
                     continue                    # absent (fresh) or already widened
                 _rebuild(conn, table)
                 migrated.append(table)
-        if migrated:
-            # DROP TABLE took the table's indexes with it — schema.sql's IF NOT
-            # EXISTS re-run restores them and touches every other table not at all.
-            conn.executescript(db.SCHEMA_PATH.read_text(encoding="utf-8"))
+        # F-F (PLAN-M12 REV 2 §5, DA-verdict-plan): the rebuild COMMITs inside
+        # _rebuild, so a crash before THIS line used to leave `book` rebuilt
+        # without its indexes for a next apply that saw migrated == [] and
+        # skipped the restore forever. schema.sql is CREATE-idempotent BY
+        # CONTRACT (its header line) — so the re-run runs UNCONDITIONALLY:
+        # a no-op on a current DB, the self-heal after a crash in the window.
+        conn.executescript(db.SCHEMA_PATH.read_text(encoding="utf-8"))
     finally:
         conn.execute("PRAGMA foreign_keys=ON")
     return migrated

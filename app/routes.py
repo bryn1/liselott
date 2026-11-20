@@ -104,11 +104,17 @@ def init_routes(app):
         HERE — the ONE filter, so nothing a private-only book populated can
         render around it. MC 12551: the public reader's params (filtrering.py)
         then NARROW those SAME rows — no second query, and the years the form
-        offers come off these rows, never off the book table."""
-        bocker = books.load_books(db.get_db(), public_only=_publikt_endast())
+        offers come off these rows, never off the book table. MC 12733: the
+        SAME line decides the grouping posture — owner_view is the owner's
+        session flag, passed to group_for_shelf HERE, the ONE view point (the
+        F-E ruling: the public posture paints no status word, and the public
+        rows are pre-narrowed by the same call)."""
+        publikt = _publikt_endast()
+        bocker = books.load_books(db.get_db(), public_only=publikt)
         if not filtr:
-            return books.group_for_shelf(bocker), ()
-        return (books.group_for_shelf(filtrering.narrow(bocker, filtr)),
+            return books.group_for_shelf(bocker, owner_view=not publikt), ()
+        return (books.group_for_shelf(filtrering.narrow(bocker, filtr),
+                                      owner_view=not publikt),
                 filtrering.years(bocker))
 
     def _hylla(filtr=None):

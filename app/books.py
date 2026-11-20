@@ -11,21 +11,39 @@ from app.text import fold
 MONTHS_SV = ("januari", "februari", "mars", "april", "maj", "juni", "juli",
              "augusti", "september", "oktober", "november", "december")
 FORMAT_WORDS = {"bok": "Bok", "ljudbok": "Ljudbok"}
+# MC 12733 (M12 W1, R1 + DA-verdict-w1 F1 fix round): the two new statuses
+# display through Swedish words — the stored tokens stay English (the
+# read/wishlist precedent; FORMAT_WORDS is the house mechanism). STATUS_WORDS
+# is the ONE display map AND its own consumer: group_for_shelf reads its
+# section labels THROUGH it (the original wave shipped the words twice — the
+# constants beside an unconsumed map — that was F1; the duplicate constants
+# are retired here, the map is the single source). The F-E ruling rules that
+# no status word ever paints in anonymous bytes (filtrering and the grouping
+# carry the posture; the public shelf labels a rated-aborted or rated-reading
+# row by its year, never by its status). The bok.html action-row buttons are
+# §9's fixed ACTION copy (verbs, not status words), pinned in the same leg.
 NO_AUTHOR = "Okänd författare"
 NO_DATE = "Utan läsdatum"
 NO_YEAR = "Utan år"               # one trailing group for yearless read rows
-WISHLIST_SECTION = "Att läsa"     # §9: the wishlist section's own name
+STATUS_WORDS = {"read": "Läst", "wishlist": "Att läsa",   # §9: wish section
+                "reading": "Läser nu",                    # owner shelf FIRST
+                "aborted": "Avbruten"}                    # before "Att läsa"
 _DATE_RE = re.compile(r"^(\d{4})-(\d{1,2})-(\d{1,2})")
 
 # MC 12501 (owner ruling 2026-11-14, verbatim): "Rated books and their
 # ratings as well as whishlist shall be public. The rest behind password" —
-# the ONE definition of the PUBLIC SET. The read/wish split is `status`,
-# exactly the one group_for_shelf draws (never the read_year 0 sentinel:
-# yearless READ rows carry it too and belong to the private half when
-# unrated). load_books applies it when a caller asks for `public_only`;
-# routes.cover composes the SAME predicate into its own row probe — one
-# rule, no second gate beside it.
-PUBLIC_SET_SQL = "(rating IS NOT NULL OR status <> 'read')"
+# the ONE definition of the PUBLIC SET, and since MC 12733 an ENUMERATION:
+# a row whose rating is real (rating IS NOT NULL — any status; a rated
+# "Avbruten" row is public AS A PLAIN CARD, the F-E ruling) or a wish row
+# (`status = 'wishlist'`). The pre-W1 wide form `status <> 'read'` is
+# RETIRED: once 'reading'/'aborted' exist it would publish every unread row
+# (a läser nu book on the public shelf — exactly the hole F-A/F-E name).
+# The read/wish split is `status`, exactly the one group_for_shelf draws
+# (never the read_year 0 sentinel: yearless READ rows carry it too and
+# belong to the private half when unrated). load_books applies it when a
+# caller asks for `public_only`; routes.cover composes the SAME predicate
+# into its own row probe — one rule, no second gate beside it.
+PUBLIC_SET_SQL = "(rating IS NOT NULL OR status = 'wishlist')"
 
 
 def load_books(conn, ids=None, public_only=False):
@@ -109,20 +127,53 @@ def shelf_year(book) -> int:
         return 0
 
 
-def group_for_shelf(books):
+def shelf_month(book) -> int:
+    """MC 12733 (M12 W1) — the month a row was read, through the SAME guarded
+    posture shelf_year teaches the year: ONE reader of the ONE date format
+    (_DATE_RE, sw_date's own), and everything the row does not truthfully
+    carry — no date, a malformed one, an impossible month — is 0, the same
+    sentinel "no usable value" means everywhere here. Born for the Året page
+    (W2); guarded from its first line, because sort/sum keys must never be
+    the place a stored string first gets parsed."""
+    match = _DATE_RE.match(book["date_read"]) if book["date_read"] else None
+    if not match:
+        return 0
+    month = int(match.group(2))
+    return month if 1 <= month <= 12 else 0
+
+
+def group_for_shelf(books, owner_view=False):
     """[(label, rows)] for the shelf: ONE section per read_year, the years
     newest first; read rows without a usable year (the seed's 0 sentinel)
     form ONE trailing "Utan år" group; the wishlist is the §9 section
     "Att läsa" LAST; within a group the sort_by_read_date order stands.
 
+    MC 12733 (M12 W1) adds the OWNER's posture, carried by ONE flag from the
+    ONE view point (routes._hylldata): `owner_view=True` puts the two new
+    statuses in their own sections — "Läser nu" FIRST, "Avbruten" after
+    "Utan år" and before "Att läsa" — and an empty new section never renders
+    (the _hyllan law). The DEFAULT is the public posture, ruled in the same
+    commit (F-E): it paints NO status word — a non-wishlist row is a PLAIN
+    row grouped by its shelf year (only a RATED aborted row can ever reach a
+    public reader, and it rides as the plain card MC 12501 made public).
+
     Keyed on the read_year VALUE, never run-length over the sorted rows:
     most corpus rows carry no date_read, so the sorted block runs in title
     order and its years jump on nearly every row — run-length opened a new
     section at each jump (F-A: 583 headings over 12 real years). `status`,
-    never the year, decides the read/wish split (a wish row's 0 is its
-    sentinel, not a year)."""
-    read = sort_by_read_date([b for b in books if b["status"] == "read"])
-    wishlist = sort_by_read_date([b for b in books if b["status"] != "read"])
+    never the year, decides the read/wish split, and the wish test is the
+    ONE wish law `== 'wishlist'` (F-A), never the wide `!= 'read'`."""
+    wishlist = sort_by_read_date([b for b in books if b["status"] == "wishlist"])
+    if owner_view:
+        reading = sort_by_read_date([b for b in books if b["status"] == "reading"])
+        avbrutna = sort_by_read_date([b for b in books if b["status"] == "aborted"])
+        plain = [b for b in books if b["status"] == "read"]
+    else:
+        reading = avbrutna = []
+        # F-E ruling: every non-wish row is plain here — only a RATED row can
+        # be public at all (PUBLIC_SET_SQL), and it faces the shelf as a card.
+        plain = [b for b in books if b["status"] != "wishlist"]
+    read = sort_by_read_date(plain)
     by_year = {}
     utan_ar = []
     for book in read:
@@ -135,8 +186,12 @@ def group_for_shelf(books):
               for year in sorted(by_year, reverse=True)]
     if utan_ar:
         groups.append((NO_YEAR, utan_ar))
+    if reading:
+        groups.insert(0, (STATUS_WORDS["reading"], reading))
+    if avbrutna:
+        groups.append((STATUS_WORDS["aborted"], avbrutna))
     if wishlist:
-        groups.append((WISHLIST_SECTION, wishlist))
+        groups.append((STATUS_WORDS["wishlist"], wishlist))
     return groups
 
 

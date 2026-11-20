@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS book (
   rating INTEGER CHECK (rating BETWEEN 1 AND 5),   -- NULL = unrated
   notes TEXT,
   cover_path TEXT, cover_source TEXT CHECK (cover_source IN ('libris','googlebooks','openlibrary','manual','manual-url')),
-  status TEXT NOT NULL DEFAULT 'read' CHECK (status IN ('read','wishlist')),
+  status TEXT NOT NULL DEFAULT 'read' CHECK (status IN ('read','wishlist','reading','aborted')),   -- MC 12733 (M12 W1) widens the domain, owner words "Läser nu" and "Avbruten" — live DBs ride migrate.py's STATUS_CHECK entry. A comment on these lines must NEVER contain a semicolon right after a closing paren, migrate._create_current reads the table DDL up to the first one (measured the hard way in this commit's test run)
   book_key TEXT NOT NULL UNIQUE,   -- §5.3: sha256 key, the ONLY bundle-upsert match key
   tried_providers TEXT,            -- csv of provider names attempted, e.g. 'libris,ol,gb'
   enrich_fail INTEGER NOT NULL DEFAULT 0,

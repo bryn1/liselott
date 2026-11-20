@@ -431,15 +431,24 @@ def set_authors(conn, book_id: int, names: list[str]) -> list[str]:
 
 
 def mark_read(conn, book_id: int) -> None:
-    """§5.11: the ONLY wishlist→read flip mechanism — grading (T5.1) and
+    """§5.11: the ONLY flip-to-read mechanism — grading (routes.py, T5.1) and
     /onska/<id>/las (T5.4) are the only callers allowed to ask for it, and
-    both go through here. The read_year 0 sentinel becomes this year (the
-    shelf groups by it; a flipped row must not land in a group called "0");
-    date_read is deliberately NOT touched — only /las names a date."""
+    both go through here. MC 12733 (M12 W1) narrowed WHICH rows may flip
+    (R4): the flip sources are 'wishlist' and 'reading' (+ the year-repair
+    case below); an 'aborted' row returns UNTOUCHED — grading an avbruten bok
+    keeps it avbruten (R4: DNF + a rating is a truthful pair, and the rated
+    row then faces the public shelf as any rated row does). A `read` row
+    stays admissible for the YEAR UPDATE ONLY (F-B): the read_year 0 sentinel
+    becomes this year — the NO_YEAR repair class ("the seed's 0 sentinel"
+    trailing group, books.py) — so grading a yearless read row still repairs
+    it and the status write is a no-op. date_read is deliberately NOT
+    touched — only /las names a date."""
     row = conn.execute("SELECT status, read_year FROM book WHERE id = ?",
                        (book_id,)).fetchone()
-    if row is None or (row[0] == "read" and row[1]):
-        return
+    if row is None or row[0] not in ("read", "wishlist", "reading"):
+        return                                    # R4: 'aborted' is no source
+    if row[0] == "read" and row[1]:
+        return                                    # F-B: the year-0 class falls
     year = row[1] if row[1] else datetime.now(timezone.utc).year
     conn.execute("UPDATE book SET status = 'read', read_year = ? WHERE id = ?",
                  (year, book_id))

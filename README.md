@@ -328,7 +328,12 @@ The guard (`app/auth.py::_auth_gate`) answers in three states, measured in
   same ONE filter), `/bibliotek`, `/bok/<id>`,
   `/cover/<id>`, `/healthz`, `/robots.txt`, `/static/*` — and the data
   layer (the ONE filter, `app/books.py::PUBLIC_SET_SQL`:
-  `rating IS NOT NULL OR status <> 'read'`) decides WHAT those pages may
+  `rating IS NOT NULL OR status = 'wishlist'` — an ENUMERATION since
+  MC 12733: a row with real stars, whatever its status — a rated
+  "Avbruten" row is public as a plain card — or a wish row; the old wide
+  form `status <> 'read'` was retired WITH the widened status domain,
+  because once `'reading'`/`'aborted'` exist it would publish them too)
+  decides WHAT those pages may
   paint: the shelf shows the public set only — rated books with their
   stars and the wishlist section — and an unrated book appears NOWHERE in
   an anonymous response (no title, no private-only author, no year-section
@@ -567,8 +572,10 @@ LEADING `YYMMDD` token, 45 rows). Trust the plan's §5 rules, never the header.
   2026-11-17, accepting: the generator gets the COMPLETE read-title list via
   the existing machine door; public scope UNCHANGED) — the door's READ face
   for the recommendation runner: a JSON list of `{"titel", "forfattare",
-  "status"}` for EVERY `bok` row, all statuses (read AND wishlist — books
-  she has READ are never recommended again, and the runner drops matching
+  "status"}` for EVERY `bok` row, all statuses — `read`, `wishlist`,
+  and since MC 12733 also `reading` and `aborted`, with no door change:
+  the exclusion is by KEY over every row, so a widened domain needed
+  nothing here (books she has READ are never recommended again, and the runner drops matching
   candidates before the Lane E ask — by the ONE wish_key law AND an
   accent-fold lane, `seed._fold` over the door rows (DA c10 F-P1-1: the
   live READ card "Viva <n-class>" vs the corpus row with the tilde;

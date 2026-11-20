@@ -14,7 +14,15 @@ The legs: the widened value is accepted after migrate (before: IntegrityError
 rebuild; the book indexes come back (DROP TABLE takes them with it); re-run is
 a no-op (idempotent); a DB already on the new schema is not rewritten; and an
 unknown column shape ABORTS LOUDLY rather than silently dropping data.
+
+MC 12733 (M12 W1) adds the STATUS widening — ('read','wishlist') → +
+'reading','aborted' — on the SAME entry mechanism and the SAME legs (below,
+in this file's own idiom): the widened value rejected before / accepted after,
+the STATUS entry firing ALONE on the live shape (cover already widened), and
+the F-F index-restore re-run leg (the rebuild commits before the restore; the
+schema re-run is now UNCONDITIONAL, so a crash in that gap self-heals).
 """
+import re
 import sqlite3
 
 import pytest
@@ -159,4 +167,105 @@ def test_an_unknown_column_shape_aborts_loudly(tmp_path):
     assert conn.execute("SELECT COUNT(*) FROM book").fetchone()[0] == 2
     cols = [r[1] for r in conn.execute("PRAGMA table_info(book)")]
     assert "framtida_falt" in cols                 # nothing was rewritten away
+    conn.close()
+
+
+# ── MC 12733 (M12 W1) — the STATUS widening rides the SAME mechanism ─────────
+def status_old_db(path):
+    """The LIVE shape W1 meets (vm106): the cover CHECK was widened by the
+    7eee210 rebuild long ago, so the COVER entry sees its literal and SKIPS —
+    ONLY the STATUS entry (representative literal "'aborted'", the CHECK's
+    last-listed value) can trigger this rebuild. Built from TODAY's schema.sql
+    with ONLY the status CHECK narrowed back to its pre-W1 two-value list:
+    entry-independent proof, hand-copied DDL would drift the moment either
+    moved (the _create_current lesson)."""
+    ddl = re.search(r"CREATE TABLE IF NOT EXISTS book \(.*?\);",
+                    db.SCHEMA_PATH.read_text(encoding="utf-8"),
+                    re.DOTALL).group(0)
+    ddl = ddl.replace("IN ('read','wishlist','reading','aborted')",
+                      "IN ('read','wishlist')")
+    assert "'aborted'" not in ddl        # the guard: the narrowing really landed
+    conn = sqlite3.connect(path)
+    conn.execute(ddl)
+    conn.execute("INSERT INTO book (id, title, format, read_year, book_key,"
+                 " status, created, updated) VALUES"
+                 " (1, 'Nattfjärden', 'bok', 2025, 'key-nattfjarden',"
+                 " 'read', 't', 't')")
+    conn.execute("INSERT INTO book (id, title, format, read_year, book_key,"
+                 " status, created, updated) VALUES"
+                 " (2, 'En skatt av silver', 'bok', 0, 'key-silver',"
+                 " 'wishlist', 't', 't')")
+    conn.commit()
+    conn.executescript(db.SCHEMA_PATH.read_text(encoding="utf-8"))
+    return conn
+
+
+def test_widened_status_is_rejected_before_and_accepted_after(tmp_path):
+    """The same s3 §9 fact for the new contract: RED before (the old CHECK
+    refuses the new token), green after the rebuild. The STATUS entry must
+    earn its keep ALONE here — the cover entry skips this table."""
+    conn = status_old_db(tmp_path / "liselott.db")
+    with pytest.raises(sqlite3.IntegrityError):    # the W1 fact, asserted
+        conn.execute("UPDATE book SET status = 'reading' WHERE id = 1")
+    conn.rollback()
+    init_db(conn)                                   # <- runs the migration
+    assert "'reading'" in stored_ddl(conn, "book")
+    assert "'aborted'" in stored_ddl(conn, "book")
+    conn.execute("UPDATE book SET status = 'reading' WHERE id = 1")
+    conn.execute("UPDATE book SET status = 'aborted' WHERE id = 2")
+    conn.commit()                                   # both new tokens write
+    # ids survive (covers/<id>.jpg), and the UNIQUE match key still holds
+    assert conn.execute("SELECT id FROM book ORDER BY id").fetchall() == [(1,), (2,)]
+    with pytest.raises(sqlite3.IntegrityError):
+        conn.execute("INSERT INTO book (title, format, read_year, book_key,"
+                     " created, updated) VALUES ('x', 'bok', 2026,"
+                     " 'key-nattfjarden', 't', 't')")
+    conn.close()
+
+
+def test_the_status_migration_is_idempotent_and_indexes_survive(tmp_path):
+    """Idempotence on the SAME entry (third apply rewrites nothing) and the
+    rebuild's index restore — for the STATUS-triggered rebuild specifically."""
+    conn = status_old_db(tmp_path / "liselott.db")
+    init_db(conn)
+    after_first = stored_ddl(conn, "book")
+    init_db(conn)
+    init_db(conn)
+    assert stored_ddl(conn, "book") == after_first
+    names = {r[0] for r in conn.execute("SELECT name FROM sqlite_master"
+                                        " WHERE type='index'")}
+    for idx in ("idx_book_title", "idx_book_date", "idx_book_year"):
+        assert idx in names
+    conn.close()
+
+
+def test_index_restore_survives_a_second_apply(tmp_path):
+    """F-F (DA-verdict-plan, resolved by REV 2 §5): `_rebuild` COMMITs its
+    single BEGIN→COMMIT inside itself (migrate.py:53–73) while base `apply`
+    restored the dropped table's indexes only `if migrated:` (migrate.py:90–93)
+    — a crash in that gap leaves `book` rebuilt WITHOUT its indexes for the
+    restore step, and the next apply (migrated == []) skipped it. The cure,
+    chosen from the code: every index CREATE carries IF NOT EXISTS
+    (schema.sql:81–83), so the re-run is safe by design — W1 moves the
+    executescript out from under `if migrated:` to run UNCONDITIONALLY.
+    RED at 55f19ce on the named unit: apply directly, with the three book
+    indexes dropped BY HAND (what DROP TABLE took) after a completed
+    migration — base skips, the unconditional re-run restores. (The whole-
+    entry-point path, init_db, was already self-healing through its own
+    unconditional executescript — this leg pins the step where the plan's
+    window actually lives.)"""
+    from app import migrate
+    conn = old_seeded_db(tmp_path / "liselott.db")
+    init_db(conn)                                    # the migration itself
+    for idx in ("idx_book_title", "idx_book_date", "idx_book_year"):
+        conn.execute(f"DROP INDEX {idx}")
+    conn.commit()
+    names = {r[0] for r in conn.execute("SELECT name FROM sqlite_master"
+                                        " WHERE type='index'")}
+    assert not {"idx_book_title", "idx_book_date", "idx_book_year"} & names
+    assert migrate.apply(conn) == []                 # nothing left to migrate
+    names = {r[0] for r in conn.execute("SELECT name FROM sqlite_master"
+                                        " WHERE type='index'")}
+    for idx in ("idx_book_title", "idx_book_date", "idx_book_year"):
+        assert idx in names, f"{idx} not restored by the unconditional re-run"
     conn.close()

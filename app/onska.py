@@ -1,12 +1,18 @@
 """T5.4 — the wishlist and the §5.11 transition contract.
 
 §5.11 (binding) read in full: transitions happen ONLY through app routes, and
-read→wishlist NEVER happens. So this module has exactly two write doors:
-lagg-till (a wish is BORN as a wish — status 'wishlist', the read_year 0
-sentinel, no date) and /las (the ONE flip to read with a date; grading is the
-other flip, in routes.py, and it names no date). Both go through the shared
-write primitives in app/seed.py; the delete door is T5.2's /ta-bort/<id> —
-one delete, not two.
+read→wishlist NEVER happens. MC 12733 (M12 W1) grew the module's write doors
+from two to FOUR (R6): lagg-till (a wish is BORN as a wish — status
+'wishlist', the read_year 0 sentinel, no date), las-nu (a book ENTERS "Läser
+nu" from 'wishlist' or 'aborted' — a resume; no date, no year), avbryt (the
+ONLY 'reading'→'aborted' flip), and /las (the dated door: wishlist|reading →
+read — `read → read` never happens). Grading (routes.py, /betyg) is the
+other flip-to-read and names no date; BOTH flips-to-read go through the
+shared write primitive in app/seed.py (mark_read), las-nu/avbryt write the
+status token HERE (mark_read's law is the flip to READ — §5.11's one flip
+it owns, F-B/R4), and the delete door is T5.2's /ta-bort/<id> — one delete,
+not two. The wish rows the /onska page lists follow the ONE wish law
+`status == 'wishlist'` (F-A), at every render state, from ONE read.
 """
 from datetime import date
 
@@ -74,6 +80,17 @@ def skapa_onska(conn, titel, forfattare, isbn13=None, year=None,
     return None
 
 
+def onskelistan(conn):
+    """THE /onska page's rows, on the ONE wish law `status == 'wishlist'`
+    (F-A — never the wide `!= 'read'`, which after the widened domain would
+    list a "läser nu" or "Avbruten" book on "Att läsa" beside its old
+    button). ONE read for the page's three render states — the same
+    anti-drift reason as `_onska`'s ONE render and `skapa_onska`'s ONE
+    writer (§5.4's rule, spoken for writers, honoured for readers)."""
+    return books.sort_by_read_date(
+        [b for b in books.load_books(conn) if b["status"] == "wishlist"])
+
+
 def init_onska(app):
 
     def _onska(vyan, fel):
@@ -88,9 +105,7 @@ def init_onska(app):
     @app.get("/onska")
     def onska():
         conn = db.get_db()
-        wishes = books.sort_by_read_date(
-            [b for b in books.load_books(conn) if b["status"] != "read"])
-        return _onska(wishes, None)
+        return _onska(onskelistan(conn), None)
 
     @app.post("/onska/lagg-till")
     def onska_lagg_till():
@@ -99,23 +114,63 @@ def init_onska(app):
         form.setdefault("titel", "")
         values, fel = redigera.form_to_fields(form, {})   # THE shared validator
         if fel:
-            wishes = books.sort_by_read_date(
-                [b for b in books.load_books(conn) if b["status"] != "read"])
-            return _onska(wishes, fel), 400
+            return _onska(onskelistan(conn), fel), 400
         # MC 12597: the write itself moved ONE step into skapa_onska (the
         # accept route is its second caller); the POST contract here is
         # byte-identical — the writer gets no isbn/year, as before.
         if skapa_onska(conn, values["title"], form.get("forfattare", ""),
                        format=form.get("format")) == "redan":
-            wishes = books.sort_by_read_date(
-                [b for b in books.load_books(conn) if b["status"] != "read"])
             return _onska(
-                wishes, "Den boken står redan på önskelistan."), 400
+                onskelistan(conn), "Den boken står redan på önskelistan."), 400
         return auth.redirect_prefixed("/onska")
+
+    @app.post("/onska/<int:id>/las-nu")
+    def onska_las_nu(id):
+        """MC 12733 (R6): a book ENTERS "Läser nu" from 'wishlist' or
+        'aborted' (a resume) and from nowhere else — a `read` row meets the
+        door (§5.11: `read → anything` never happens here). The flip is the
+        WHOLE transition: no date, no year (naming a date is /las's meaning,
+        the year is mark_read's), so the wish's 0 sentinel keeps its law."""
+        conn = db.get_db()
+        row = conn.execute("SELECT status FROM book WHERE id = ?",
+                           (id,)).fetchone()
+        if row is None:
+            abort(404)
+        if row[0] not in ("wishlist", "aborted"):
+            return render_template(
+                "csrf-fel.html",
+                fel="Endast en önskan eller en avbruten bok kan läsas nu."), 400
+        conn.execute("UPDATE book SET status = 'reading', updated = ?"
+                     " WHERE id = ?", (auth.utcnow_iso(), id))
+        conn.commit()
+        return auth.redirect_prefixed(f"/bok/{id}")
+
+    @app.post("/onska/<int:id>/avbryt")
+    def onska_avbryt(id):
+        """MC 12733 (R6): the ONLY 'reading'→'aborted' door. The row keeps
+        the read_year 0 sentinel and no date — mark_read never ran on it —
+        which is what lands an avbruten row under "Utan år" in any public
+        grouping BY LAW (the F-E ruling leans on exactly this)."""
+        conn = db.get_db()
+        row = conn.execute("SELECT status FROM book WHERE id = ?",
+                           (id,)).fetchone()
+        if row is None:
+            abort(404)
+        if row[0] != "reading":
+            return render_template(
+                "csrf-fel.html",
+                fel="Endast en bok du läser nu kan avbrytas."), 400
+        conn.execute("UPDATE book SET status = 'aborted', updated = ?"
+                     " WHERE id = ?", (auth.utcnow_iso(), id))
+        conn.commit()
+        return auth.redirect_prefixed(f"/bok/{id}")
 
     @app.post("/onska/<int:id>/las")
     def onska_las(id):
-        """The ONE door that turns a wish into a read WITH a date (§5.11).
+        """The ONE dated door into read (§5.11): since MC 12733 (R6) it
+        admits 'wishlist' AND 'reading' — `reading → read` reuses THIS door,
+        it is not a second one — and still refuses a read row (`read → read`
+        never happens) and an aborted one (resume through las-nu first).
         mark_read owns the flip + the read_year sentinel; the date is named
         HERE because naming a date is what this door means."""
         conn = db.get_db()
@@ -123,10 +178,11 @@ def init_onska(app):
                            (id,)).fetchone()
         if row is None:
             abort(404)
-        if row[0] != "wishlist":
+        if row[0] not in ("wishlist", "reading"):
             return render_template(
                 "csrf-fel.html",
-                fel="Den boken är redan läst — läsdatumet ändras här."), 400
+                fel="Endast en önskan eller en bok du läser nu kan markeras"
+                    " läst här."), 400
         seed.mark_read(conn, id)
         conn.execute("UPDATE book SET date_read = ?, updated = ? WHERE id = ?",
                      (date.today().isoformat(), auth.utcnow_iso(), id))

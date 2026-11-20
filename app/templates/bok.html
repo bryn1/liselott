@@ -52,6 +52,36 @@
     <button type="submit">Spara betyg</button>
     <button type="submit" class="linkad" name="betyg" value="clear">Rensa betyg</button>
   </form>
+  {# MC 12733 (M12 W1, §1): the status action row — ONE small row keyed on
+     the row's own status, inside this SAME inloggad() posture (MC 12497: a
+     public page paints no write door; the pinned anon bytes cannot move).
+     Every button is a POST form carrying the csrf field, the copy is calm
+     Swedish, and a `read` row renders NOTHING here (§5.11: read → anything
+     never happens). The doors live in app/onska.py (R6). #}
+  {% if bok.status == "wishlist" %}
+  <form class="status-val" method="post" action="{{ url_for('onska_las_nu', id=bok.id) }}">
+    <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+    <button type="submit">Jag läser den nu</button>
+  </form>
+  {% elif bok.status == "reading" %}
+  {# "Läst nu" is the SAME dated /las door the /onska row has always used
+     (now legal from here, R6) — plain buttons, the global shape. #}
+  <div class="status-val">
+    <form method="post" action="{{ url_for('onska_las', id=bok.id) }}">
+      <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+      <button type="submit">Läst nu</button>
+    </form>
+    <form method="post" action="{{ url_for('onska_avbryt', id=bok.id) }}">
+      <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+      <button type="submit">Avbryt</button>
+    </form>
+  </div>
+  {% elif bok.status == "aborted" %}
+  <form class="status-val" method="post" action="{{ url_for('onska_las_nu', id=bok.id) }}">
+    <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+    <button type="submit">Jag läser den nu igen</button>
+  </form>
+  {% endif %}
   {% endif %}
   <dl class="uppgifter">
     <dt>Format</dt><dd>{{ format_word(bok) }}</dd>
