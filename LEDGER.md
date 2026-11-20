@@ -1743,7 +1743,9 @@ postdating a line make that line STALE — de-stale before quoting it.
   tests/test_status_model.py + 3 test_schema_migrate.py; red-first
   transcripts AND the plant transcripts — leak/year-repair/bundle-refuse/
   guard-csrf/wish-law×2 — under the wave's .tmp dir; the two fix-round legs
-  are green at base — pins, named mutants under .tmp-w1-c2/). P4 note
+  are green at the cycle-1 tree `1b0b4cb` (the MC 12734 W2 wording carry,
+  DA-verdict-w1-c2 G1 — at base `55f19ce` the file does not exist) — pins,
+  named mutants under .tmp-w1-c2/). P4 note
   (DA-verdict-w1 F6): bok.html's `class="status-val"` carries no CSS rule —
   kept as the owner-side styling hook until a CSS wave. Anon pins zero-diff
   UNCHANGED (PIN_LANDING/PIN_SHELF/PIN_ANON_BOK_1/2 re-measure green; the
@@ -1751,3 +1753,45 @@ postdating a line make that line STALE — de-stale before quoting it.
   §7's schema-proven equivalence). seed.py's dedupe_read (`!= 'read'`,
   R7) LEFT as planned — it dedupes READ rows by key, not a wish site.
   Exposure gate held list UNCHANGED vs base {LEDGER.md}. NOTHING pushed.
+
+- **MC 12734 (M12 W2) ÅRET — F3 annual recap + F5 quiet stats, ONE owner
+  page, DONE (this commit):** PLAN-M12 REV 2 §2+§3 ride `/aret` (R2: ONE
+  page, ONE new nav link "Året" inside the inloggad-gated header;
+  `current="aret"`). Pure read model, zero new columns: `app/aret.py`
+  computes everything from the ONE loader over the OWNER's rows — the
+  recap ("Årets läsning <år>") counts READ rows only (aborted/reading
+  never enter a year's numbers, §2's exclusion, baited in the fixture with
+  a RATED aborted row so the named recap-math mutant bites), snitt one
+  decimal with the comma, toppar rating-5 in fold-title order, ljudbok and
+  notes counts; "Genom åren" carries the per-year lines newest first,
+  yearless READ rows as "Utan år: N", wishlist/reading/aborted as their
+  own non-zero tails — the F-I CLOSING SUMS assert from the RENDERED page
+  against SQL (per-year + Utan år == read count; + tails == the table;
+  the 724-total equality is the live-DB property, the fixture computes its
+  own closure per the W2 row). Per-month lines count through W1's
+  `books.shelf_month`, monthless rows as ONE "Utan datum" count. ?ar=
+  REUSES `filtrering.parse` (R5: invalid == absent byte-identical; a valid
+  empty year is ONE quiet line, never a zero scoreboard). Owner-only BY
+  GUARD — /aret rides NO auth.PUBLIC_READ list; the anon 302 posture leg
+  mirrors /sok's and is byte-identical to it (green-at-base PIN named per
+  §7: PUBLIC_READ inclusion mutant reddens it). Calm contract pinned:
+  "förra året"/"mål"/"streak"/"prestige" and chart markup never render
+  (NEVER-DO §3-8/9). THE SLASH RULE rides the ai_rek.py precedent,
+  registered after the view so url_for keeps building the canonical URL.
+  Suite 814 passed + 1 skipped (base 798+1, +16 legs all in
+  tests/test_aret.py; red-first at `48abe41` + both plants + the guard-PIN
+  mutant under .tmp-w2/; the empty-shelf leg holds the first-login state).
+  PIN_OWNER RE-MEASURED IN THIS COMMIT with truthful history at the value
+  (one new nav link, plan §6 W2; old (4276, fedfe610…) held 6d4d576→
+  48abe41); anon pins PIN_LANDING/PIN_SHELF (+ PIN_ANON_BOK_1/2 in
+  tests/test_edit_path.py) UNTOUCHED and re-measure green — the header is
+  inloggad-gated, anon bytes cannot move, and the nav-outside-inloggad
+  plant goes RED on exactly that law. Carried the DA-verdict-w1-c2 P4
+  wording nits that touch this wave's files: G1 "green at base" now names
+  the cycle-1 tree `1b0b4cb` in the LEDGER line above AND the fix-round
+  leg's docstring (LEDGER:1727's PIN phrase stays — it IS true at base);
+  G2/G3/G4 untouched by this wave's files (recorded, not re-litigated).
+  README owner manual gained the ONE calm "Året" section — public claims
+  UNCHANGED (the page is owner-side; test_public_read's law stands by
+  construction). Exposure gate held list UNCHANGED vs base {LEDGER.md}.
+  NOTHING pushed.

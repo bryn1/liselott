@@ -37,14 +37,22 @@ SWEEP = ("/", "/bibliotek", "/bok/1", "/bok/2", "/bok/9999", "/sok?q=a",
          "/satt-loesenord", "/robots.txt",
          # P1-1 (MC 12451): the door that was missing — its form action must
          # ride the mount like every other emitted URL.
-         "/byter-losenord") + NOT_YET_LANDED
+         "/byter-losenord",
+         # MC 12734 (M12 W2): /aret landed — swept as the REAL page from its
+         # own commit (the house idiom above), owner session in hand.
+         "/aret") + NOT_YET_LANDED
 # everything else must 302 an anonymous visitor; the allow-listed four may
 # not. MC 12497 moved the whole READ set out of this list; MC 12501 moved
 # most of it BACK in — only the landing, the shelf and public-set ids stay
 # outside (their prefixed-URL sweep got its own leg below precisely because
 # they are what a stranger's browser renders).
 ANON_PROTECTED = ("/logga-ut", "/byter-losenord", "/redigera/1", "/sok",
-                  "/rekommendationer")
+                  "/rekommendationer",
+                  # MC 12734 (M12 W2): /aret is owner-only BY GUARD — it
+                  # rides no PUBLIC_READ list, so an anon GET answers the
+                  # uniform 302 (the posture's own byte leg lives in
+                  # tests/test_aret.py).
+                  "/aret")
 _ATTR_RE = re.compile(r'\b(src|href|action)\s*=\s*"([^"]*)"', re.I)
 _OK_NON_URL = ("#", "mailto:")
 

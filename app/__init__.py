@@ -104,7 +104,7 @@ def create_app():
     # Late import: app.auth imports app.db, never the factory (no cycle).
     # MC 12606 (M11-N4b): the fourth machine door `pris` is RETIRED — the
     # owner ruling behind it is quoted on the LEDGER row, not here.
-    from app import (ai_rek, auth, backfill, bundle, onska, redigera,
+    from app import (ai_rek, aret, auth, backfill, bundle, onska, redigera,
                      report, routes, tillagg)
     auth.init_auth(app)
 
@@ -124,6 +124,10 @@ def create_app():
         return response
 
     routes.init_routes(app)
+    # MC 12734 (M12 W2): the ONE new page of the wave, riding the SAME
+    # init-modules mechanism as every other surface (no second guard, no
+    # second loader — the owner-only posture is the standing §6.4 guard's).
+    aret.init_aret(app)
     redigera.init_redigera(app)
     tillagg.init_tillagg(app)
     onska.init_onska(app)

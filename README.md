@@ -176,6 +176,13 @@ fixa dem ett åt gången. (Eget uppladdat eller inskickat omslag skrivs aldrig
 dina egna betyg — varje kort förklarar varför ("För att du gav …").
 "Visa inte igen" tar bort ett förslag för alltid.
 
+**Året.** Under "Året" ser du din egen läsning i lugna ord: hur många böcker
+du läste ett år, snittbetyget, vilka som fick fem stjärnor, hur många ljudböcker
+och anteckningar året bar, och hur månaderna fördelade sig. Längre ner står
+historiken, ett läsår i taget — och önskelistan, det du läser nu och det du
+avbröt, som sina egna rader. Sidan syns bara för dig som är inloggad och
+jämför ingenting: den räcker bara det som faktiskt lästes.
+
 **Byt lösenord.** Under "Byt lösenord" (kräver nuvarande lösenord). OBS: alla
 inloggningar, även din egen, loggas ut vid bytet — logga in med det nya.
 

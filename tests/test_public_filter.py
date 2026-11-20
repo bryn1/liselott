@@ -54,7 +54,14 @@ PUBLIC_YEARS = [2026, 2025, 2024]          # the shelf's public read years
 # MEASURED on 6d4d576 with THIS fixture (normalized ?v= token, see docstring).
 PIN_LANDING = (2874, "56780752833e96a9a15573580428ea62d8e05b6ad6ba8b9e4dc424ad25d089af")
 PIN_SHELF = (2584, "fb5269d1a052c7d98b7c481273fcd54330d06e2be534a238f9d5cf51554f084a")
-PIN_OWNER = (4276, "fedfe610114c8d9376d990a91a66f4378a97490337aaed52fdf10d19d2bf49e0")
+# RE-MEASURED IN THE MC 12734 (M12 W2) COMMIT — the ONLY reason the owner
+# bytes moved: the inloggad-gated header gained the ONE "Året" nav link
+# (PLAN-M12 REV 2 §6 W2 row; page + link law in tests/test_aret.py). The
+# previous value (4276, fedfe610...) stood from 6d4d576 through 48abe41; the
+# two anon pins directly above are UNTOUCHED (header renders for the logged
+# in only — the W2 anon zero-diff proof). Owner landing == owner shelf bytes
+# (MC 12522) still holds at the new value.
+PIN_OWNER = (4324, "12b0bfe45157467272f97b3188a30535335daff57c749b6d07e73e822caeee4a")
 
 FORM_ROW = re.compile(b'\n<form class="hyll-filtrering".*?</form>', re.DOTALL)
 

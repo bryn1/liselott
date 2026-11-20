@@ -443,8 +443,10 @@ def test_the_rated_reading_row_is_a_plain_public_card(hylla):
     class end-to-end through the REAL doors. Mutants: narrowing
     PUBLIC_SET_SQL with `AND status <> 'reading'` turns the anon 200 RED;
     painting any status word on the public card turns the wordless checks
-    RED (both run in .tmp-w1-c2/; the leg is GREEN at base — a pin, not a
-    red-first leg)."""
+    RED (both run in .tmp-w1-c2/; the leg is GREEN at the cycle-1 tree
+    `1b0b4cb` — a pin there, not a red-first leg; MC 12734 W2 wording carry,
+    DA-verdict-w1-c2 G1: at the wave's BASE `55f19ce` the file does not even
+    exist, so "at base" named the wrong tree)."""
     tmp, owner, anon = hylla
     r = owner.post("/liselott/bundle", data=bundle_bytes(line(
         book_key="kRatedReading", title="Strömbrytaren", status="wishlist",

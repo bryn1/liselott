@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Året — Liselotts bokhylla{% endblock %}
+{% block content %}
+{# MC 12734 (M12 W2, PLAN-M12 §2+§3) — her reading life in calm words:
+   "Årets läsning <år>" (the recap) and "Genom åren" (the history). Sentence
+   per line, one h1 (§9). The NEVER-DO §3-8/9 line binds the copy: nothing
+   here compares, scores or nudges — a count with nothing in it stays quiet,
+   so a zero never renders where data should. Every number was computed at
+   the ONE read in app/aret.py; this page adds no query and no rule.
+   The empty state is ONE line and no section over nothing (the _hyllan
+   law), which is also what a fresh install's first login sees. #}
+<h1>Året</h1>
+{% if not ar %}
+<p class="tom-state">Inga läsår än.</p>
+{% else %}
+<section class="arets-lasning" aria-labelledby="arets-lasning">
+  <h2 id="arets-lasning">Årets läsning {{ ar }}</h2>
+  {% if not lasning.antal %}
+  {# A valid year she never read in: one quiet line, never a zero
+     scoreboard (§2). #}
+  <p>Du läste inga böcker under {{ ar }}.</p>
+  {% else %}
+  <p>Du läste {{ number_and_word(lasning.antal, "bok", "böcker") }} under {{ ar }}.</p>
+  {% if lasning.betyg %}
+  <p>{{ lasning.betyg }} av dem fick betyg, i snitt {{ lasning.snitt }}.</p>
+  {% endif %}
+  {% if lasning.toppar %}
+  <p>Fem stjärnor: {{ lasning.toppar }}.</p>
+  {% endif %}
+  {% if lasning.ljud %}
+  <p>Varav {{ number_and_word(lasning.ljud, "ljudbok", "ljudböcker") }}.</p>
+  {% endif %}
+  {% if lasning.noter %}
+  <p>{{ lasning.noter }} hade anteckningar.</p>
+  {% endif %}
+  <p class="manader">{{ lasning.manader }}</p>
+  {% endif %}
+  {# The calm year switch: the years present in HER rows and no others
+     (filtrering.years, §2 "never a wider list than the data"); the current
+     year is plain text, the rest are GET links — bookmarkable, back-able. #}
+  <p class="ar-val">{% for year in ar_alla %}{% if year == ar %}{{ year }}{% else %}<a href="{{ url_for('aret', ar=year) }}">{{ year }}</a>{% endif %}{{ " · " if not loop.last }}{% endfor %}</p>
+</section>
+{% endif %}
+
+<section class="genom-aren" aria-labelledby="genom-aren">
+  {# §3: the history of the whole shelf — not the selected year's — so the
+     tails carry every row honestly. Hidden entirely when there is nothing
+     to account for (an empty heading is a lie about the data). #}
+  {% if historik.lasta_totalt or historik.halor %}
+  <h2 id="genom-aren">Genom åren</h2>
+  <ul>
+    {% for line in historik.ar %}
+    <li>{{ line.year }} · {{ number_and_word(line.antal, "bok", "böcker") }}{% if line.snitt %} · snitt {{ line.snitt }}{% endif %}</li>
+    {% endfor %}
+    {% if historik.utan_ar %}
+    <li>Utan år: {{ historik.utan_ar }}</li>
+    {% endif %}
+    {% for ord, antal in historik.halor %}
+    <li>{{ ord }}: {{ antal }}</li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+</section>
+{% endblock %}
