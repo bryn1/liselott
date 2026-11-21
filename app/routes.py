@@ -143,7 +143,17 @@ def init_routes(app):
         small footer line: window-open → /satt-loesenord "Välj ditt lösenord",
         configured → /logga-in "Logga in". The setup state keeps its data-free
         landing (grupper=[]): while no password stands NOTHING is public — the
-        setup-state exception, not an entrance. The closed state never reaches
+        setup-state exception, not an entrance. MC 12745 (owner 2026-11-21,
+        verbatim: "The public page needs a filter and search function" + "The
+        page im watching on my phone has no filters" — the SECOND report of
+        ONE root: MC 12551 fixed the page we looked at, /bibliotek, not the
+        landing he opens): the configured landing hands over the SAME
+        `filtrering`/`ar_all` these very rows were already narrowed with (stop
+        discarding them) and start.html includes the SAME
+        _publik-filtrering.html — the form's action pointed at THIS page, so
+        a filter from the landing stays on the landing. The setup-state
+        landing is handed no filtrering: no rows to filter, no dead control.
+        The closed state never reaches
         this view; the guard's pinned gate page answers it. Two ENDPOINTS on
         one render (not two rules on one endpoint): with one endpoint url_for
         would collapse onto the shorter rule and the nav would emit /liselott
@@ -152,9 +162,12 @@ def init_routes(app):
         if session.get(auth.SESSION_FLAG):
             return _hylla()
         if auth.is_configured(db.get_db()):
-            grupper, _ = _hylldata(_publik_filtrering())
+            filtr = _publik_filtrering()
+            grupper, ar = _hylldata(filtr)
             return render_template("start.html", dorren="logga_in",
-                                   etiketten="Logga in", grupper=grupper)
+                                   etiketten="Logga in", grupper=grupper,
+                                   filtrering=filtr, ar_all=ar,
+                                   filtreringsmal="rot")
         return render_template("start.html", dorren="satt_losenord",
                                etiketten="Välj ditt lösenord", grupper=[])
 

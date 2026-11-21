@@ -24,6 +24,17 @@ private rows this file owns: unrated `read` rows — "Tyst i Tived" in a year NO
 public book populated (the year-list leak) and "Ångest i Ön" sharing the public
 year 2025 (the year-filter leak). Swedish diacritics on purpose: the fold must
 be åäö-safe on both sides of every match.
+
+MC 12745 — the row enters the LANDING (owner 2026-11-21, verbatim: "The public
+page needs a filter and search function" + the phone answer "The page im
+watching on my phone has no filters"). MC 12551 fixed the page we looked at
+(/bibliotek, an orphan no link points to), not the page the owner opens (`/`).
+The landing's BEHAVIOUR legs live in tests/test_landing_filter.py (file
+hygiene: this one was at the ceiling; the split moves no rule, only proof);
+the moved PIN rides HERE, beside the family it belongs to — it moves
+legitimately (the form entered the page), re-measured in the commit that
+moved it, with the row's full footprint pinned away beside it
+(PIN_LANDING_ROW_FREE) so the page's gain is EXACTLY one filter row.
 """
 import hashlib
 import re
@@ -46,13 +57,23 @@ PRIVATE_AUTHORS = tuple(row[8] for row in PRIVATE_ROWS)
 PRIVATE_IDS = tuple(row[0] for row in PRIVATE_ROWS)
 PRIVATE_ONLY_YEAR = 2023                   # no PUBLIC book was read this year
 
+
 PUBLIC_IDS = (1, 2, 4, 5)                  # seed_shelf: rated 5/4/3 + wishlist
 PUBLIC_TITLES = ("Goda natten Agda", "Nattfjärden", "Floden minns")
 WISHLIST_TITLE = "En skatt av silver"
 PUBLIC_YEARS = [2026, 2025, 2024]          # the shelf's public read years
 
 # MEASURED on 6d4d576 with THIS fixture (normalized ?v= token, see docstring).
-PIN_LANDING = (2874, "56780752833e96a9a15573580428ea62d8e05b6ad6ba8b9e4dc424ad25d089af")
+# RE-MEASURED IN THE MC 12745 COMMIT — the ONLY reason the landing bytes moved:
+# the public filter row entered the page (owner 2026-11-21, verbatim: "The
+# public page needs a filter and search function" + "The page im watching on
+# my phone has no filters"; MC 12551 had fixed /bibliotek, the page we looked
+# at, not the landing the owner opens). The value it replaces —
+# (2874, 5678075...) — stood from 6d4d576 through bd2a257 and is NOT retired:
+# it lives on as PIN_LANDING_ROW_FREE below, the strip proof that the page
+# gained EXACTLY the one form row. PIN_SHELF/PIN_OWNER are UNTOUCHED.
+PIN_LANDING_ROW_FREE = (2874, "56780752833e96a9a15573580428ea62d8e05b6ad6ba8b9e4dc424ad25d089af")
+PIN_LANDING = (3686, "52751cf2e285b60dd59fedf5232c106c962890fe90f76c4b5821dc77c9d28762")
 PIN_SHELF = (2584, "fb5269d1a052c7d98b7c481273fcd54330d06e2be534a238f9d5cf51554f084a")
 # RE-MEASURED IN THE MC 12734 (M12 W2) COMMIT — the ONLY reason the owner
 # bytes moved: the inloggad-gated header gained the ONE "Året" nav link
@@ -96,35 +117,37 @@ def _app():
     return app
 
 
-@pytest.fixture()
-def konfigurerad(tmp_path, monkeypatch):
-    """The synthetic shelf + the two private rows + the password set, and the
-    two clients the contract speaks about: the anonymous visitor and the
-    logged-in owner."""
-    monkeypatch.setenv("LISELOTT_DATA_DIR", str(tmp_path))
-    monkeypatch.delenv("LISELOTT_PREFIX", raising=False)
-    monkeypatch.delenv("LISELOTT_ENV", raising=False)
-    # (MC 12606: this fixture also deleted PRIS_DOOR_TOKEN, a name the retired
-    # price door read; nothing reads it now, so the pin is gone. The byte pins
-    # below are UNTOUCHED — measured at 6d4d576 and green here.)
-    conn_seed = sqlite3.connect(tmp_path / "liselott.db")
-    conn_seed.close()
-    seed_shelf(tmp_path / "liselott.db")
-    conn = sqlite3.connect(tmp_path / "liselott.db")
+def _insert_rows(conn, rows):
+    """Rows through the real schema — the shape MC 12551 seeded inline; an
+    author is attached only when the row names one (the MC 12733 shape rows
+    carry none). One insert, both fixtures below."""
     now = "2026-11-15T00:00:00Z"
     for (bid, title, year, read_year, date_read, rating, fmt, status,
-         author) in PRIVATE_ROWS:
+         author) in rows:
         conn.execute(
             "INSERT INTO book (id, title, year, read_year, date_read, rating,"
             " format, status, book_key, created, updated)"
             " VALUES (?,?,?,?,?,?,?,?,?,?,?)",
             (bid, title, year, read_year, date_read, rating, fmt, status,
              f"key-{bid}", now, now))
-        conn.execute("INSERT INTO author (name) VALUES (?)", (author,))
-        conn.execute("INSERT INTO book_author (book_id, author_id) VALUES (?, "
-                     "(SELECT id FROM author WHERE name = ?))", (bid, author))
+        if author:
+            conn.execute("INSERT INTO author (name) VALUES (?)", (author,))
+            conn.execute(
+                "INSERT INTO book_author (book_id, author_id) VALUES (?, "
+                "(SELECT id FROM author WHERE name = ?))", (bid, author))
     conn.commit()
+
+
+def _seed(tmp_path, extra=()):
+    conn_seed = sqlite3.connect(tmp_path / "liselott.db")
+    conn_seed.close()
+    seed_shelf(tmp_path / "liselott.db")
+    conn = sqlite3.connect(tmp_path / "liselott.db")
+    _insert_rows(conn, tuple(PRIVATE_ROWS) + tuple(extra))
     conn.close()
+
+
+def _configure_and_clients():
     owner = _app().test_client()
     assert owner.post("/liselott/satt-loesenord",
                       data={"loesenord": PASSWORD,
@@ -132,14 +155,42 @@ def konfigurerad(tmp_path, monkeypatch):
     return owner, _app().test_client()
 
 
+def _wrap_env(tmp_path, monkeypatch):
+    monkeypatch.setenv("LISELOTT_DATA_DIR", str(tmp_path))
+    monkeypatch.delenv("LISELOTT_PREFIX", raising=False)
+    monkeypatch.delenv("LISELOTT_ENV", raising=False)
+
+
+@pytest.fixture()
+def konfigurerad(tmp_path, monkeypatch):
+    """The synthetic shelf + the two private rows + the password set, and the
+    two clients the contract speaks about: the anonymous visitor and the
+    logged-in owner."""
+    _wrap_env(tmp_path, monkeypatch)
+    # (MC 12606: this fixture also deleted PRIS_DOOR_TOKEN, a name the retired
+    # price door read; nothing reads it now, so the pin is gone. The byte pins
+    # below are UNTOUCHED — measured at 6d4d576 and green here.)
+    _seed(tmp_path)
+    return _configure_and_clients()
+
+
 # ── the byte pins: the no-param public pages did not move ───────────────────
-def test_default_anonymous_landing_is_the_pinned_page(konfigurerad):
+def test_default_anonymous_landing_is_the_pinned_page_plus_one_form_row(konfigurerad):
+    """MC 12745 moved this pin ONCE, legitimately: the filter row entered the
+    landing. Everything the row does not touch is still the 6d4d576 page —
+    strip the row's FULL footprint (its own leading newline, the same
+    include-line shape the shelf leg above proves) and the pinned bytes come
+    back byte for byte. A second row sneaking in would leave residue: hits."""
     _, anon = konfigurerad
     r = anon.get("/liselott/")
     assert r.status_code == 200
-    assert _pin(r.data) == PIN_LANDING, "the anonymous landing moved at all"
-    assert b"hyll-filtrering" not in r.data   # the form row is /bibliotek's
-    assert _ids(r.text) == set(PUBLIC_IDS)    # the anchors, unchanged too
+    body = r.data
+    assert _pin(body) == PIN_LANDING
+    stripped, hits = FORM_ROW.subn(b'', body, count=1)
+    assert hits == 1, "the landing must carry exactly one filter row"
+    assert _pin(stripped) == PIN_LANDING_ROW_FREE, \
+        "the landing changed beside the form row"
+    assert _ids(body.decode()) == set(PUBLIC_IDS)    # the anchors, unchanged
 
 
 def test_default_anonymous_shelf_is_the_pinned_page_plus_one_form_row(konfigurerad):
@@ -159,12 +210,15 @@ def test_owner_pages_carry_no_form_and_her_params_are_inert(konfigurerad):
     """The filter is the PUBLIC reader's: the owner's landing and shelf are the
     pinned bytes (and each other's bytes, MC 12522), and `?betyg=` on HER shelf
     changes NOTHING — her view changed NOTHING when the scope narrowed."""
+    # MC 12745: the landing branch is the owner's too — no form and inert
+    # params THERE, exactly as on the shelf (the zero-byte law, MC 12551).
     owner, _ = konfigurerad
     for path in ("/liselott/", "/liselott/bibliotek"):
         assert _pin(owner.get(path).data) == PIN_OWNER, path
+        assert b"hyll-filtrering" not in owner.get(path).data, path
+        assert owner.get(path + "?betyg=4&ar=2025&q=tyst").data == \
+            owner.get(path).data, path
     plain = owner.get("/liselott/bibliotek").data
-    assert b"hyll-filtrering" not in plain
-    assert owner.get("/liselott/bibliotek?betyg=4&ar=2025&q=tyst").data == plain
     assert "Tyst i Tived" in plain.decode()        # her unfiltered shelf, still
 
 
@@ -424,3 +478,4 @@ def test_the_private_sok_is_untouched_by_the_public_filters(konfigurerad):
     assert "Nattfjärden" in owner.get("/liselott/sok?q=kriminalitet").text
     assert anon.get("/liselott/sok?q=hemmar").status_code == 302
     assert owner.get("/liselott/bibliotek?q=hemmar").status_code == 200
+

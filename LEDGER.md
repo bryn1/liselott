@@ -1839,3 +1839,49 @@ postdating a line make that line STALE — de-stale before quoting it.
   public claims UNCHANGED (the page is owner-side; test_public_read's law
   stands by construction). Exposure gate held list UNCHANGED vs base
   {LEDGER.md}. NOTHING pushed.
+- **MC 12745 (M12.1) THE FILTER ROW ENTERS THE LANDING — same partial,
+  parametrized action, owner branch byte-frozen** (owner 2026-11-21,
+  verbatim: "The public page needs a filter and search function" + the phone
+  answer "The page im watching on my phone has no filters" — the SECOND
+  owner report of ONE root: MC 12551 (2026-11-15, the same ask) fixed the
+  page WE looked at — /bibliotek, an orphan no link points to — not the page
+  he opens; the landing IS the public entrance (MC 12522), and this wave
+  completes that fix). ONE concern, ZERO new mechanisms: the configured-anon
+  branch of `routes.rot()` stops discarding what it already computed
+  (`_hylldata(_publik_filtrering())` was narrowing those very rows and
+  returning the year list; both are handed over now, with
+  `filtreringsmal="rot"`), start.html gains ONE include line — the SAME
+  _publik-filtrering.html bibliotek.html includes, no copy — and the partial
+  learns ONE word: `url_for(filtreringsmal|default('bibliotek'))`, so the
+  landing's form posts to the LANDING (no surprise jump) while /bibliotek
+  keeps posting to itself, byte for byte (the default). The setup branch
+  hands over nothing: a wrapped site has no rows to filter and gets no dead
+  control (the partial's `{%- if %}` closes over whitespace — the setup page
+  stays byte-for-byte itself). The owner branch touches NOTHING (her
+  zero-byte law, MC 12551 note). RED-FIRST at `bd2a257` with tests only
+  (audit .tmp-ld/red-first.txt): 5 failed — the landing pin, the form row,
+  the year list, the narrowing parity, the calm invalid-param leg; the legs
+  green at base are NAMED PINS (the landing already RAN the narrow on its
+  rows — only the form was missing), each naming its mutant. TESTS: the
+  landing's behaviour legs (7) live in NEW tests/test_landing_filter.py —
+  the file-hygiene split at the ≤600 ceiling moved no rule, only proof —
+  and the byte-pin family stays in tests/test_public_filter.py (fixtures
+  deduplicated through _seed/_insert_rows helpers, konfigurerad imported by
+  the new file). PIN_LANDING RE-MEASURED IN-COMMIT (3686, 52751cf…) with
+  truthful history; the replaced value (2874, 5678075…) is NOT retired — it
+  lives as PIN_LANDING_ROW_FREE, the strip proof that the page gained
+  EXACTLY the one form row (measured byte for byte, not a phrase). PIN_SHELF,
+  PIN_OWNER and PIN_ANON_BOK UNMOVED and re-measure green; owner landing ==
+  owner shelf still byte-equal (the equality leg). PLANTS (§7 law, .tmp-ld/,
+  each restore byte-verified): owner-branch leak → RED on exactly the two
+  owner legs; setup-branch leak → RED on exactly the setup leg;
+  action-jump (partial constant) → RED on the three landing-action legs;
+  params-discard (_hylldata(None)) → RED on the five narrowing legs. README:
+  the owner manual gained the ONE calm "Filter." line (filtret finns på
+  första sidan nu, samma rad på båda ställena, "Filtrera" stannar på sidan
+  du öppnade) and the public-claim bullet + the intro line were de-staled
+  the SAME commit — the bullet had claimed "the landing carries no form row",
+  a claim this change retires (grep-zero for that phrasing; the LEDGER's
+  dated 12551 line stands as the history it is). Suite 828 passed + 1
+  skipped (base 821+1, +7 legs, the split moves none; .tmp-ld/green-full.txt).
+  NOTHING pushed.

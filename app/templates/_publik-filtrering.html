@@ -2,9 +2,17 @@
    "The public page needs filter by score, year, search by author, title and
    year"). A plain GET form, no JavaScript: the values ride the query string
    and the page IS the result. It renders ONLY when the view hands over a
-   `filtrering` — the anonymous reader's /bibliotek — so the landing, the setup
-   state and every owner page carry exactly the bytes they had before this row
-   existed (the byte pins in tests/test_public_filter.py).
+   `filtrering` — the anonymous reader's /bibliotek, and since MC 12745
+   (owner verbatim: "The page im watching on my phone has no filters") the
+   anonymous LANDING too, the same two entrances of one public shelf. The
+   setup state and every owner page hand over nothing and carry exactly the
+   bytes they had before this row existed (the byte pins in
+   tests/test_public_filter.py; the landing's pin moved EXACTLY by this row
+   — the strip proof beside it).
+   `filtreringsmal` names the form's target ENDPOINT — each page hands over
+   its own, so a filter chosen on the landing stays on the landing (no
+   surprise jump); the default keeps /bibliotek posting to itself, byte for
+   byte as it stood from MC 12551.
    `ar_all` is the view's list of years PRESENT in the rows it just read (for
    this reader: the public set) — a lookup, never a query from here; an
    <option> naming a year only a PRIVATE book populated would itself be a
@@ -14,7 +22,7 @@
    count, no chrome. Existing copy classes only (.ingna-traffar, the §9 muted
    line); no new token, no new colour. -#}
 {%- if filtrering %}
-<form class="hyll-filtrering" method="get" action="{{ url_for('bibliotek') }}" role="search">
+<form class="hyll-filtrering" method="get" action="{{ url_for(filtreringsmal|default('bibliotek')) }}" role="search">
   <label for="hyll-betyg">Betyg</label>
   <select id="hyll-betyg" name="betyg">
     <option value="">Alla</option>

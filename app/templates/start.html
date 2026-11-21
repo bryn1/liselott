@@ -13,13 +13,24 @@
    door stays — `dorren`/`etiketten` are server-side constants,
    never request data — as the landing's small footer line, below the shelf
    rather than as the whole page. The closed state never renders this page:
-   its pinned gate page answers from the guard (§6.1). #}
+   its pinned gate page answers from the guard (§6.1).
+   MC 12745 (owner 2026-11-21, verbatim: "The public page needs a filter and
+   search function"): above the shelf renders _publik-filtrering.html — the
+   SAME partial /bibliotek includes, no copy — on the CONFIGURED branch only:
+   the view hands this page `filtrering`/`ar_all` there and NOTHING on the
+   setup branch (a wrapped site has no rows to filter and gets no dead
+   control). `filtreringsmal` is the landing's one word to the partial: the
+   form posts to THIS page, so a filter chosen here stays here. Whitespace is
+   load-bearing exactly as on bibliotek.html: one include tag on its own line
+   with `-%}` — the setup-state page stays byte-for-byte the page that stood
+   before the row existed (the pins in tests/test_public_filter.py). #}
 {% block title %}Liselotts bokhylla{% endblock %}
 {% block content %}
 <h1>Liselotts bokhylla</h1>
 <p>En lugn samling lästa böcker, betyg och rekommendationer — satt i ordning
    av Liselott. De betygsatta böckerna och önskelistan är öppna för alla att
    läsa; resten av hyllan ligger bakom hennes lösenord.</p>
+{% include "_publik-filtrering.html" -%}
 {% include "_hyllan.html" -%}
 <p class="landnings-dorr"><a href="{{ url_for(dorren) }}">{{ etiketten }}</a></p>
 {% endblock %}

@@ -12,7 +12,9 @@ public. The rest behind password" — narrowing the same-day earlier claim of
 MC 12497, the newer ruling binding): the shelf filtered to it (rated books
 with their stars, plus the wishlist) — narrowable by the public reader's own
 filter row (MC 12551: score, read year, and a title/author search, always over
-those SAME public rows and never beyond them), the bok pages and covers of
+those SAME public rows and never beyond them; the row stands on the landing
+too since MC 12745 — the page the reader actually opens), the bok pages and
+covers of
 public-set ids, and the landing — which since MC 12522 OPENS that public shelf
 instead of only pointing at a login door — answer any anonymous visitor on a
 configured site; everything else — the unfiltered shelf, search, recommendations, and
@@ -140,6 +142,12 @@ boksidorna, sök, rekommendationer, omslag och stjärnor syns för alla utan
 lösenord — och det som står som anteckning på en bok sida visas då för alla.
 Endast du kan skriva: betygsätta, önska, lägga till, redigera och ta bort
 kräver ditt lösenord.
+
+**Filter.** Den publika hyllan har en filter-rad — betyg, år och fri sökning
+på titel eller författare — och den finns på första sidan nu, inte bara på
+`/bibliotek` (samma rad på båda ställena). Ett tryck på "Filtrera" stannar
+kvar på den sida du öppnade; din egen femvägarsökning finns fortfarande
+under "Sök".
 
 **Första lösenordet.** När appen startas för första gången är ett fönster öppet
 i 20 minuter: då sätter du ditt lösenord (minst 10 tecken). Fönstret stängs för
@@ -378,8 +386,11 @@ The guard (`app/auth.py::_auth_gate`) answers in three states, measured in
   the anonymous reader, even with a price row planted in the kept table.
 - **Configured site, the public reader's filters** (MC 12551, owner
   2026-11-15, verbatim: "The public page needs filter by score, year, search by
-  author, title and year"): above `/bibliotek` the anonymous reader gets ONE
-  calm GET-form row — a `betyg` select (1–5), an `ar` select carrying the years
+  author, title and year"; MC 12745, owner 2026-11-21, verbatim: "The public
+  page needs a filter and search function" + "The page im watching on my phone
+  has no filters"): above the public shelf — on the LANDING and on
+  `/bibliotek`, the same partial on both, no copy — the anonymous reader gets
+  ONE calm GET-form row — a `betyg` select (1–5), an `ar` select carrying the years
   the PUBLIC shelf actually populated, and a `q` box that searches TITLE OR
   AUTHOR (`app/templates/_publik-filtrering.html`, plain HTML, no JavaScript,
   the existing design tokens). `app/filtrering.py` owns the rules: the params
@@ -393,9 +404,14 @@ The guard (`app/auth.py::_auth_gate`) answers in three states, measured in
   `%`, `_`, `*`, `?`, a quote and the word ESCAPE are ordinary characters,
   which is exactly why a wildcard needle answers "Inga träffar". The wishlist
   is narrowed by `q` ONLY: it carries neither rating nor read year, so no
-  `betyg`/`ar` param speaks for it. The OWNER is never filtered (her params are
-  inert) and the landing carries no form row — both render the bytes they had
-  before the filters existed, pinned by `tests/test_public_filter.py`. Public
+  `betyg`/`ar` param speaks for it. The OWNER is never filtered (her params
+  are inert and her pages render the bytes they had before the filters
+  existed) and the WRAPPED setup-state landing carries no form — nothing to
+  filter while no password stands. The landing's form posts to the LANDING
+  (MC 12745: a filter chosen on the page the reader opened stays on it —
+  `/bibliotek` keeps posting to itself, the partial's default). The byte pins
+  in `tests/test_public_filter.py` keep the owner pages frozen and prove the
+  landing moved EXACTLY by the one row. Public
   stays exactly the ruling's list — rated books, the wishlist (without the
   price line MC 12606 retired) and PUBLIC FILTERING over those
   rows; NOTHING else becomes public.
